@@ -7,6 +7,9 @@ from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.config.loader import load_profiles
 from atlassian_cli.config.models import Deployment, Product, ProfileConfig, RuntimeOverrides
 from atlassian_cli.config.resolver import resolve_runtime_context
+from atlassian_cli.products.confluence.commands.attachment import app as confluence_attachment_app
+from atlassian_cli.products.confluence.commands.page import app as confluence_page_app
+from atlassian_cli.products.confluence.commands.space import app as confluence_space_app
 from atlassian_cli.products.jira.commands.issue import app as jira_issue_app
 from atlassian_cli.products.jira.commands.project import app as jira_project_app
 from atlassian_cli.products.jira.commands.user import app as jira_user_app
@@ -20,6 +23,9 @@ bitbucket_app = typer.Typer(help="Bitbucket commands")
 jira_app.add_typer(jira_issue_app, name="issue")
 jira_app.add_typer(jira_project_app, name="project")
 jira_app.add_typer(jira_user_app, name="user")
+confluence_app.add_typer(confluence_page_app, name="page")
+confluence_app.add_typer(confluence_space_app, name="space")
+confluence_app.add_typer(confluence_attachment_app, name="attachment")
 
 app.add_typer(jira_app, name="jira")
 app.add_typer(confluence_app, name="confluence")
