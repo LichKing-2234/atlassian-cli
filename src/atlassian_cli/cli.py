@@ -7,6 +7,10 @@ from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.config.loader import load_profiles
 from atlassian_cli.config.models import Deployment, Product, ProfileConfig, RuntimeOverrides
 from atlassian_cli.config.resolver import resolve_runtime_context
+from atlassian_cli.products.bitbucket.commands.branch import app as bitbucket_branch_app
+from atlassian_cli.products.bitbucket.commands.pr import app as bitbucket_pr_app
+from atlassian_cli.products.bitbucket.commands.project import app as bitbucket_project_app
+from atlassian_cli.products.bitbucket.commands.repo import app as bitbucket_repo_app
 from atlassian_cli.products.confluence.commands.attachment import app as confluence_attachment_app
 from atlassian_cli.products.confluence.commands.page import app as confluence_page_app
 from atlassian_cli.products.confluence.commands.space import app as confluence_space_app
@@ -26,6 +30,10 @@ jira_app.add_typer(jira_user_app, name="user")
 confluence_app.add_typer(confluence_page_app, name="page")
 confluence_app.add_typer(confluence_space_app, name="space")
 confluence_app.add_typer(confluence_attachment_app, name="attachment")
+bitbucket_app.add_typer(bitbucket_project_app, name="project")
+bitbucket_app.add_typer(bitbucket_repo_app, name="repo")
+bitbucket_app.add_typer(bitbucket_branch_app, name="branch")
+bitbucket_app.add_typer(bitbucket_pr_app, name="pr")
 
 app.add_typer(jira_app, name="jira")
 app.add_typer(confluence_app, name="confluence")
