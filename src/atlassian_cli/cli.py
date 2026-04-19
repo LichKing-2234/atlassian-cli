@@ -8,6 +8,8 @@ from atlassian_cli.config.loader import load_profiles
 from atlassian_cli.config.models import Deployment, Product, ProfileConfig, RuntimeOverrides
 from atlassian_cli.config.resolver import resolve_runtime_context
 from atlassian_cli.products.jira.commands.issue import app as jira_issue_app
+from atlassian_cli.products.jira.commands.project import app as jira_project_app
+from atlassian_cli.products.jira.commands.user import app as jira_user_app
 
 app = typer.Typer(help="Atlassian Server/Data Center CLI")
 
@@ -16,6 +18,8 @@ confluence_app = typer.Typer(help="Confluence commands")
 bitbucket_app = typer.Typer(help="Bitbucket commands")
 
 jira_app.add_typer(jira_issue_app, name="issue")
+jira_app.add_typer(jira_project_app, name="project")
+jira_app.add_typer(jira_user_app, name="user")
 
 app.add_typer(jira_app, name="jira")
 app.add_typer(confluence_app, name="confluence")
