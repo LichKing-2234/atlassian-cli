@@ -168,8 +168,8 @@ The CLI must support three configuration inputs:
 
 Configuration resolution order:
 
-1. Explicit command-line flags
-2. Environment variables
+1. Explicit command-line flags, including repeated `--header`
+2. Environment variables, including `ATLASSIAN_HEADER_*`
 3. Selected `--profile`
 4. Default profile
 
@@ -211,6 +211,7 @@ Supported v1 auth inputs:
 - `basic` using `username + token`
 - `bearer` using `token`
 - `pat` using `token`
+- explicit request headers supplied by the caller
 
 Supported v1 command flags:
 
@@ -220,6 +221,40 @@ Supported v1 command flags:
 - `--token`
 - `--auth`
 - `--profile`
+- repeated `--header 'Name: value'`
+
+### Header injection model
+
+The CLI must support non-invasive authentication and routing integration by accepting arbitrary HTTP headers from the caller without understanding how they were produced.
+
+This mechanism is intended for external authentication flows such as Agora OAuth. The CLI must not implement Agora OAuth itself and must not depend on Agora-specific code.
+
+Supported header injection inputs:
+
+- repeated command-line flags: `--header 'Name: value'`
+- environment variables using the prefix `ATLASSIAN_HEADER_`
+
+Environment variable mapping rules:
+
+- strip the `ATLASSIAN_HEADER_` prefix
+- convert remaining underscores to dashes
+- use the resulting string as the HTTP header name
+
+Examples:
+
+- `ATLASSIAN_HEADER_AUTHORIZATION` -> `Authorization`
+- `ATLASSIAN_HEADER_X_REQUEST_SOURCE` -> `X-Request-Source`
+
+Conflict and precedence rules:
+
+- explicit `--header` values override `ATLASSIAN_HEADER_*` values for the same header name
+- any injected headers override CLI-generated `basic`, `bearer`, or `pat` authentication
+- once any header injection is present, providers must pass the full header map to the underlying client instead of generating authentication headers from token or username/password inputs
+
+Profile persistence rules:
+
+- profiles may continue storing stable URL, deployment, and basic auth settings
+- dynamic injected headers must not be persisted in `config.toml`
 
 The command layer should not directly care how a specific `atlassian-python-api` client expects its constructor arguments. That translation belongs in provider adapters.
 
@@ -357,6 +392,7 @@ Provider factories should accept a resolved execution context containing:
 - URL
 - auth mode
 - credentials
+- injected headers
 
 They return the matching provider implementation or raise `UnsupportedError`.
 
@@ -502,6 +538,8 @@ The first release is complete when all of the following are true:
 - Server/DC profiles work for Jira, Confluence, and Bitbucket.
 - The v1 Tier 1 command set is implemented and documented.
 - Commands support uniform config resolution via profiles, environment variables, and flags.
+- Commands accept repeated `--header` values and `ATLASSIAN_HEADER_*` environment variables.
+- Header injection overrides CLI-generated auth and is passed through to Jira, Confluence, and Bitbucket providers.
 - Commands support `table`, `json`, and `yaml` output.
 - Canonical error types map to stable exit codes.
 - Core unit tests and provider contract tests cover the main execution paths.
