@@ -44,10 +44,24 @@ class IssueService:
         return self.provider.search_issues(jql, start, limit)
 
     def create(self, fields: dict) -> dict:
+        raw = self.provider.create_issue(fields)
+        if isinstance(raw, dict) and "fields" in raw and "key" in raw:
+            return self._normalize_issue(raw)
+        if isinstance(raw, dict) and "key" in raw:
+            return {"key": raw["key"]}
+        return raw
+
+    def create_raw(self, fields: dict) -> dict:
         return self.provider.create_issue(fields)
 
     def update(self, issue_key: str, fields: dict) -> dict:
         return self.provider.update_issue(issue_key, fields)
 
+    def update_raw(self, issue_key: str, fields: dict) -> dict:
+        return self.provider.update_issue(issue_key, fields)
+
     def transition(self, issue_key: str, transition: str) -> dict:
+        return self.provider.transition_issue(issue_key, transition)
+
+    def transition_raw(self, issue_key: str, transition: str) -> dict:
         return self.provider.transition_issue(issue_key, transition)

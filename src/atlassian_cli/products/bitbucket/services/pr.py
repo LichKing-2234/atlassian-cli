@@ -27,9 +27,19 @@ class PullRequestService:
         return self.provider.get_pull_request(project_key, repo_slug, pr_id)
 
     def create(self, project_key: str, repo_slug: str, payload: dict) -> dict:
+        return self._normalize_pull_request(
+            self.provider.create_pull_request(project_key, repo_slug, payload)
+        )
+
+    def create_raw(self, project_key: str, repo_slug: str, payload: dict) -> dict:
         return self.provider.create_pull_request(project_key, repo_slug, payload)
 
     def merge(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        return self._normalize_pull_request(
+            self.provider.merge_pull_request(project_key, repo_slug, pr_id)
+        )
+
+    def merge_raw(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
         return self.provider.merge_pull_request(project_key, repo_slug, pr_id)
 
     def _normalize_pull_request(self, raw: dict) -> dict:

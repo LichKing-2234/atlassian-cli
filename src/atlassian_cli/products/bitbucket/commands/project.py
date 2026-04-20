@@ -1,5 +1,6 @@
 import typer
 
+from atlassian_cli.output.modes import is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.products.bitbucket.services.project import ProjectService
 from atlassian_cli.products.factory import build_provider
@@ -19,7 +20,12 @@ def list_projects(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_project_service(ctx.obj)
-    typer.echo(render_output(service.list(start=start, limit=limit), output=output))
+    payload = (
+        service.list_raw(start=start, limit=limit)
+        if is_raw_output(output)
+        else service.list(start=start, limit=limit)
+    )
+    typer.echo(render_output(payload, output=output))
 
 
 @app.command("get")
@@ -29,4 +35,5 @@ def get_project(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_project_service(ctx.obj)
-    typer.echo(render_output(service.get(project_key), output=output))
+    payload = service.get_raw(project_key) if is_raw_output(output) else service.get(project_key)
+    typer.echo(render_output(payload, output=output))

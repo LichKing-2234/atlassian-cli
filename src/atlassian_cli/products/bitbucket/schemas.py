@@ -10,6 +10,12 @@ class BitbucketReviewer(BaseModel):
     approved: bool = False
 
 
+class BitbucketBranch(BaseModel):
+    id: str | None = None
+    display_id: str | None = None
+    latest_commit: str | None = None
+
+
 class BitbucketProject(BaseModel):
     key: str
     name: str

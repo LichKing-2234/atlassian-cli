@@ -1,5 +1,6 @@
 import typer
 
+from atlassian_cli.output.modes import is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.products.confluence.services.page import PageService
 from atlassian_cli.products.factory import build_provider
@@ -18,7 +19,8 @@ def get_page(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
-    typer.echo(render_output(service.get(page_id), output=output))
+    payload = service.get_raw(page_id) if is_raw_output(output) else service.get(page_id)
+    typer.echo(render_output(payload, output=output))
 
 
 @app.command("create")
@@ -30,7 +32,12 @@ def create_page(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
-    typer.echo(render_output(service.create(space_key=space_key, title=title, body=body), output=output))
+    payload = (
+        service.create_raw(space_key=space_key, title=title, body=body)
+        if is_raw_output(output)
+        else service.create(space_key=space_key, title=title, body=body)
+    )
+    typer.echo(render_output(payload, output=output))
 
 
 @app.command("update")
@@ -42,7 +49,12 @@ def update_page(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
-    typer.echo(render_output(service.update(page_id, title=title, body=body), output=output))
+    payload = (
+        service.update_raw(page_id, title=title, body=body)
+        if is_raw_output(output)
+        else service.update(page_id, title=title, body=body)
+    )
+    typer.echo(render_output(payload, output=output))
 
 
 @app.command("delete")
@@ -55,4 +67,5 @@ def delete_page(
     if not yes:
         raise typer.BadParameter("pass --yes to confirm delete")
     service = build_page_service(ctx.obj)
-    typer.echo(render_output(service.delete(page_id), output=output))
+    payload = service.delete_raw(page_id) if is_raw_output(output) else service.delete(page_id)
+    typer.echo(render_output(payload, output=output))
