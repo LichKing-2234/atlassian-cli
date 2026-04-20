@@ -39,7 +39,7 @@ accessToken = "$(agora-oauth token)"
 
 Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
 The default `~/.config/atlassian-cli/config.toml` file is auto-created as a template on first use.
-`--profile` remains available for legacy `[profiles.<name>]` compatibility, but top-level `[jira]`, `[confluence]`, and `[bitbucket]` are the primary config shape.
+Only top-level `[jira]`, `[confluence]`, `[bitbucket]`, and `[headers]` are supported.
 
 ## Smoke testing
 
