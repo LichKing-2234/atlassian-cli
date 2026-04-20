@@ -29,3 +29,29 @@ def test_flag_values_override_env_and_profile() -> None:
     assert context.profile == "prod-jira"
     assert context.auth.username == "flag-user"
     assert context.product is Product.JIRA
+
+
+def test_flag_headers_override_environment_headers() -> None:
+    profile = ProfileConfig(
+        name="prod-bitbucket",
+        product=Product.BITBUCKET,
+        deployment=Deployment.SERVER,
+        url="https://bitbucket.example.com",
+        auth=AuthMode.PAT,
+        token="legacy-token",
+    )
+    env = {
+        "ATLASSIAN_HEADER_AUTHORIZATION": "Bearer env-token",
+        "ATLASSIAN_HEADER_X_REQUEST_SOURCE": "agora-oauth",
+    }
+    overrides = RuntimeOverrides(
+        url="https://bitbucket.example.com",
+        headers={"Authorization": "Bearer flag-token"},
+    )
+
+    context = resolve_runtime_context(profile=profile, env=env, overrides=overrides)
+
+    assert context.auth.headers == {
+        "Authorization": "Bearer flag-token",
+        "X-Request-Source": "agora-oauth",
+    }

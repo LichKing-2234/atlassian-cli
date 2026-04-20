@@ -37,4 +37,5 @@ class RuntimeOverrides(BaseModel):
     password: str | None = None
     token: str | None = None
     auth: AuthMode | None = None
+    headers: dict[str, str] = Field(default_factory=dict)
     output: str = Field(default="table")

@@ -3,6 +3,7 @@ from pathlib import Path
 
 import typer
 
+from atlassian_cli.auth.headers import parse_cli_headers
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.config.loader import load_profiles
 from atlassian_cli.config.models import Deployment, Product, ProfileConfig, RuntimeOverrides
@@ -53,6 +54,7 @@ def root_callback(
     password: str | None = typer.Option(None, "--password"),
     token: str | None = typer.Option(None, "--token"),
     auth: AuthMode | None = typer.Option(None, "--auth"),
+    header: list[str] = typer.Option([], "--header"),
     output: str = typer.Option("table", "--output"),
 ) -> None:
     if ctx.invoked_subcommand is None:
@@ -86,6 +88,7 @@ def root_callback(
             password=password,
             token=token,
             auth=auth,
+            headers=parse_cli_headers(header),
             output=output,
         ),
     )
