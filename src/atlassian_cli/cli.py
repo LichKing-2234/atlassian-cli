@@ -5,8 +5,14 @@ import typer
 
 from atlassian_cli.auth.headers import parse_cli_headers
 from atlassian_cli.auth.models import AuthMode
-from atlassian_cli.config.loader import load_profiles
-from atlassian_cli.config.models import Deployment, Product, ProfileConfig, RuntimeOverrides
+from atlassian_cli.config.loader import load_config
+from atlassian_cli.config.models import (
+    Deployment,
+    LoadedConfig,
+    Product,
+    ProfileConfig,
+    RuntimeOverrides,
+)
 from atlassian_cli.config.resolver import resolve_runtime_context
 from atlassian_cli.products.bitbucket.commands.branch import app as bitbucket_branch_app
 from atlassian_cli.products.bitbucket.commands.pr import app as bitbucket_pr_app
@@ -60,7 +66,8 @@ def root_callback(
     if ctx.invoked_subcommand is None:
         return
 
-    profiles = load_profiles(config_file) if config_file.exists() else {}
+    config = load_config(config_file) if config_file.exists() else LoadedConfig()
+    profiles = config.profiles
     if profile:
         selected_profile = profiles.get(profile)
         if selected_profile is None:
@@ -86,10 +93,11 @@ def root_callback(
         username=username,
         password=password,
         token=token,
-    )
+        )
     ctx.obj = resolve_runtime_context(
         profile=base_profile,
         env=dict(os.environ),
+        default_headers=config.headers,
         overrides=RuntimeOverrides(
             profile=profile,
             product=product,

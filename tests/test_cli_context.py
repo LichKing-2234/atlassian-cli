@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import atlassian_cli.config.header_substitution as header_substitution
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
@@ -53,17 +54,32 @@ def test_root_callback_loads_profile_from_config(tmp_path: Path, monkeypatch) ->
     assert '"url": "https://jira.example.com"' in result.stdout
 
 
-def test_root_callback_reads_header_flag_and_env(tmp_path: Path, monkeypatch) -> None:
+def test_root_callback_reads_top_level_and_profile_headers_from_config(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
     config_file = tmp_path / "config.toml"
     config_file.write_text(
         """
+        [headers]
+        X-Request-Source = "config-default"
+
         [profiles.prod_bitbucket]
         product = "bitbucket"
         deployment = "server"
         url = "https://bitbucket.example.com"
         auth = "pat"
         token = "legacy-token"
+
+        [profiles.prod_bitbucket.headers]
+        accessToken = "$(agora-oauth token)"
         """.strip()
+    )
+
+    monkeypatch.setattr(
+        header_substitution,
+        "run_header_command",
+        lambda command: "profile-token",
     )
 
     from atlassian_cli.products.bitbucket.commands import project as project_module
@@ -92,6 +108,67 @@ def test_root_callback_reads_header_flag_and_env(tmp_path: Path, monkeypatch) ->
             str(config_file),
             "--profile",
             "prod_bitbucket",
+            "bitbucket",
+            "project",
+            "list",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"accessToken": "profile-token"' in result.stdout
+    assert '"X-Request-Source": "config-default"' in result.stdout
+
+
+def test_root_callback_flag_headers_override_config_headers(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [profiles.prod_bitbucket]
+        product = "bitbucket"
+        deployment = "server"
+        url = "https://bitbucket.example.com"
+        auth = "pat"
+        token = "legacy-token"
+
+        [profiles.prod_bitbucket.headers]
+        accessToken = "$(agora-oauth token)"
+        """.strip()
+    )
+
+    monkeypatch.setattr(
+        header_substitution,
+        "run_header_command",
+        lambda command: "profile-token",
+    )
+
+    from atlassian_cli.products.bitbucket.commands import project as project_module
+
+    monkeypatch.setattr(
+        project_module,
+        "build_project_service",
+        lambda context: type(
+            "FakeService",
+            (),
+            {
+                "list": lambda self, start, limit: [
+                    {"accessToken": context.auth.headers.get("accessToken")}
+                ]
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "--profile",
+            "prod_bitbucket",
             "--header",
             "accessToken: flag-token",
             "bitbucket",
@@ -100,12 +177,10 @@ def test_root_callback_reads_header_flag_and_env(tmp_path: Path, monkeypatch) ->
             "--output",
             "json",
         ],
-        env={"ATLASSIAN_HEADER": "X-Request-Source: agora-oauth"},
     )
 
     assert result.exit_code == 0
     assert '"accessToken": "flag-token"' in result.stdout
-    assert '"X-Request-Source": "agora-oauth"' in result.stdout
 
 
 def test_root_callback_does_not_load_default_profile_credentials_when_url_is_explicit(
