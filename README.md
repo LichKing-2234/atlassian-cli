@@ -8,9 +8,9 @@ CLI for Atlassian Server and Data Center products.
 
 ## Examples
 
-- `atlassian jira issue get OPS-1 --profile prod-jira --output json`
-- `atlassian confluence page get 1234 --profile wiki`
-- `atlassian bitbucket repo get OPS infra --profile code`
+- `atlassian jira issue get OPS-1 --output json`
+- `atlassian confluence page get 1234 --output json`
+- `atlassian bitbucket repo get OPS infra --output json`
 
 ## Header injection
 
@@ -24,21 +24,22 @@ Config file example:
 
 ```toml
 [headers]
-accessToken = "$(agora-oauth token)"
+X-Request-Source = "agora-oauth"
 
-[profiles.code]
-product = "bitbucket"
+[bitbucket]
 deployment = "dc"
 url = "https://bitbucket.agoralab.co"
 auth = "pat"
 
-[profiles.code.headers]
-X-Request-Source = "agora-oauth"
+[bitbucket.headers]
+accessToken = "$(agora-oauth token)"
 ```
 
-- `atlassian --profile code bitbucket pr list SDK rte_sdk --output json`
+- `atlassian bitbucket pr list SDK rte_sdk --output json`
 
 Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
+The default `~/.config/atlassian-cli/config.toml` file is auto-created as a template on first use.
+`--profile` remains available for legacy `[profiles.<name>]` compatibility, but top-level `[jira]`, `[confluence]`, and `[bitbucket]` are the primary config shape.
 
 ## Smoke testing
 
