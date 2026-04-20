@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AuthMode(StrEnum):
@@ -14,3 +14,4 @@ class ResolvedAuth(BaseModel):
     username: str | None = None
     password: str | None = None
     token: str | None = None
+    headers: dict[str, str] = Field(default_factory=dict)
