@@ -48,3 +48,20 @@ def substitute_header_commands(
             )
         resolved = f"{resolved[:start]}{output}{resolved[end + 1:]}"
     return resolved
+
+
+def resolve_header_map(
+    headers: dict[str, str],
+    *,
+    source: str,
+    runner: CommandRunner | None = None,
+) -> dict[str, str]:
+    return {
+        name: substitute_header_commands(
+            value=value,
+            source=source,
+            header_name=name,
+            runner=runner,
+        )
+        for name, value in headers.items()
+    }

@@ -1,4 +1,6 @@
-from atlassian_cli.auth.headers import collect_env_headers, parse_cli_headers
+import pytest
+
+from atlassian_cli.auth.headers import parse_cli_headers
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.auth.resolver import resolve_auth
 
@@ -17,17 +19,9 @@ def test_parse_cli_headers_accepts_repeated_name_value_pairs() -> None:
     }
 
 
-def test_collect_env_headers_reads_single_complete_header_value() -> None:
-    headers = collect_env_headers(
-        {
-            "ATLASSIAN_HEADER": "accessToken: env-token",
-            "UNRELATED_ENV": "ignored",
-        }
-    )
-
-    assert headers == {
-        "accessToken": "env-token",
-    }
+def test_parse_cli_headers_rejects_missing_colon() -> None:
+    with pytest.raises(ValueError, match="Invalid header format"):
+        parse_cli_headers(["Authorization"])
 
 
 def test_resolve_auth_preserves_injected_headers() -> None:
