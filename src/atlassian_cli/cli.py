@@ -14,6 +14,8 @@ from atlassian_cli.config.models import (
     RuntimeOverrides,
 )
 from atlassian_cli.config.resolver import resolve_runtime_context
+from atlassian_cli.config.template import ensure_default_config
+from atlassian_cli.core.errors import ConfigError
 from atlassian_cli.products.bitbucket.commands.branch import app as bitbucket_branch_app
 from atlassian_cli.products.bitbucket.commands.pr import app as bitbucket_pr_app
 from atlassian_cli.products.bitbucket.commands.project import app as bitbucket_project_app
@@ -49,6 +51,12 @@ app.add_typer(bitbucket_app, name="bitbucket")
 DEFAULT_CONFIG_FILE = Path("~/.config/atlassian-cli/config.toml").expanduser()
 
 
+def _missing_product_message(config_file: Path, product: Product, *, created: bool) -> str:
+    if created:
+        return f"Created {config_file}. Fill in [{product.value}] or pass --url."
+    return f"Fill in [{product.value}] in {config_file} or pass --url."
+
+
 @app.callback()
 def root_callback(
     ctx: typer.Context,
@@ -66,33 +74,45 @@ def root_callback(
     if ctx.invoked_subcommand is None:
         return
 
+    product = Product(ctx.invoked_subcommand)
+    created_template = ensure_default_config(config_file, default_path=DEFAULT_CONFIG_FILE)
     config = load_config(config_file) if config_file.exists() else LoadedConfig()
-    profiles = config.profiles
-    if profile:
-        selected_profile = profiles.get(profile)
-        if selected_profile is None:
-            raise typer.BadParameter(f"Unknown profile: {profile}", param_hint="--profile")
-    elif url is None:
-        selected_profile = next(iter(profiles.values()), None)
-    else:
-        selected_profile = None
-    if selected_profile is None and url is None:
-        raise typer.BadParameter("provide --profile or --url")
     try:
         headers = parse_cli_headers(header)
     except ValueError as exc:
         raise typer.BadParameter(str(exc), param_hint="--header") from exc
 
-    product = Product(ctx.invoked_subcommand)
-    base_profile = selected_profile or ProfileConfig(
-        name=profile or f"inline-{product.value}",
-        product=product,
-        deployment=deployment or Deployment.SERVER,
-        url=url or "",
-        auth=auth or AuthMode.BASIC,
-        username=username,
-        password=password,
-        token=token,
+    if profile:
+        selected_profile = config.profiles.get(profile)
+        if selected_profile is None:
+            raise typer.BadParameter(f"Unknown profile: {profile}", param_hint="--profile")
+        base_profile = selected_profile
+    elif url is None:
+        product_config = config.product_config(product)
+        if product_config is None:
+            raise typer.BadParameter(
+                _missing_product_message(config_file, product, created=created_template)
+            )
+        try:
+            base_profile = product_config.to_profile_config(
+                product=product,
+                name=product.value,
+            )
+        except ConfigError as exc:
+            raise typer.BadParameter(
+                _missing_product_message(config_file, product, created=created_template)
+            ) from exc
+    else:
+        base_profile = ProfileConfig(
+            name=f"inline-{product.value}",
+            product=product,
+            deployment=deployment or Deployment.SERVER,
+            url=url,
+            auth=auth or AuthMode.BASIC,
+            username=username,
+            password=password,
+            token=token,
+            headers={},
         )
     ctx.obj = resolve_runtime_context(
         profile=base_profile,

@@ -1,9 +1,11 @@
 from pathlib import Path
 
+import atlassian_cli.cli as cli_module
 import atlassian_cli.config.header_substitution as header_substitution
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
+from atlassian_cli.config.models import LoadedConfig
 
 runner = CliRunner()
 
@@ -54,7 +56,98 @@ def test_root_callback_loads_profile_from_config(tmp_path: Path, monkeypatch) ->
     assert '"url": "https://jira.example.com"' in result.stdout
 
 
-def test_root_callback_reads_top_level_and_profile_headers_from_config(
+def test_root_callback_uses_jira_product_config_without_profile(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [jira]
+        deployment = "server"
+        url = "https://jira.example.com"
+        auth = "basic"
+        username = "alice"
+        token = "secret"
+        """.strip()
+    )
+
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda context: type(
+            "FakeService",
+            (),
+            {"get": lambda self, issue_key: {"key": issue_key, "url": context.url}},
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "jira",
+            "issue",
+            "get",
+            "OPS-1",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"url": "https://jira.example.com"' in result.stdout
+
+
+def test_root_callback_uses_confluence_product_config_without_profile(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [confluence]
+        deployment = "dc"
+        url = "https://confluence.example.com"
+        auth = "pat"
+        token = "wiki-token"
+        """.strip()
+    )
+
+    from atlassian_cli.products.confluence.commands import page as page_module
+
+    monkeypatch.setattr(
+        page_module,
+        "build_page_service",
+        lambda context: type(
+            "FakeService",
+            (),
+            {"get": lambda self, page_id: {"id": page_id, "url": context.url}},
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "confluence",
+            "page",
+            "get",
+            "1234",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"url": "https://confluence.example.com"' in result.stdout
+
+
+def test_root_callback_uses_bitbucket_product_headers_without_profile(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -64,14 +157,13 @@ def test_root_callback_reads_top_level_and_profile_headers_from_config(
         [headers]
         X-Request-Source = "config-default"
 
-        [profiles.prod_bitbucket]
-        product = "bitbucket"
-        deployment = "server"
+        [bitbucket]
+        deployment = "dc"
         url = "https://bitbucket.example.com"
         auth = "pat"
-        token = "legacy-token"
+        token = "repo-token"
 
-        [profiles.prod_bitbucket.headers]
+        [bitbucket.headers]
         accessToken = "$(agora-oauth token)"
         """.strip()
     )
@@ -106,8 +198,6 @@ def test_root_callback_reads_top_level_and_profile_headers_from_config(
         [
             "--config-file",
             str(config_file),
-            "--profile",
-            "prod_bitbucket",
             "bitbucket",
             "project",
             "list",
@@ -128,14 +218,13 @@ def test_root_callback_flag_headers_override_config_headers(
     config_file = tmp_path / "config.toml"
     config_file.write_text(
         """
-        [profiles.prod_bitbucket]
-        product = "bitbucket"
-        deployment = "server"
+        [bitbucket]
+        deployment = "dc"
         url = "https://bitbucket.example.com"
         auth = "pat"
-        token = "legacy-token"
+        token = "repo-token"
 
-        [profiles.prod_bitbucket.headers]
+        [bitbucket.headers]
         accessToken = "$(agora-oauth token)"
         """.strip()
     )
@@ -167,8 +256,6 @@ def test_root_callback_flag_headers_override_config_headers(
         [
             "--config-file",
             str(config_file),
-            "--profile",
-            "prod_bitbucket",
             "--header",
             "accessToken: flag-token",
             "bitbucket",
@@ -181,6 +268,86 @@ def test_root_callback_flag_headers_override_config_headers(
 
     assert result.exit_code == 0
     assert '"accessToken": "flag-token"' in result.stdout
+
+
+def test_root_callback_profile_still_uses_legacy_profiles(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [jira]
+        deployment = "server"
+        url = "https://jira.top-level.example.com"
+        auth = "basic"
+        username = "top-level"
+        token = "top-level-token"
+
+        [profiles.prod_jira]
+        product = "jira"
+        deployment = "server"
+        url = "https://jira.profile.example.com"
+        auth = "basic"
+        username = "profile-user"
+        token = "profile-token"
+        """.strip()
+    )
+
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda context: type(
+            "FakeService",
+            (),
+            {"get": lambda self, issue_key: {"key": issue_key, "url": context.url}},
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "--profile",
+            "prod_jira",
+            "jira",
+            "issue",
+            "get",
+            "OPS-1",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"url": "https://jira.profile.example.com"' in result.stdout
+
+
+def test_root_callback_reports_created_template_for_missing_product_config(
+    monkeypatch,
+) -> None:
+    generated = Path("/tmp/generated-config.toml")
+    monkeypatch.setattr(cli_module, "ensure_default_config", lambda path, default_path: True)
+    monkeypatch.setattr(cli_module, "load_config", lambda path: LoadedConfig())
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(generated),
+            "jira",
+            "issue",
+            "get",
+            "OPS-1",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert f"Created {generated}. Fill in [jira] or pass" in result.output
+    assert "--url" in result.output
 
 
 def test_root_callback_does_not_load_default_profile_credentials_when_url_is_explicit(
