@@ -1,4 +1,4 @@
-from atlassian_cli.products.confluence.schemas import ConfluencePage
+from atlassian_cli.products.confluence.schemas import ConfluencePage, ConfluenceSpaceRef
 
 
 class PageService:
@@ -10,10 +10,17 @@ class PageService:
         page = ConfluencePage(
             id=raw["id"],
             title=raw["title"],
-            space_key=raw["space"]["key"],
+            type=raw.get("type"),
+            space=ConfluenceSpaceRef(
+                key=raw["space"]["key"],
+                name=raw["space"].get("name"),
+            ),
             version=(raw.get("version") or {}).get("number"),
         )
-        return page.model_dump()
+        return page.model_dump(exclude_none=True)
+
+    def get_raw(self, page_id: str) -> dict:
+        return self.provider.get_page(page_id)
 
     def create(self, *, space_key: str, title: str, body: str) -> dict:
         return self.provider.create_page(space_key=space_key, title=title, body=body)
