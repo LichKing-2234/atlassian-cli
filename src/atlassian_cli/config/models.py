@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictStr
 
 from atlassian_cli.auth.models import AuthMode
 
@@ -26,6 +26,12 @@ class ProfileConfig(BaseModel):
     username: str | None = None
     password: str | None = None
     token: str | None = None
+    headers: dict[str, StrictStr] = Field(default_factory=dict)
+
+
+class LoadedConfig(BaseModel):
+    headers: dict[str, StrictStr] = Field(default_factory=dict)
+    profiles: dict[str, ProfileConfig] = Field(default_factory=dict)
 
 
 class RuntimeOverrides(BaseModel):
