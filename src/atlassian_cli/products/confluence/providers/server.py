@@ -1,4 +1,5 @@
 from atlassian import Confluence
+from atlassian_cli.auth.session_patch import patch_session_headers
 
 
 class ConfluenceServerProvider:
@@ -11,13 +12,15 @@ class ConfluenceServerProvider:
         token: str | None,
         headers: dict[str, str] | None = None,
     ) -> None:
-        kwargs = {"url": url}
-        if headers:
-            kwargs["header"] = headers
-        else:
-            kwargs["username"] = username
-            kwargs["password"] = password or token
+        kwargs = {
+            "url": url,
+            "username": username,
+            "password": password or token,
+        }
         self.client = Confluence(**kwargs)
+        session = getattr(self.client, "_session", None)
+        if session is not None:
+            patch_session_headers(session, headers or {})
 
     def get_page(self, page_id: str) -> dict:
         return self.client.get_page_by_id(page_id, expand="space,version")

@@ -39,13 +39,18 @@ def test_build_provider_passes_headers_to_bitbucket_provider(monkeypatch) -> Non
 
 
 def test_jira_provider_prefers_injected_headers(monkeypatch) -> None:
-    captured = {}
+    captured = {"patched": None}
 
     class FakeJira:
         def __init__(self, **kwargs):
             captured.update(kwargs)
+            self._session = object()
 
     monkeypatch.setattr("atlassian_cli.products.jira.providers.server.Jira", FakeJira)
+    monkeypatch.setattr(
+        "atlassian_cli.products.jira.providers.server.patch_session_headers",
+        lambda session, headers: captured.__setitem__("patched", headers),
+    )
 
     JiraServerProvider(
         url="https://jira.example.com",
@@ -55,19 +60,24 @@ def test_jira_provider_prefers_injected_headers(monkeypatch) -> None:
         headers={"Authorization": "Bearer oauth-token"},
     )
 
-    assert captured["header"] == {"Authorization": "Bearer oauth-token"}
-    assert "username" not in captured
-    assert "password" not in captured
+    assert captured["username"] == "alice"
+    assert captured["password"] == "legacy-password"
+    assert captured["patched"] == {"Authorization": "Bearer oauth-token"}
 
 
 def test_confluence_provider_prefers_injected_headers(monkeypatch) -> None:
-    captured = {}
+    captured = {"patched": None}
 
     class FakeConfluence:
         def __init__(self, **kwargs):
             captured.update(kwargs)
+            self._session = object()
 
     monkeypatch.setattr("atlassian_cli.products.confluence.providers.server.Confluence", FakeConfluence)
+    monkeypatch.setattr(
+        "atlassian_cli.products.confluence.providers.server.patch_session_headers",
+        lambda session, headers: captured.__setitem__("patched", headers),
+    )
 
     ConfluenceServerProvider(
         url="https://confluence.example.com",
@@ -77,19 +87,24 @@ def test_confluence_provider_prefers_injected_headers(monkeypatch) -> None:
         headers={"Authorization": "Bearer oauth-token"},
     )
 
-    assert captured["header"] == {"Authorization": "Bearer oauth-token"}
-    assert "username" not in captured
-    assert "password" not in captured
+    assert captured["username"] == "alice"
+    assert captured["password"] == "legacy-password"
+    assert captured["patched"] == {"Authorization": "Bearer oauth-token"}
 
 
 def test_bitbucket_provider_prefers_injected_headers(monkeypatch) -> None:
-    captured = {}
+    captured = {"patched": None}
 
     class FakeBitbucket:
         def __init__(self, **kwargs):
             captured.update(kwargs)
+            self._session = object()
 
     monkeypatch.setattr("atlassian_cli.products.bitbucket.providers.server.Bitbucket", FakeBitbucket)
+    monkeypatch.setattr(
+        "atlassian_cli.products.bitbucket.providers.server.patch_session_headers",
+        lambda session, headers: captured.__setitem__("patched", headers),
+    )
 
     BitbucketServerProvider(
         url="https://bitbucket.example.com",
@@ -99,6 +114,6 @@ def test_bitbucket_provider_prefers_injected_headers(monkeypatch) -> None:
         headers={"Authorization": "Bearer oauth-token"},
     )
 
-    assert captured["header"] == {"Authorization": "Bearer oauth-token"}
-    assert "username" not in captured
-    assert "password" not in captured
+    assert captured["username"] == "alice"
+    assert captured["password"] == "legacy-password"
+    assert captured["patched"] == {"Authorization": "Bearer oauth-token"}

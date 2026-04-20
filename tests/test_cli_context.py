@@ -77,7 +77,7 @@ def test_root_callback_reads_header_flag_and_env(tmp_path: Path, monkeypatch) ->
             {
                 "list": lambda self, start, limit: [
                     {
-                        "Authorization": context.auth.headers.get("Authorization"),
+                        "accessToken": context.auth.headers.get("accessToken"),
                         "X-Request-Source": context.auth.headers.get("X-Request-Source"),
                     }
                 ]
@@ -93,16 +93,16 @@ def test_root_callback_reads_header_flag_and_env(tmp_path: Path, monkeypatch) ->
             "--profile",
             "prod_bitbucket",
             "--header",
-            "Authorization: Bearer flag-token",
+            "accessToken: flag-token",
             "bitbucket",
             "project",
             "list",
             "--output",
             "json",
         ],
-        env={"ATLASSIAN_HEADER_X_REQUEST_SOURCE": "agora-oauth"},
+        env={"ATLASSIAN_HEADER": "X-Request-Source: agora-oauth"},
     )
 
     assert result.exit_code == 0
-    assert '"Authorization": "Bearer flag-token"' in result.stdout
+    assert '"accessToken": "flag-token"' in result.stdout
     assert '"X-Request-Source": "agora-oauth"' in result.stdout

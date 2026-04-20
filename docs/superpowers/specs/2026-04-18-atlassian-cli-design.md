@@ -169,7 +169,7 @@ The CLI must support three configuration inputs:
 Configuration resolution order:
 
 1. Explicit command-line flags, including repeated `--header`
-2. Environment variables, including `ATLASSIAN_HEADER_*`
+2. Environment variables, including `ATLASSIAN_HEADER`
 3. Selected `--profile`
 4. Default profile
 
@@ -232,24 +232,32 @@ This mechanism is intended for external authentication flows such as Agora OAuth
 Supported header injection inputs:
 
 - repeated command-line flags: `--header 'Name: value'`
-- environment variables using the prefix `ATLASSIAN_HEADER_`
+- a single environment variable: `ATLASSIAN_HEADER='Name: value'`
 
 Environment variable mapping rules:
 
-- strip the `ATLASSIAN_HEADER_` prefix
-- convert remaining underscores to dashes
-- use the resulting string as the HTTP header name
+- `ATLASSIAN_HEADER` must contain one complete header line in the same format as `--header`
+- the CLI parses this value exactly as `Name: value`
 
 Examples:
 
-- `ATLASSIAN_HEADER_AUTHORIZATION` -> `Authorization`
-- `ATLASSIAN_HEADER_X_REQUEST_SOURCE` -> `X-Request-Source`
+- `ATLASSIAN_HEADER='accessToken: abc123'` -> `accessToken: abc123`
 
 Conflict and precedence rules:
 
-- explicit `--header` values override `ATLASSIAN_HEADER_*` values for the same header name
-- any injected headers override CLI-generated `basic`, `bearer`, or `pat` authentication
-- once any header injection is present, providers must pass the full header map to the underlying client instead of generating authentication headers from token or username/password inputs
+- explicit `--header` values override the same header name from `ATLASSIAN_HEADER`
+- injected headers are additional request metadata, not a replacement for base authentication
+- when both base authentication and injected headers are present, both must be applied to the request
+- providers must attach injected headers by patching the underlying `requests.Session` so base authentication and extra headers coexist
+
+### Product-specific provider behavior
+
+All three server providers must follow the same construction rule:
+
+1. create the underlying `atlassian-python-api` client using the normal constructor arguments for that product
+2. patch the client's `requests.Session` with any injected headers
+
+This avoids divergent authentication behavior between Jira, Confluence, and Bitbucket and ensures injected headers never replace existing client authentication by accident.
 
 Profile persistence rules:
 
@@ -538,8 +546,8 @@ The first release is complete when all of the following are true:
 - Server/DC profiles work for Jira, Confluence, and Bitbucket.
 - The v1 Tier 1 command set is implemented and documented.
 - Commands support uniform config resolution via profiles, environment variables, and flags.
-- Commands accept repeated `--header` values and `ATLASSIAN_HEADER_*` environment variables.
-- Header injection overrides CLI-generated auth and is passed through to Jira, Confluence, and Bitbucket providers.
+- Commands accept repeated `--header` values and the `ATLASSIAN_HEADER` environment variable.
+- Header injection is patched onto Jira, Confluence, and Bitbucket sessions without replacing base authentication.
 - Commands support `table`, `json`, and `yaml` output.
 - Canonical error types map to stable exit codes.
 - Core unit tests and provider contract tests cover the main execution paths.

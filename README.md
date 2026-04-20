@@ -18,11 +18,11 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.agoralab.co --header 'Authorization: Bearer ...' bitbucket pr list SDK rte_sdk --output json`
+- `atlassian --url https://bitbucket.agoralab.co --header 'accessToken: ...' bitbucket pr list SDK rte_sdk --output json`
 
 Environment variable example:
 
-- `export ATLASSIAN_HEADER_AUTHORIZATION='Bearer ...'`
+- `export ATLASSIAN_HEADER='accessToken: ...'`
 - `atlassian --url https://bitbucket.agoralab.co bitbucket pr list SDK rte_sdk --output json`
 
 ## Smoke testing

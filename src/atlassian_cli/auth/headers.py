@@ -1,13 +1,3 @@
-def _canonical_header_name(suffix: str) -> str:
-    special_cases = {
-        "AUTHORIZATION": "Authorization",
-        "COOKIE": "Cookie",
-    }
-    if suffix in special_cases:
-        return special_cases[suffix]
-    return "-".join(part.capitalize() for part in suffix.split("_"))
-
-
 def parse_cli_headers(values: list[str] | None) -> dict[str, str]:
     headers: dict[str, str] = {}
     for value in values or []:
@@ -22,9 +12,7 @@ def parse_cli_headers(values: list[str] | None) -> dict[str, str]:
 
 
 def collect_env_headers(env: dict[str, str]) -> dict[str, str]:
-    headers: dict[str, str] = {}
-    prefix = "ATLASSIAN_HEADER_"
-    for key, value in env.items():
-        if key.startswith(prefix):
-            headers[_canonical_header_name(key[len(prefix) :])] = value
-    return headers
+    value = env.get("ATLASSIAN_HEADER")
+    if not value:
+        return {}
+    return parse_cli_headers([value])

@@ -41,17 +41,15 @@ def test_flag_headers_override_environment_headers() -> None:
         token="legacy-token",
     )
     env = {
-        "ATLASSIAN_HEADER_AUTHORIZATION": "Bearer env-token",
-        "ATLASSIAN_HEADER_X_REQUEST_SOURCE": "agora-oauth",
+        "ATLASSIAN_HEADER": "accessToken: env-token",
     }
     overrides = RuntimeOverrides(
         url="https://bitbucket.example.com",
-        headers={"Authorization": "Bearer flag-token"},
+        headers={"accessToken": "flag-token"},
     )
 
     context = resolve_runtime_context(profile=profile, env=env, overrides=overrides)
 
     assert context.auth.headers == {
-        "Authorization": "Bearer flag-token",
-        "X-Request-Source": "agora-oauth",
+        "accessToken": "flag-token",
     }

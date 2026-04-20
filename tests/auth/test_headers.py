@@ -17,18 +17,16 @@ def test_parse_cli_headers_accepts_repeated_name_value_pairs() -> None:
     }
 
 
-def test_collect_env_headers_maps_prefix_and_underscores() -> None:
+def test_collect_env_headers_reads_single_complete_header_value() -> None:
     headers = collect_env_headers(
         {
-            "ATLASSIAN_HEADER_AUTHORIZATION": "Bearer env-token",
-            "ATLASSIAN_HEADER_X_REQUEST_SOURCE": "agora-oauth",
+            "ATLASSIAN_HEADER": "accessToken: env-token",
             "UNRELATED_ENV": "ignored",
         }
     )
 
     assert headers == {
-        "Authorization": "Bearer env-token",
-        "X-Request-Source": "agora-oauth",
+        "accessToken": "env-token",
     }
 
 
