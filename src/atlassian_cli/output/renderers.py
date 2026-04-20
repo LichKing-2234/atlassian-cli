@@ -4,9 +4,11 @@ from rich.console import Console
 from rich.table import Table
 
 from atlassian_cli.output.formatters import to_json, to_yaml
+from atlassian_cli.output.modes import normalized_output
 
 
 def render_output(value, *, output: str) -> str:
+    output = normalized_output(output)
     if output == "json":
         return to_json(value)
     if output == "yaml":
