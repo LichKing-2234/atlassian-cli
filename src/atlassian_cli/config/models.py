@@ -1,8 +1,9 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictStr
 
 from atlassian_cli.auth.models import AuthMode
+from atlassian_cli.core.errors import ConfigError
 
 
 class Product(StrEnum):
@@ -17,6 +18,38 @@ class Deployment(StrEnum):
     CLOUD = "cloud"
 
 
+class ProductConfig(BaseModel):
+    deployment: Deployment | None = None
+    url: StrictStr | None = None
+    auth: AuthMode | None = None
+    username: StrictStr | None = None
+    password: StrictStr | None = None
+    token: StrictStr | None = None
+    headers: dict[str, StrictStr] = Field(default_factory=dict)
+
+    def to_profile_config(self, *, product: Product, name: str) -> "ProfileConfig":
+        missing = [
+            field
+            for field in ("deployment", "url", "auth")
+            if getattr(self, field) is None
+        ]
+        if missing:
+            raise ConfigError(
+                f"Product config [{product.value}] is missing required fields: {', '.join(missing)}"
+            )
+        return ProfileConfig(
+            name=name,
+            product=product,
+            deployment=self.deployment,
+            url=self.url,
+            auth=self.auth,
+            username=self.username,
+            password=self.password,
+            token=self.token,
+            headers=self.headers,
+        )
+
+
 class ProfileConfig(BaseModel):
     name: str
     product: Product
@@ -26,6 +59,21 @@ class ProfileConfig(BaseModel):
     username: str | None = None
     password: str | None = None
     token: str | None = None
+    headers: dict[str, StrictStr] = Field(default_factory=dict)
+
+
+class LoadedConfig(BaseModel):
+    headers: dict[str, StrictStr] = Field(default_factory=dict)
+    jira: ProductConfig | None = None
+    confluence: ProductConfig | None = None
+    bitbucket: ProductConfig | None = None
+
+    def product_config(self, product: Product) -> ProductConfig | None:
+        if product is Product.JIRA:
+            return self.jira
+        if product is Product.CONFLUENCE:
+            return self.confluence
+        return self.bitbucket
 
 
 class RuntimeOverrides(BaseModel):

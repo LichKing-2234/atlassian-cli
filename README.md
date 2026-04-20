@@ -8,9 +8,9 @@ CLI for Atlassian Server and Data Center products.
 
 ## Examples
 
-- `atlassian jira issue get OPS-1 --profile prod-jira --output json`
-- `atlassian confluence page get 1234 --profile wiki`
-- `atlassian bitbucket repo get OPS infra --profile code`
+- `atlassian jira issue get OPS-1 --output json`
+- `atlassian confluence page get 1234 --output json`
+- `atlassian bitbucket repo get OPS infra --output json`
 
 ## Header injection
 
@@ -20,10 +20,26 @@ Command-line example:
 
 - `atlassian --url https://bitbucket.agoralab.co --header 'accessToken: ...' bitbucket pr list SDK rte_sdk --output json`
 
-Environment variable example:
+Config file example:
 
-- `export ATLASSIAN_HEADER='accessToken: ...'`
-- `atlassian --url https://bitbucket.agoralab.co bitbucket pr list SDK rte_sdk --output json`
+```toml
+[headers]
+X-Request-Source = "agora-oauth"
+
+[bitbucket]
+deployment = "dc"
+url = "https://bitbucket.agoralab.co"
+auth = "pat"
+
+[bitbucket.headers]
+accessToken = "$(agora-oauth token)"
+```
+
+- `atlassian bitbucket pr list SDK rte_sdk --output json`
+
+Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
+The default `~/.config/atlassian-cli/config.toml` file is auto-created as a template on first use.
+Only top-level `[jira]`, `[confluence]`, `[bitbucket]`, and `[headers]` are supported.
 
 ## Smoke testing
 

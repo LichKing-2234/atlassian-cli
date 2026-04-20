@@ -12,3 +12,4 @@ def test_root_help_displays_products() -> None:
     assert "jira" in result.stdout
     assert "confluence" in result.stdout
     assert "bitbucket" in result.stdout
+    assert "--profile" not in result.stdout

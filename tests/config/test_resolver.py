@@ -31,7 +31,7 @@ def test_flag_values_override_env_and_profile() -> None:
     assert context.product is Product.JIRA
 
 
-def test_flag_headers_override_environment_headers() -> None:
+def test_profile_headers_override_top_level_headers() -> None:
     profile = ProfileConfig(
         name="prod-bitbucket",
         product=Product.BITBUCKET,
@@ -39,17 +39,53 @@ def test_flag_headers_override_environment_headers() -> None:
         url="https://bitbucket.example.com",
         auth=AuthMode.PAT,
         token="legacy-token",
-    )
-    env = {
-        "ATLASSIAN_HEADER": "accessToken: env-token",
-    }
-    overrides = RuntimeOverrides(
-        url="https://bitbucket.example.com",
-        headers={"accessToken": "flag-token"},
+        headers={
+            "accessToken": "$(agora-oauth token --profile prod-bitbucket)",
+            "X-Request-Source": "profile-default",
+        },
     )
 
-    context = resolve_runtime_context(profile=profile, env=env, overrides=overrides)
+    context = resolve_runtime_context(
+        profile=profile,
+        env={},
+        default_headers={
+            "X-Request-Source": "top-level-default",
+            "X-Trace": "top-level-trace",
+        },
+        overrides=RuntimeOverrides(url="https://bitbucket.example.com"),
+        command_runner=lambda command: "profile-token",
+    )
+
+    assert context.auth.headers == {
+        "accessToken": "profile-token",
+        "X-Request-Source": "profile-default",
+        "X-Trace": "top-level-trace",
+    }
+
+
+def test_flag_headers_override_config_headers() -> None:
+    profile = ProfileConfig(
+        name="prod-bitbucket",
+        product=Product.BITBUCKET,
+        deployment=Deployment.SERVER,
+        url="https://bitbucket.example.com",
+        auth=AuthMode.PAT,
+        token="legacy-token",
+        headers={"accessToken": "$(agora-oauth token)"},
+    )
+
+    context = resolve_runtime_context(
+        profile=profile,
+        env={},
+        default_headers={"X-Trace": "top-level-trace"},
+        overrides=RuntimeOverrides(
+            url="https://bitbucket.example.com",
+            headers={"accessToken": "flag-token"},
+        ),
+        command_runner=lambda command: "profile-token",
+    )
 
     assert context.auth.headers == {
         "accessToken": "flag-token",
+        "X-Trace": "top-level-trace",
     }
