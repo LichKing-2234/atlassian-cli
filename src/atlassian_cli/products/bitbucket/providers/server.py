@@ -5,14 +5,21 @@ class BitbucketServerProvider:
     def __init__(self, *, url: str, username: str | None, password: str | None, token: str | None) -> None:
         self.client = Bitbucket(url=url, username=username, password=password or token)
 
+    def _paged_items(self, value) -> list[dict]:
+        if isinstance(value, dict):
+            return value.get("values", [])
+        if isinstance(value, list):
+            return value
+        return list(value)
+
     def list_projects(self, *, start: int, limit: int) -> list[dict]:
-        return self.client.project_list(limit=limit, start=start)["values"]
+        return self._paged_items(self.client.project_list(limit=limit, start=start))
 
     def get_project(self, project_key: str) -> dict:
         return self.client.project(project_key)
 
     def list_repos(self, *, project_key: str | None, start: int, limit: int) -> list[dict]:
-        return self.client.repo_list(project_key=project_key, limit=limit, start=start)["values"]
+        return self._paged_items(self.client.repo_list(project_key=project_key, limit=limit, start=start))
 
     def get_repo(self, project_key: str, repo_slug: str) -> dict:
         return self.client.get_repo(project_key, repo_slug)
@@ -21,10 +28,10 @@ class BitbucketServerProvider:
         return self.client.create_repo(project_key=project_key, name=name, scm_id=scm_id)
 
     def list_branches(self, project_key: str, repo_slug: str, filter_text: str | None) -> list[dict]:
-        return self.client.get_branches(project_key, repo_slug, filter_text=filter_text)["values"]
+        return self._paged_items(self.client.get_branches(project_key, repo_slug, filter=filter_text))
 
     def list_pull_requests(self, project_key: str, repo_slug: str, state: str) -> list[dict]:
-        return self.client.get_pull_requests(project_key, repo_slug, state=state)["values"]
+        return self._paged_items(self.client.get_pull_requests(project_key, repo_slug, state=state))
 
     def get_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
         return self.client.get_pull_request(project_key, repo_slug, pr_id)
