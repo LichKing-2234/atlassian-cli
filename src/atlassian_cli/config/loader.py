@@ -19,10 +19,13 @@ def load_config(path: Path) -> LoadedConfig:
             profiles[name] = profile
         return LoadedConfig(
             headers=data.get("headers", {}),
+            jira=data.get("jira"),
+            confluence=data.get("confluence"),
+            bitbucket=data.get("bitbucket"),
             profiles=profiles,
         )
     except ValidationError as exc:
-        raise ConfigError(f"Invalid config.toml headers configuration: {exc}") from exc
+        raise ConfigError(f"Invalid config.toml configuration: {exc}") from exc
 
 
 def load_profiles(path: Path) -> dict[str, ProfileConfig]:
