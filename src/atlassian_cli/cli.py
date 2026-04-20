@@ -60,7 +60,6 @@ def _missing_product_message(config_file: Path, product: Product, *, created: bo
 @app.callback()
 def root_callback(
     ctx: typer.Context,
-    profile: str | None = typer.Option(None, "--profile"),
     config_file: Path = typer.Option(DEFAULT_CONFIG_FILE, "--config-file"),
     deployment: Deployment | None = typer.Option(None, "--deployment"),
     url: str | None = typer.Option(None, "--url"),
@@ -82,12 +81,7 @@ def root_callback(
     except ValueError as exc:
         raise typer.BadParameter(str(exc), param_hint="--header") from exc
 
-    if profile:
-        selected_profile = config.profiles.get(profile)
-        if selected_profile is None:
-            raise typer.BadParameter(f"Unknown profile: {profile}", param_hint="--profile")
-        base_profile = selected_profile
-    elif url is None:
+    if url is None:
         product_config = config.product_config(product)
         if product_config is None:
             raise typer.BadParameter(
@@ -119,7 +113,6 @@ def root_callback(
         env=dict(os.environ),
         default_headers=config.headers,
         overrides=RuntimeOverrides(
-            profile=profile,
             product=product,
             deployment=deployment,
             url=url,

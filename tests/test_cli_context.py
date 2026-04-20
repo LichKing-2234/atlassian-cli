@@ -10,52 +10,6 @@ from atlassian_cli.config.models import LoadedConfig
 runner = CliRunner()
 
 
-def test_root_callback_loads_profile_from_config(tmp_path: Path, monkeypatch) -> None:
-    config_file = tmp_path / "config.toml"
-    config_file.write_text(
-        """
-        [profiles.prod_jira]
-        product = "jira"
-        deployment = "server"
-        url = "https://jira.example.com"
-        auth = "basic"
-        username = "alice"
-        token = "secret"
-        """.strip()
-    )
-
-    from atlassian_cli.products.jira.commands import issue as issue_module
-
-    monkeypatch.setattr(
-        issue_module,
-        "build_issue_service",
-        lambda context: type(
-            "FakeService",
-            (),
-            {"get": lambda self, issue_key: {"key": issue_key, "url": context.url}},
-        )(),
-    )
-
-    result = runner.invoke(
-        app,
-        [
-            "--config-file",
-            str(config_file),
-            "--profile",
-            "prod_jira",
-            "jira",
-            "issue",
-            "get",
-            "OPS-1",
-            "--output",
-            "json",
-        ],
-    )
-
-    assert result.exit_code == 0
-    assert '"url": "https://jira.example.com"' in result.stdout
-
-
 def test_root_callback_uses_jira_product_config_without_profile(
     tmp_path: Path,
     monkeypatch,
@@ -270,62 +224,6 @@ def test_root_callback_flag_headers_override_config_headers(
     assert '"accessToken": "flag-token"' in result.stdout
 
 
-def test_root_callback_profile_still_uses_legacy_profiles(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    config_file = tmp_path / "config.toml"
-    config_file.write_text(
-        """
-        [jira]
-        deployment = "server"
-        url = "https://jira.top-level.example.com"
-        auth = "basic"
-        username = "top-level"
-        token = "top-level-token"
-
-        [profiles.prod_jira]
-        product = "jira"
-        deployment = "server"
-        url = "https://jira.profile.example.com"
-        auth = "basic"
-        username = "profile-user"
-        token = "profile-token"
-        """.strip()
-    )
-
-    from atlassian_cli.products.jira.commands import issue as issue_module
-
-    monkeypatch.setattr(
-        issue_module,
-        "build_issue_service",
-        lambda context: type(
-            "FakeService",
-            (),
-            {"get": lambda self, issue_key: {"key": issue_key, "url": context.url}},
-        )(),
-    )
-
-    result = runner.invoke(
-        app,
-        [
-            "--config-file",
-            str(config_file),
-            "--profile",
-            "prod_jira",
-            "jira",
-            "issue",
-            "get",
-            "OPS-1",
-            "--output",
-            "json",
-        ],
-    )
-
-    assert result.exit_code == 0
-    assert '"url": "https://jira.profile.example.com"' in result.stdout
-
-
 def test_root_callback_reports_created_template_for_missing_product_config(
     monkeypatch,
 ) -> None:
@@ -350,6 +248,13 @@ def test_root_callback_reports_created_template_for_missing_product_config(
     assert "--url" in result.output
 
 
+def test_root_callback_rejects_removed_profile_flag() -> None:
+    result = runner.invoke(app, ["--profile", "prod_jira", "--help"])
+
+    assert result.exit_code == 2
+    assert "No such option: --profile" in result.output
+
+
 def test_root_callback_does_not_load_default_profile_credentials_when_url_is_explicit(
     tmp_path: Path,
     monkeypatch,
@@ -357,10 +262,9 @@ def test_root_callback_does_not_load_default_profile_credentials_when_url_is_exp
     config_file = tmp_path / "config.toml"
     config_file.write_text(
         """
-        [profiles.prod_jira]
-        product = "jira"
+        [jira]
         deployment = "server"
-        url = "https://jira.example.com"
+        url = "https://jira.product.local"
         auth = "basic"
         username = "alice"
         token = "secret"
