@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add top-level and profile-scoped config-backed HTTP headers, including `$(...)` command substitution in header values, so users can source values from tools such as `agora-oauth` without relying on `ATLASSIAN_HEADER`.
+**Goal:** Add top-level and profile-scoped config-backed HTTP headers, including `$(...)` command substitution in header values, so users can source values from tools such as `agora-oauth` directly from `config.toml`.
 
-**Architecture:** Extend config loading to understand `[headers]` and `[profiles.<name>.headers]`, then resolve those header maps at runtime with command substitution before merging them with repeated `--header` flags. Keep header parsing for CLI flags in `auth/headers.py`, move config-header command evaluation into a focused config helper, and remove runtime header injection through `ATLASSIAN_HEADER`.
+**Architecture:** Extend config loading to understand `[headers]` and `[profiles.<name>.headers]`, then resolve those header maps at runtime with command substitution before merging them with repeated `--header` flags. Keep header parsing for CLI flags in `auth/headers.py` and move config-header command evaluation into a focused config helper.
 
 **Tech Stack:** Python 3.13, Typer, Pydantic, atlassian-python-api, pytest, subprocess
 
@@ -428,7 +428,7 @@ def test_profile_headers_override_top_level_headers() -> None:
 
     context = resolve_runtime_context(
         profile=profile,
-        env={"ATLASSIAN_HEADER": "accessToken: ignored-env"},
+        env={},
         default_headers={
             "X-Request-Source": "top-level-default",
             "X-Trace": "top-level-trace",
@@ -457,7 +457,7 @@ def test_flag_headers_override_config_headers() -> None:
 
     context = resolve_runtime_context(
         profile=profile,
-        env={"ATLASSIAN_HEADER": "accessToken: ignored-env"},
+        env={},
         default_headers={"X-Trace": "top-level-trace"},
         overrides=RuntimeOverrides(
             url="https://bitbucket.example.com",
@@ -486,7 +486,7 @@ def test_parse_cli_headers_rejects_missing_colon() -> None:
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `.venv/bin/python -m pytest tests/config/test_resolver.py tests/auth/test_headers.py -v`
-Expected: FAIL because `resolve_runtime_context` does not accept `default_headers` or `command_runner`, and because env-backed header injection still influences results
+Expected: FAIL because `resolve_runtime_context` does not accept `default_headers` or `command_runner`
 
 - [ ] **Step 3: Write the minimal implementation**
 

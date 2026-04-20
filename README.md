@@ -20,10 +20,25 @@ Command-line example:
 
 - `atlassian --url https://bitbucket.agoralab.co --header 'accessToken: ...' bitbucket pr list SDK rte_sdk --output json`
 
-Environment variable example:
+Config file example:
 
-- `export ATLASSIAN_HEADER='accessToken: ...'`
-- `atlassian --url https://bitbucket.agoralab.co bitbucket pr list SDK rte_sdk --output json`
+```toml
+[headers]
+accessToken = "$(agora-oauth token)"
+
+[profiles.code]
+product = "bitbucket"
+deployment = "dc"
+url = "https://bitbucket.agoralab.co"
+auth = "pat"
+
+[profiles.code.headers]
+X-Request-Source = "agora-oauth"
+```
+
+- `atlassian --profile code bitbucket pr list SDK rte_sdk --output json`
+
+Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
 
 ## Smoke testing
 

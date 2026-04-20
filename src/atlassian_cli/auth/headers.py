@@ -9,10 +9,3 @@ def parse_cli_headers(values: list[str] | None) -> dict[str, str]:
             raise ValueError(f"Invalid header format: {value}")
         headers[name] = raw.lstrip()
     return headers
-
-
-def collect_env_headers(env: dict[str, str]) -> dict[str, str]:
-    value = env.get("ATLASSIAN_HEADER")
-    if not value:
-        return {}
-    return parse_cli_headers([value])
