@@ -4,7 +4,7 @@
 
 **Goal:** Add non-invasive HTTP header injection to the CLI so external tools such as Agora OAuth can provide authenticated request headers without embedding OAuth logic in the CLI.
 
-**Architecture:** Keep OAuth entirely outside the CLI. Extend runtime auth resolution so repeated `--header 'Name: value'` flags and `ATLASSIAN_HEADER_*` environment variables are merged into a resolved header map, then make Jira, Confluence, and Bitbucket providers pass that header map directly into `atlassian-python-api` client constructors when present.
+**Architecture:** Keep OAuth entirely outside the CLI. Extend runtime auth resolution so repeated `--header 'Name: value'` flags and a single `ATLASSIAN_HEADER` environment variable are merged into a resolved header map, then patch those headers onto the underlying `requests.Session` used by the Jira, Confluence, and Bitbucket clients.
 
 **Tech Stack:** Python 3.13, Typer, Pydantic, atlassian-python-api, pytest
 
@@ -37,11 +37,11 @@
 
 ### Responsibility notes
 
-- `auth/headers.py` owns parsing repeated CLI headers and scanning `ATLASSIAN_HEADER_*`.
+- `auth/headers.py` owns parsing repeated CLI headers and the single `ATLASSIAN_HEADER` environment variable.
 - `auth/models.py` and `auth/resolver.py` own normalized header-aware auth state.
 - `config/resolver.py` owns precedence merging across flags, env, and profiles.
 - `cli.py` only gathers raw CLI options and hands them to the resolver.
-- `products/*/providers/server.py` decide whether to construct SDK clients with `header=...` or legacy username/token auth.
+- `products/*/providers/server.py` construct SDK clients normally, then patch injected headers onto the underlying session.
 
 ### Common commands
 
@@ -79,18 +79,16 @@ def test_parse_cli_headers_accepts_repeated_name_value_pairs() -> None:
     }
 
 
-def test_collect_env_headers_maps_prefix_and_underscores() -> None:
+def test_collect_env_headers_reads_single_header_value() -> None:
     headers = collect_env_headers(
         {
-            "ATLASSIAN_HEADER_AUTHORIZATION": "Bearer env-token",
-            "ATLASSIAN_HEADER_X_REQUEST_SOURCE": "agora-oauth",
+            "ATLASSIAN_HEADER": "Authorization: Bearer env-token",
             "UNRELATED_ENV": "ignored",
         }
     )
 
     assert headers == {
         "Authorization": "Bearer env-token",
-        "X-Request-Source": "agora-oauth",
     }
 
 
@@ -173,13 +171,10 @@ def parse_cli_headers(values: list[str] | None) -> dict[str, str]:
 
 
 def collect_env_headers(env: dict[str, str]) -> dict[str, str]:
-    headers: dict[str, str] = {}
-    prefix = "ATLASSIAN_HEADER_"
-    for key, value in env.items():
-        if not key.startswith(prefix):
-            continue
-        headers[_canonical_header_name(key[len(prefix) :])] = value
-    return headers
+    value = env.get("ATLASSIAN_HEADER")
+    if not value:
+        return {}
+    return parse_cli_headers([value])
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -221,18 +216,17 @@ def test_flag_headers_override_environment_headers() -> None:
         token="legacy-token",
     )
     env = {
-        "ATLASSIAN_HEADER_AUTHORIZATION": "Bearer env-token",
-        "ATLASSIAN_HEADER_X_REQUEST_SOURCE": "agora-oauth",
+        "ATLASSIAN_HEADER": "X-Request-Source: agora-oauth",
     }
     overrides = RuntimeOverrides(
         url="https://bitbucket.example.com",
-        headers={"Authorization": "Bearer flag-token"},
+        headers={"accessToken": "flag-token"},
     )
 
     context = resolve_runtime_context(profile=profile, env=env, overrides=overrides)
 
     assert context.auth.headers == {
-        "Authorization": "Bearer flag-token",
+        "accessToken": "flag-token",
         "X-Request-Source": "agora-oauth",
     }
 ```
@@ -287,18 +281,18 @@ def test_root_callback_reads_header_flag_and_env(tmp_path: Path, monkeypatch) ->
             "--profile",
             "prod_bitbucket",
             "--header",
-            "Authorization: Bearer flag-token",
+            "accessToken: flag-token",
             "bitbucket",
             "project",
             "list",
             "--output",
             "json",
         ],
-        env={"ATLASSIAN_HEADER_X_REQUEST_SOURCE": "agora-oauth"},
+        env={"ATLASSIAN_HEADER": "X-Request-Source: agora-oauth"},
     )
 
     assert result.exit_code == 0
-    assert '"Authorization": "Bearer flag-token"' in result.stdout
+    assert '"accessToken": "flag-token"' in result.stdout
     assert '"X-Request-Source": "agora-oauth"' in result.stdout
 ```
 
@@ -553,12 +547,12 @@ git commit -m "feat: pass injected headers to providers"
 - [ ] **Step 1: Write the failing verification**
 
 ```bash
-rg -n "ATLASSIAN_HEADER_|--header" README.md
+rg -n "ATLASSIAN_HEADER|--header" README.md
 ```
 
 - [ ] **Step 2: Run command to verify current docs and flow are insufficient**
 
-Run: `rg -n "ATLASSIAN_HEADER_|--header" README.md`
+Run: `rg -n "ATLASSIAN_HEADER|--header" README.md`
 Expected: no matches for the new header-based usage
 
 - [ ] **Step 3: Write minimal implementation**
@@ -574,16 +568,16 @@ Command-line example:
 
 Environment variable example:
 
-- `export ATLASSIAN_HEADER_AUTHORIZATION='Bearer ...'`
+- `export ATLASSIAN_HEADER='Authorization: Bearer ...'`
 - `atlassian --url https://bitbucket.agoralab.co bitbucket pr list SDK rte_sdk --output json`
 ```
 
 - [ ] **Step 4: Run verification commands**
 
-Run: `rg -n "ATLASSIAN_HEADER_|--header" README.md`
+Run: `rg -n "ATLASSIAN_HEADER|--header" README.md`
 Expected: matches for both flag-based and env-based header usage
 
-Run: `ATLASSIAN_HEADER_AUTHORIZATION='Bearer test-token' .venv/bin/atlassian --url https://bitbucket.example.com bitbucket project list --output json`
+Run: `ATLASSIAN_HEADER='Authorization: Bearer test-token' .venv/bin/atlassian --url https://bitbucket.example.com bitbucket project list --output json`
 Expected: request path executes using injected header. In environments without a valid token, failure should reflect remote auth outcome rather than local CLI argument validation.
 
 - [ ] **Step 5: Commit**
@@ -597,7 +591,7 @@ git commit -m "docs: add header injection usage examples"
 
 - Spec coverage:
   - `--header` support is covered by Tasks 1 and 2.
-  - `ATLASSIAN_HEADER_*` environment scanning is covered by Tasks 1 and 2.
+  - `ATLASSIAN_HEADER` environment parsing is covered by Tasks 1 and 2.
   - provider precedence for injected headers is covered by Task 3.
   - user-facing documentation and real-flow verification are covered by Task 4.
 - Gaps checked:

@@ -448,7 +448,7 @@ The CLI should map backend and transport failures into a small, stable error tax
 
 - `ConfigError`
 - `AuthError`
-- `ConnectionError`
+- `TransportError`
 - `NotFoundError`
 - `ValidationError`
 - `ConflictError`

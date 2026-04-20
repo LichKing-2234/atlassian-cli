@@ -5,8 +5,7 @@ class IssueService:
     def __init__(self, provider) -> None:
         self.provider = provider
 
-    def get(self, issue_key: str) -> dict:
-        raw = self.provider.get_issue(issue_key)
+    def _normalize_issue(self, raw: dict) -> dict:
         issue = JiraIssue(
             key=raw["key"],
             summary=raw["fields"]["summary"],
@@ -18,8 +17,12 @@ class IssueService:
         )
         return issue.model_dump()
 
+    def get(self, issue_key: str) -> dict:
+        raw = self.provider.get_issue(issue_key)
+        return self._normalize_issue(raw)
+
     def search(self, jql: str, start: int, limit: int) -> list[dict]:
-        return [self.get(item["key"]) for item in self.provider.search_issues(jql, start, limit)]
+        return [self._normalize_issue(item) for item in self.provider.search_issues(jql, start, limit)]
 
     def create(self, fields: dict) -> dict:
         return self.provider.create_issue(fields)

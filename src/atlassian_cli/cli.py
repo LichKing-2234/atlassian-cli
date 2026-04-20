@@ -61,9 +61,20 @@ def root_callback(
         return
 
     profiles = load_profiles(config_file) if config_file.exists() else {}
-    selected_profile = profiles.get(profile) if profile else next(iter(profiles.values()), None)
+    if profile:
+        selected_profile = profiles.get(profile)
+        if selected_profile is None:
+            raise typer.BadParameter(f"Unknown profile: {profile}", param_hint="--profile")
+    elif url is None:
+        selected_profile = next(iter(profiles.values()), None)
+    else:
+        selected_profile = None
     if selected_profile is None and url is None:
         raise typer.BadParameter("provide --profile or --url")
+    try:
+        headers = parse_cli_headers(header)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--header") from exc
 
     product = Product(ctx.invoked_subcommand)
     base_profile = selected_profile or ProfileConfig(
@@ -88,7 +99,7 @@ def root_callback(
             password=password,
             token=token,
             auth=auth,
-            headers=parse_cli_headers(header),
+            headers=headers,
             output=output,
         ),
     )

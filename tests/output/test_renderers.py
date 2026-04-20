@@ -17,3 +17,19 @@ def test_render_output_table_includes_columns() -> None:
 
     assert "key" in rendered.lower()
     assert "broken deploy" in rendered.lower()
+
+
+def test_render_output_table_returns_empty_string_for_empty_lists() -> None:
+    assert render_output([], output="table") == ""
+
+
+def test_render_output_table_uses_first_row_column_order() -> None:
+    payload = [
+        {"key": "OPS-1", "summary": "First"},
+        {"summary": "Second", "key": "OPS-2"},
+    ]
+
+    rendered = render_output(payload, output="table")
+
+    row = next(line for line in rendered.splitlines() if "OPS-2" in line and "Second" in line)
+    assert row.index("OPS-2") < row.index("Second")

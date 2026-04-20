@@ -1,3 +1,13 @@
+from atlassian_cli.core.exit_codes import (
+    EXIT_AUTH,
+    EXIT_CONFLICT,
+    EXIT_NETWORK,
+    EXIT_NOT_FOUND,
+    EXIT_UNKNOWN,
+    EXIT_USAGE,
+)
+
+
 class AtlassianCliError(Exception):
     """Base CLI error."""
 
@@ -10,7 +20,7 @@ class AuthError(AtlassianCliError):
     """Authentication or authorization failure."""
 
 
-class ConnectionError(AtlassianCliError):
+class TransportError(AtlassianCliError):
     """Transport-level failure."""
 
 
@@ -36,13 +46,13 @@ class UnsupportedError(AtlassianCliError):
 
 def exit_code_for_error(error: Exception) -> int:
     if isinstance(error, NotFoundError):
-        return 4
+        return EXIT_NOT_FOUND
     if isinstance(error, ConflictError):
-        return 5
+        return EXIT_CONFLICT
     if isinstance(error, (ConfigError, ValidationError, UnsupportedError)):
-        return 2
+        return EXIT_USAGE
     if isinstance(error, AuthError):
-        return 3
-    if isinstance(error, ConnectionError):
-        return 6
-    return 10
+        return EXIT_AUTH
+    if isinstance(error, TransportError):
+        return EXIT_NETWORK
+    return EXIT_UNKNOWN
