@@ -55,8 +55,19 @@ def test_issue_service_normalizes_issue_payload() -> None:
     result = service.get("OPS-1")
 
     assert result["key"] == "OPS-1"
-    assert result["status"] == "Open"
-    assert result["assignee"] == "Alice"
+    assert result["status"] == {"name": "Open"}
+    assert result["assignee"] == {"display_name": "Alice"}
+    assert result["reporter"] == {"display_name": "Bob"}
+
+
+def test_issue_service_exposes_raw_issue_payload() -> None:
+    provider = FakeIssueProvider()
+    service = IssueService(provider=provider)
+
+    result = service.get_raw("OPS-1")
+
+    assert result["fields"]["summary"] == "Broken deploy"
+    assert result["fields"]["status"]["name"] == "Open"
 
 
 def test_issue_service_search_normalizes_without_refetching_each_issue() -> None:
@@ -66,5 +77,5 @@ def test_issue_service_search_normalizes_without_refetching_each_issue() -> None
     result = service.search("project = OPS", start=0, limit=2)
 
     assert [item["key"] for item in result] == ["OPS-1", "OPS-2"]
-    assert [item["status"] for item in result] == ["Open", "In Progress"]
+    assert [item["status"]["name"] for item in result] == ["Open", "In Progress"]
     assert provider.get_issue_calls == 0
