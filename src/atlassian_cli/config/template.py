@@ -31,14 +31,6 @@ DEFAULT_CONFIG_TEMPLATE = """[headers]
 
 [bitbucket.headers]
 # accessToken = "$(agora-oauth token)"
-
-# Legacy compatibility:
-#
-# [profiles.prod_jira]
-# product = "jira"
-# deployment = "server"
-# url = "https://jira.example.com"
-# auth = "basic"
 """
 
 

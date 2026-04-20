@@ -31,3 +31,11 @@ def test_ensure_default_config_does_not_overwrite_existing_file(tmp_path: Path) 
 
     assert created is False
     assert config_file.read_text() == '[jira]\nurl = "https://jira.example.com"\n'
+
+
+def test_default_config_template_uses_only_top_level_product_blocks() -> None:
+    assert "[jira]" in DEFAULT_CONFIG_TEMPLATE
+    assert "[confluence]" in DEFAULT_CONFIG_TEMPLATE
+    assert "[bitbucket]" in DEFAULT_CONFIG_TEMPLATE
+    assert "[profiles." not in DEFAULT_CONFIG_TEMPLATE
+    assert "Legacy compatibility" not in DEFAULT_CONFIG_TEMPLATE
