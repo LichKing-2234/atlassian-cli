@@ -15,6 +15,7 @@ def build_provider(context):
             username=context.auth.username,
             password=context.auth.password,
             token=context.auth.token,
+            headers=context.auth.headers,
         )
     if context.product is Product.CONFLUENCE:
         return ConfluenceServerProvider(
@@ -22,6 +23,7 @@ def build_provider(context):
             username=context.auth.username,
             password=context.auth.password,
             token=context.auth.token,
+            headers=context.auth.headers,
         )
     if context.product is Product.BITBUCKET:
         return BitbucketServerProvider(
@@ -29,5 +31,6 @@ def build_provider(context):
             username=context.auth.username,
             password=context.auth.password,
             token=context.auth.token,
+            headers=context.auth.headers,
         )
     raise UnsupportedError(f"Unsupported product: {context.product}")

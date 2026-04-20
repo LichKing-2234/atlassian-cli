@@ -2,8 +2,22 @@ from atlassian import Bitbucket
 
 
 class BitbucketServerProvider:
-    def __init__(self, *, url: str, username: str | None, password: str | None, token: str | None) -> None:
-        self.client = Bitbucket(url=url, username=username, password=password or token)
+    def __init__(
+        self,
+        *,
+        url: str,
+        username: str | None,
+        password: str | None,
+        token: str | None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        kwargs = {"url": url}
+        if headers:
+            kwargs["header"] = headers
+        else:
+            kwargs["username"] = username
+            kwargs["password"] = password or token
+        self.client = Bitbucket(**kwargs)
 
     def _paged_items(self, value) -> list[dict]:
         if isinstance(value, dict):

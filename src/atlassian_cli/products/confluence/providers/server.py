@@ -2,8 +2,22 @@ from atlassian import Confluence
 
 
 class ConfluenceServerProvider:
-    def __init__(self, *, url: str, username: str | None, password: str | None, token: str | None) -> None:
-        self.client = Confluence(url=url, username=username, password=password or token)
+    def __init__(
+        self,
+        *,
+        url: str,
+        username: str | None,
+        password: str | None,
+        token: str | None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        kwargs = {"url": url}
+        if headers:
+            kwargs["header"] = headers
+        else:
+            kwargs["username"] = username
+            kwargs["password"] = password or token
+        self.client = Confluence(**kwargs)
 
     def get_page(self, page_id: str) -> dict:
         return self.client.get_page_by_id(page_id, expand="space,version")

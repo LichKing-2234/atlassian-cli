@@ -2,8 +2,22 @@ from atlassian import Jira
 
 
 class JiraServerProvider:
-    def __init__(self, *, url: str, username: str | None, password: str | None, token: str | None) -> None:
-        self.client = Jira(url=url, username=username, password=password or token)
+    def __init__(
+        self,
+        *,
+        url: str,
+        username: str | None,
+        password: str | None,
+        token: str | None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        kwargs = {"url": url}
+        if headers:
+            kwargs["header"] = headers
+        else:
+            kwargs["username"] = username
+            kwargs["password"] = password or token
+        self.client = Jira(**kwargs)
 
     def get_issue(self, issue_key: str) -> dict:
         return self.client.issue(issue_key)
