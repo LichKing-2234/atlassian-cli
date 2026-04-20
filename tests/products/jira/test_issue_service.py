@@ -1,0 +1,70 @@
+from atlassian_cli.products.jira.services.issue import IssueService
+
+
+class FakeIssueProvider:
+    def __init__(self) -> None:
+        self.get_issue_calls = 0
+
+    def get_issue(self, issue_key: str) -> dict:
+        self.get_issue_calls += 1
+        return {
+            "key": issue_key,
+            "fields": {
+                "summary": "Broken deploy",
+                "status": {"name": "Open"},
+                "assignee": {"displayName": "Alice"},
+                "reporter": {"displayName": "Bob"},
+                "priority": {"name": "High"},
+                "updated": "2026-04-19T09:00:00.000+0000",
+            },
+        }
+
+    def search_issues(self, jql: str, start: int, limit: int) -> list[dict]:
+        assert jql == "project = OPS"
+        assert start == 0
+        assert limit == 2
+        return [
+            {
+                "key": "OPS-1",
+                "fields": {
+                    "summary": "Broken deploy",
+                    "status": {"name": "Open"},
+                    "assignee": {"displayName": "Alice"},
+                    "reporter": {"displayName": "Bob"},
+                    "priority": {"name": "High"},
+                    "updated": "2026-04-19T09:00:00.000+0000",
+                },
+            },
+            {
+                "key": "OPS-2",
+                "fields": {
+                    "summary": "Fix flaky test",
+                    "status": {"name": "In Progress"},
+                    "assignee": {"displayName": "Carol"},
+                    "reporter": {"displayName": "Bob"},
+                    "priority": {"name": "Medium"},
+                    "updated": "2026-04-20T09:00:00.000+0000",
+                },
+            },
+        ]
+
+
+def test_issue_service_normalizes_issue_payload() -> None:
+    service = IssueService(provider=FakeIssueProvider())
+
+    result = service.get("OPS-1")
+
+    assert result["key"] == "OPS-1"
+    assert result["status"] == "Open"
+    assert result["assignee"] == "Alice"
+
+
+def test_issue_service_search_normalizes_without_refetching_each_issue() -> None:
+    provider = FakeIssueProvider()
+    service = IssueService(provider=provider)
+
+    result = service.search("project = OPS", start=0, limit=2)
+
+    assert [item["key"] for item in result] == ["OPS-1", "OPS-2"]
+    assert [item["status"] for item in result] == ["Open", "In Progress"]
+    assert provider.get_issue_calls == 0
