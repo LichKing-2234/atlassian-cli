@@ -67,7 +67,6 @@ class LoadedConfig(BaseModel):
     jira: ProductConfig | None = None
     confluence: ProductConfig | None = None
     bitbucket: ProductConfig | None = None
-    profiles: dict[str, ProfileConfig] = Field(default_factory=dict)
 
     def product_config(self, product: Product) -> ProductConfig | None:
         if product is Product.JIRA:
