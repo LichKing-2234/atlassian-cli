@@ -1,10 +1,16 @@
 from pydantic import BaseModel
 
 
+class ConfluenceSpaceRef(BaseModel):
+    key: str
+    name: str | None = None
+
+
 class ConfluencePage(BaseModel):
     id: str
     title: str
-    space_key: str
+    type: str | None = None
+    space: ConfluenceSpaceRef
     version: int | None = None
 
 

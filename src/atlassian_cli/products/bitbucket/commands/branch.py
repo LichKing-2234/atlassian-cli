@@ -1,5 +1,6 @@
 import typer
 
+from atlassian_cli.output.modes import is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.products.bitbucket.services.branch import BranchService
 from atlassian_cli.products.factory import build_provider
@@ -20,4 +21,9 @@ def list_branches(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_branch_service(ctx.obj)
-    typer.echo(render_output(service.list(project_key, repo_slug, filter_text), output=output))
+    payload = (
+        service.list_raw(project_key, repo_slug, filter_text)
+        if is_raw_output(output)
+        else service.list(project_key, repo_slug, filter_text)
+    )
+    typer.echo(render_output(payload, output=output))

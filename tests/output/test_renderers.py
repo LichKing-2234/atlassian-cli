@@ -1,3 +1,4 @@
+from atlassian_cli.output.modes import is_raw_output, normalized_output
 from atlassian_cli.output.renderers import render_output
 
 
@@ -8,6 +9,34 @@ def test_render_output_json_returns_pretty_json() -> None:
 
     assert '"key": "OPS-1"' in rendered
     assert rendered.startswith("[")
+
+
+def test_render_output_raw_json_returns_json() -> None:
+    payload = {"_links": {"self": "https://example.com"}}
+
+    rendered = render_output(payload, output="raw-json")
+
+    assert '"_links"' in rendered
+
+
+def test_render_output_raw_yaml_returns_yaml() -> None:
+    payload = {"_links": {"self": "https://example.com"}}
+
+    rendered = render_output(payload, output="raw-yaml")
+
+    assert "_links:" in rendered
+
+
+def test_normalized_output_maps_raw_modes_to_base_serializers() -> None:
+    assert normalized_output("raw-json") == "json"
+    assert normalized_output("raw-yaml") == "yaml"
+    assert normalized_output("json") == "json"
+
+
+def test_is_raw_output_detects_raw_variants() -> None:
+    assert is_raw_output("raw-json") is True
+    assert is_raw_output("raw-yaml") is True
+    assert is_raw_output("json") is False
 
 
 def test_render_output_table_includes_columns() -> None:

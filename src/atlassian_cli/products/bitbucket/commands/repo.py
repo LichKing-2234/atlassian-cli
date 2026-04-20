@@ -1,5 +1,6 @@
 import typer
 
+from atlassian_cli.output.modes import is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.products.bitbucket.services.repo import RepoService
 from atlassian_cli.products.factory import build_provider
@@ -19,7 +20,8 @@ def get_repo(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_repo_service(ctx.obj)
-    typer.echo(render_output(service.get(project_key, repo_slug), output=output))
+    payload = service.get_raw(project_key, repo_slug) if is_raw_output(output) else service.get(project_key, repo_slug)
+    typer.echo(render_output(payload, output=output))
 
 
 @app.command("list")
@@ -31,7 +33,12 @@ def list_repos(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_repo_service(ctx.obj)
-    typer.echo(render_output(service.list(project_key=project_key, start=start, limit=limit), output=output))
+    payload = (
+        service.list_raw(project_key=project_key, start=start, limit=limit)
+        if is_raw_output(output)
+        else service.list(project_key=project_key, start=start, limit=limit)
+    )
+    typer.echo(render_output(payload, output=output))
 
 
 @app.command("create")
@@ -43,4 +50,9 @@ def create_repo(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_repo_service(ctx.obj)
-    typer.echo(render_output(service.create(project_key=project_key, name=name, scm_id=scm_id), output=output))
+    payload = (
+        service.create_raw(project_key=project_key, name=name, scm_id=scm_id)
+        if is_raw_output(output)
+        else service.create(project_key=project_key, name=name, scm_id=scm_id)
+    )
+    typer.echo(render_output(payload, output=output))

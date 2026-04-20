@@ -1,5 +1,6 @@
 import typer
 
+from atlassian_cli.output.modes import is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.products.factory import build_provider
 from atlassian_cli.products.jira.services.issue import IssueService
@@ -19,7 +20,8 @@ def get_issue(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
-    typer.echo(render_output(service.get(issue_key), output=output))
+    payload = service.get_raw(issue_key) if is_raw_output(output) else service.get(issue_key)
+    typer.echo(render_output(payload, output=output))
 
 
 @app.command("search")
@@ -31,7 +33,12 @@ def search_issues(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
-    typer.echo(render_output(service.search(jql=jql, start=start, limit=limit), output=output))
+    payload = (
+        service.search_raw(jql=jql, start=start, limit=limit)
+        if is_raw_output(output)
+        else service.search(jql=jql, start=start, limit=limit)
+    )
+    typer.echo(render_output(payload, output=output))
 
 
 @app.command("create")
@@ -50,7 +57,8 @@ def create_issue(
         "summary": summary,
         "description": description,
     }
-    typer.echo(render_output(service.create(payload), output=output))
+    result = service.create_raw(payload) if is_raw_output(output) else service.create(payload)
+    typer.echo(render_output(result, output=output))
 
 
 @app.command("update")
@@ -63,7 +71,8 @@ def update_issue(
 ) -> None:
     service = build_issue_service(ctx.obj)
     payload = {k: v for k, v in {"summary": summary, "description": description}.items() if v is not None}
-    typer.echo(render_output(service.update(issue_key, payload), output=output))
+    result = service.update_raw(issue_key, payload) if is_raw_output(output) else service.update(issue_key, payload)
+    typer.echo(render_output(result, output=output))
 
 
 @app.command("transition")
@@ -74,4 +83,9 @@ def transition_issue(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
-    typer.echo(render_output(service.transition(issue_key, transition), output=output))
+    result = (
+        service.transition_raw(issue_key, transition)
+        if is_raw_output(output)
+        else service.transition(issue_key, transition)
+    )
+    typer.echo(render_output(result, output=output))

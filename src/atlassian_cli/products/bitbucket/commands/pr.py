@@ -1,5 +1,6 @@
 import typer
 
+from atlassian_cli.output.modes import is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.products.bitbucket.services.pr import PullRequestService
 from atlassian_cli.products.factory import build_provider
@@ -20,7 +21,12 @@ def list_pull_requests(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_pr_service(ctx.obj)
-    typer.echo(render_output(service.list(project_key, repo_slug, state), output=output))
+    payload = (
+        service.list_raw(project_key, repo_slug, state)
+        if is_raw_output(output)
+        else service.list(project_key, repo_slug, state)
+    )
+    typer.echo(render_output(payload, output=output))
 
 
 @app.command("get")
@@ -32,7 +38,12 @@ def get_pull_request(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_pr_service(ctx.obj)
-    typer.echo(render_output(service.get(project_key, repo_slug, pr_id), output=output))
+    payload = (
+        service.get_raw(project_key, repo_slug, pr_id)
+        if is_raw_output(output)
+        else service.get(project_key, repo_slug, pr_id)
+    )
+    typer.echo(render_output(payload, output=output))
 
 
 @app.command("create")
@@ -53,7 +64,12 @@ def create_pull_request(
         "toRef": {"id": to_ref},
     }
     service = build_pr_service(ctx.obj)
-    typer.echo(render_output(service.create(project_key, repo_slug, payload), output=output))
+    result = (
+        service.create_raw(project_key, repo_slug, payload)
+        if is_raw_output(output)
+        else service.create(project_key, repo_slug, payload)
+    )
+    typer.echo(render_output(result, output=output))
 
 
 @app.command("merge")
@@ -65,4 +81,9 @@ def merge_pull_request(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_pr_service(ctx.obj)
-    typer.echo(render_output(service.merge(project_key, repo_slug, pr_id), output=output))
+    result = (
+        service.merge_raw(project_key, repo_slug, pr_id)
+        if is_raw_output(output)
+        else service.merge(project_key, repo_slug, pr_id)
+    )
+    typer.echo(render_output(result, output=output))

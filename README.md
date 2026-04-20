@@ -41,6 +41,13 @@ Config-backed header values may execute local shell commands through `$(...)`. T
 The default `~/.config/atlassian-cli/config.toml` file is auto-created as a template on first use.
 Only top-level `[jira]`, `[confluence]`, `[bitbucket]`, and `[headers]` are supported.
 
+## Output Modes
+
+`json` and `yaml` now return simplified resource-shaped payloads by default.
+
+- Use `--output raw-json` to inspect the original provider response as JSON.
+- Use `--output raw-yaml` to inspect the original provider response as YAML.
+
 ## Smoke testing
 
 Set `ATLASSIAN_SMOKE=1` and product-specific env vars before running `.venv/bin/python -m pytest tests/integration/test_smoke.py -v`.
