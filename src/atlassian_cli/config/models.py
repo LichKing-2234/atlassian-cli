@@ -28,11 +28,7 @@ class ProductConfig(BaseModel):
     headers: dict[str, StrictStr] = Field(default_factory=dict)
 
     def to_profile_config(self, *, product: Product, name: str) -> "ProfileConfig":
-        missing = [
-            field
-            for field in ("deployment", "url", "auth")
-            if getattr(self, field) is None
-        ]
+        missing = [field for field in ("deployment", "url", "auth") if getattr(self, field) is None]
         if missing:
             raise ConfigError(
                 f"Product config [{product.value}] is missing required fields: {', '.join(missing)}"

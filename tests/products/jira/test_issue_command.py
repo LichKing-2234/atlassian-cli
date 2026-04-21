@@ -18,7 +18,10 @@ def test_jira_issue_get_outputs_json(monkeypatch) -> None:
         )(),
     )
 
-    result = runner.invoke(app, ["--url", "https://jira.example.com", "jira", "issue", "get", "OPS-1", "--output", "json"])
+    result = runner.invoke(
+        app,
+        ["--url", "https://jira.example.com", "jira", "issue", "get", "OPS-1", "--output", "json"],
+    )
 
     assert result.exit_code == 0
     assert '"key": "OPS-1"' in result.stdout

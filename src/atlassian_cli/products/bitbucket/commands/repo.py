@@ -20,7 +20,11 @@ def get_repo(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_repo_service(ctx.obj)
-    payload = service.get_raw(project_key, repo_slug) if is_raw_output(output) else service.get(project_key, repo_slug)
+    payload = (
+        service.get_raw(project_key, repo_slug)
+        if is_raw_output(output)
+        else service.get(project_key, repo_slug)
+    )
     typer.echo(render_output(payload, output=output))
 
 

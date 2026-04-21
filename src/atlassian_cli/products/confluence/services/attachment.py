@@ -6,7 +6,9 @@ class AttachmentService:
         self.provider = provider
 
     def list(self, page_id: str) -> "list[dict]":
-        return [self._normalize_attachment(item) for item in self.provider.list_attachments(page_id)]
+        return [
+            self._normalize_attachment(item) for item in self.provider.list_attachments(page_id)
+        ]
 
     def list_raw(self, page_id: str) -> "list[dict]":
         return self.provider.list_attachments(page_id)

@@ -1,4 +1,5 @@
 from atlassian import Jira
+
 from atlassian_cli.auth.session_patch import patch_session_headers
 
 

@@ -1,4 +1,5 @@
 from atlassian import Bitbucket
+
 from atlassian_cli.auth.session_patch import patch_session_headers
 
 
@@ -36,7 +37,9 @@ class BitbucketServerProvider:
         return self.client.project(project_key)
 
     def list_repos(self, *, project_key: str | None, start: int, limit: int) -> list[dict]:
-        return self._paged_items(self.client.repo_list(project_key=project_key, limit=limit, start=start))
+        return self._paged_items(
+            self.client.repo_list(project_key=project_key, limit=limit, start=start)
+        )
 
     def get_repo(self, project_key: str, repo_slug: str) -> dict:
         return self.client.get_repo(project_key, repo_slug)
@@ -44,8 +47,12 @@ class BitbucketServerProvider:
     def create_repo(self, *, project_key: str, name: str, scm_id: str) -> dict:
         return self.client.create_repo(project_key=project_key, name=name, scm_id=scm_id)
 
-    def list_branches(self, project_key: str, repo_slug: str, filter_text: str | None) -> list[dict]:
-        return self._paged_items(self.client.get_branches(project_key, repo_slug, filter=filter_text))
+    def list_branches(
+        self, project_key: str, repo_slug: str, filter_text: str | None
+    ) -> list[dict]:
+        return self._paged_items(
+            self.client.get_branches(project_key, repo_slug, filter=filter_text)
+        )
 
     def list_pull_requests(self, project_key: str, repo_slug: str, state: str) -> list[dict]:
         return self._paged_items(self.client.get_pull_requests(project_key, repo_slug, state=state))

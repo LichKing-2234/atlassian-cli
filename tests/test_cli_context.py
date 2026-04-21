@@ -1,9 +1,9 @@
 from pathlib import Path
 
-import atlassian_cli.cli as cli_module
-import atlassian_cli.config.header_substitution as header_substitution
 from typer.testing import CliRunner
 
+import atlassian_cli.cli as cli_module
+import atlassian_cli.config.header_substitution as header_substitution
 from atlassian_cli.cli import app
 from atlassian_cli.config.models import LoadedConfig
 

@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
+from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.config.loader import load_config
 from atlassian_cli.config.models import Product, ProductConfig
-from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.core.errors import ConfigError
 
 
