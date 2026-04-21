@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -8,6 +9,19 @@ from atlassian_cli.cli import app
 from atlassian_cli.config.models import LoadedConfig
 
 runner = CliRunner()
+ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def ci_output_env() -> dict[str, str]:
+    return {
+        "CI": "true",
+        "GITHUB_ACTIONS": "true",
+        "TERM": "xterm-256color",
+    }
+
+
+def strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_PATTERN.sub("", text)
 
 
 def test_root_callback_uses_jira_product_config_without_profile(
@@ -241,18 +255,21 @@ def test_root_callback_reports_created_template_for_missing_product_config(
             "get",
             "OPS-1",
         ],
+        env=ci_output_env(),
     )
+    plain_output = strip_ansi(result.output)
 
     assert result.exit_code == 2
-    assert f"Created {generated}. Fill in [jira] or pass" in result.output
-    assert "--url" in result.output
+    assert f"Created {generated}. Fill in [jira] or pass" in plain_output
+    assert "--url" in plain_output
 
 
 def test_root_callback_rejects_removed_profile_flag() -> None:
-    result = runner.invoke(app, ["--profile", "prod_jira", "--help"])
+    result = runner.invoke(app, ["--profile", "prod_jira", "--help"], env=ci_output_env())
+    plain_output = strip_ansi(result.output)
 
     assert result.exit_code == 2
-    assert "No such option: --profile" in result.output
+    assert "No such option: --profile" in plain_output
 
 
 def test_root_callback_does_not_load_default_profile_credentials_when_url_is_explicit(
@@ -327,7 +344,9 @@ def test_root_callback_reports_invalid_header_as_usage_error() -> None:
             "get",
             "OPS-1",
         ],
+        env=ci_output_env(),
     )
+    plain_output = strip_ansi(result.output)
 
     assert result.exit_code == 2
-    assert "Invalid value for --header" in result.output
+    assert "Invalid value for --header" in plain_output
