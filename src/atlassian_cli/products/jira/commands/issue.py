@@ -70,8 +70,14 @@ def update_issue(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
-    payload = {k: v for k, v in {"summary": summary, "description": description}.items() if v is not None}
-    result = service.update_raw(issue_key, payload) if is_raw_output(output) else service.update(issue_key, payload)
+    payload = {
+        k: v for k, v in {"summary": summary, "description": description}.items() if v is not None
+    }
+    result = (
+        service.update_raw(issue_key, payload)
+        if is_raw_output(output)
+        else service.update(issue_key, payload)
+    )
     typer.echo(render_output(result, output=output))
 
 

@@ -22,9 +22,7 @@ class IssueService:
                 else None
             ),
             priority=(
-                JiraFieldName(name=fields["priority"]["name"])
-                if fields.get("priority")
-                else None
+                JiraFieldName(name=fields["priority"]["name"]) if fields.get("priority") else None
             ),
             updated=fields.get("updated"),
         )
@@ -38,7 +36,9 @@ class IssueService:
         return self.provider.get_issue(issue_key)
 
     def search(self, jql: str, start: int, limit: int) -> list[dict]:
-        return [self._normalize_issue(item) for item in self.provider.search_issues(jql, start, limit)]
+        return [
+            self._normalize_issue(item) for item in self.provider.search_issues(jql, start, limit)
+        ]
 
     def search_raw(self, jql: str, start: int, limit: int) -> list[dict]:
         return self.provider.search_issues(jql, start, limit)

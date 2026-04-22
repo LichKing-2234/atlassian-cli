@@ -14,9 +14,7 @@ def run_header_command(command: str) -> str:
         check=False,
     )
     if completed.returncode != 0:
-        raise ConfigError(
-            f"Header command failed with exit code {completed.returncode}: {command}"
-        )
+        raise ConfigError(f"Header command failed with exit code {completed.returncode}: {command}")
     return completed.stdout
 
 
@@ -39,14 +37,12 @@ def substitute_header_commands(
             raise ConfigError(f"Malformed command substitution in {source}.{header_name}")
         output = runner(command).strip()
         if not output:
-            raise ConfigError(
-                f"Header command produced empty output for {source}.{header_name}"
-            )
+            raise ConfigError(f"Header command produced empty output for {source}.{header_name}")
         if "\n" in output:
             raise ConfigError(
                 f"Header command must produce a single line for {source}.{header_name}"
             )
-        resolved = f"{resolved[:start]}{output}{resolved[end + 1:]}"
+        resolved = f"{resolved[:start]}{output}{resolved[end + 1 :]}"
     return resolved
 
 

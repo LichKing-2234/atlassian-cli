@@ -20,7 +20,16 @@ def test_confluence_page_get_outputs_json(monkeypatch) -> None:
 
     result = runner.invoke(
         app,
-        ["--url", "https://confluence.example.com", "confluence", "page", "get", "1234", "--output", "json"],
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "page",
+            "get",
+            "1234",
+            "--output",
+            "json",
+        ],
     )
 
     assert result.exit_code == 0

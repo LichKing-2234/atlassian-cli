@@ -6,6 +6,48 @@ CLI for Atlassian Server and Data Center products.
 
 `python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'`
 
+## GitHub Actions
+
+The repository ships two GitHub Actions workflows:
+
+- `CI`: runs on every pull request and on pushes to `main` and `release/*`
+- `Release`: runs on tags matching `v*` and can also be started manually with `workflow_dispatch`
+
+`CI` is intended to back branch protection for `main` and `release/*`.
+
+## Release Binaries
+
+Tagged releases publish standalone CLI binaries for:
+
+- `linux/amd64`
+- `darwin/arm64`
+
+Each release uploads:
+
+- `atlassian-cli_<version>_linux_amd64.tar.gz`
+- `atlassian-cli_<version>_darwin_arm64.tar.gz`
+- `checksums.txt`
+
+## Install From GitHub Release
+
+Install the latest binary release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/main/install.sh | sh
+```
+
+Install a specific release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/main/install.sh | env INSTALL_VERSION=v0.1.0 sh
+```
+
+By default the installer writes `atlassian` to `~/.local/bin`.
+
+You can also download a tarball from the GitHub Release page and extract `atlassian` manually.
+
+`darwin/arm64` binaries are unsigned in the first release version, so macOS may require a manual Gatekeeper allow step on first run.
+
 ## Examples
 
 - `atlassian jira issue get OPS-1 --output json`

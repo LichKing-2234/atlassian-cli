@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 DEFAULT_CONFIG_TEMPLATE = """[headers]
 # accessToken = "$(agora-oauth token)"
 
