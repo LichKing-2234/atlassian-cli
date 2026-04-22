@@ -122,6 +122,7 @@ install_binary() {
 
   mkdir -p "${extract_dir}" "${destination_dir}"
   tar -xzf "${archive_path}" -C "${extract_dir}"
+  [ ! -L "${extract_dir}/atlassian" ] || die "archive extracted a symbolic link for atlassian"
   [ -f "${extract_dir}/atlassian" ] || die "archive did not extract an atlassian binary"
 
   chmod +x "${extract_dir}/atlassian"
@@ -141,7 +142,8 @@ main() {
   release_tag="$(resolve_tag)"
   archive="$(archive_name "${release_tag}" "${os_name}" "${arch_name}")"
 
-  TMP_ROOT="$(mktemp -d)"
+  TMP_ROOT="$(mktemp -d 2>/dev/null || mktemp -d -t atlassian-cli)" ||
+    die "failed to create temporary directory"
   archive_path="${TMP_ROOT}/${archive}"
   checksums_path="${TMP_ROOT}/checksums.txt"
 

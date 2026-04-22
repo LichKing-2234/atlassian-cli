@@ -15,6 +15,7 @@ def _write_release_fixture(
     *,
     tag: str = "v0.1.0",
     checksum_mismatch: bool = False,
+    symlink_payload: bool = False,
 ) -> tuple[Path, Path, str]:
     downloads_root = tmp_path / "downloads"
     release_dir = downloads_root / tag
@@ -23,8 +24,11 @@ def _write_release_fixture(
     payload_dir = tmp_path / "payload"
     payload_dir.mkdir()
     binary_path = payload_dir / "atlassian"
-    binary_path.write_text("#!/bin/sh\necho fixture-atlassian\n")
-    binary_path.chmod(binary_path.stat().st_mode | stat.S_IXUSR)
+    if symlink_payload:
+        binary_path.symlink_to("/etc/passwd")
+    else:
+        binary_path.write_text("#!/bin/sh\necho fixture-atlassian\n")
+        binary_path.chmod(binary_path.stat().st_mode | stat.S_IXUSR)
 
     archive_name = "atlassian-cli_0.1.0_linux_amd64.tar.gz"
     archive_path = release_dir / archive_name
@@ -120,3 +124,30 @@ def test_install_script_fails_on_checksum_mismatch(tmp_path: Path) -> None:
 
     assert result.returncode != 0
     assert "checksum mismatch" in result.stderr.lower()
+
+
+def test_install_script_rejects_symlink_payload(tmp_path: Path) -> None:
+    latest_json, downloads_root, _ = _write_release_fixture(
+        tmp_path,
+        symlink_payload=True,
+    )
+
+    result = subprocess.run(
+        ["sh", str(INSTALL_SCRIPT)],
+        cwd=tmp_path,
+        env=os.environ
+        | {
+            "HOME": str(tmp_path / "home"),
+            "INSTALL_DIR": str(tmp_path / "bin"),
+            "INSTALL_VERSION": "v0.1.0",
+            "INSTALL_RELEASE_API_URL": latest_json.resolve().as_uri(),
+            "INSTALL_RELEASE_DOWNLOAD_BASE": downloads_root.resolve().as_uri(),
+            "INSTALL_TEST_OS": "Linux",
+            "INSTALL_TEST_ARCH": "x86_64",
+        },
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0
+    assert "symbolic link" in result.stderr.lower()
