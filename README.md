@@ -17,7 +17,7 @@ The repository ships two GitHub Actions workflows:
 
 ## Release Binaries
 
-Tagged releases publish standalone CLI binaries for:
+Tagged releases publish standalone CLI bundles for:
 
 - `linux/amd64`
 - `darwin/arm64`
@@ -42,9 +42,9 @@ Install a specific release:
 curl -fsSL https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/main/install.sh | env INSTALL_VERSION=v0.1.0 sh
 ```
 
-By default the installer writes `atlassian` to `~/.local/bin`.
+By default the installer writes an `atlassian` launcher to `~/.local/bin` and installs the runtime bundle under `~/.local/bin/.atlassian-cli`.
 
-You can also download a tarball from the GitHub Release page and extract `atlassian` manually.
+You can also download a tarball from the GitHub Release page and run `atlassian/atlassian` from the extracted bundle.
 
 `darwin/arm64` binaries are unsigned in the first release version, so macOS may require a manual Gatekeeper allow step on first run.
 

@@ -111,7 +111,15 @@ sha256_file() {
 verify_archive_layout() {
   archive_path="$1"
   listing="$(tar -tzf "${archive_path}")"
-  [ "${listing}" = "atlassian" ] || die "archive must contain a top-level atlassian binary"
+  if [ "${listing}" = "atlassian" ]; then
+    return
+  fi
+  printf '%s\n' "${listing}" | awk '
+    $0 == "atlassian/atlassian" { has_binary = 1 }
+    $0 !~ /^atlassian(\/|$)/ { bad = 1 }
+    $0 ~ /(^|\/)\.\.($|\/)/ { bad = 1 }
+    END { exit bad || !has_binary }
+  ' || die "archive must contain a top-level atlassian bundle"
 }
 
 install_binary() {
@@ -129,6 +137,52 @@ install_binary() {
   cp "${extract_dir}/atlassian" "${temp_binary}"
   chmod +x "${temp_binary}"
   mv "${temp_binary}" "${destination_dir}/atlassian"
+}
+
+install_bundle() {
+  bundle_source="$1"
+  destination_dir="$2"
+  runtime_dir="${destination_dir}/.atlassian-cli"
+  bundle_dir="${runtime_dir}/atlassian"
+  temp_bundle="${runtime_dir}/.atlassian.tmp.$$"
+  temp_shim="${destination_dir}/.atlassian.tmp.$$"
+
+  [ ! -L "${bundle_source}/atlassian" ] || die "archive extracted a symbolic link for atlassian executable"
+  [ -f "${bundle_source}/atlassian" ] || die "archive did not extract an atlassian executable"
+
+  mkdir -p "${runtime_dir}" "${destination_dir}"
+  rm -rf "${temp_bundle}" "${temp_shim}"
+  cp -R "${bundle_source}" "${temp_bundle}"
+  chmod +x "${temp_bundle}/atlassian"
+  cat > "${temp_shim}" <<'EOF'
+#!/bin/sh
+SELF_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd) || exit 1
+exec "${SELF_DIR}/.atlassian-cli/atlassian/atlassian" "$@"
+EOF
+  chmod +x "${temp_shim}"
+
+  rm -rf "${bundle_dir}"
+  mv "${temp_bundle}" "${bundle_dir}"
+  mv "${temp_shim}" "${destination_dir}/atlassian"
+}
+
+install_payload() {
+  archive_path="$1"
+  destination_dir="$2"
+  extract_dir="${TMP_ROOT}/extract"
+
+  mkdir -p "${extract_dir}" "${destination_dir}"
+  tar -xzf "${archive_path}" -C "${extract_dir}"
+  [ ! -L "${extract_dir}/atlassian" ] || die "archive extracted a symbolic link for atlassian"
+  if [ -f "${extract_dir}/atlassian" ]; then
+    install_binary "${archive_path}" "${destination_dir}"
+    return
+  fi
+  if [ -d "${extract_dir}/atlassian" ]; then
+    install_bundle "${extract_dir}/atlassian" "${destination_dir}"
+    return
+  fi
+  die "archive did not extract an atlassian payload"
 }
 
 main() {
@@ -157,7 +211,7 @@ main() {
   [ "${actual_checksum}" = "${expected_checksum}" ] || die "checksum mismatch for ${archive}"
 
   verify_archive_layout "${archive_path}"
-  install_binary "${archive_path}" "${INSTALL_DIR}"
+  install_payload "${archive_path}" "${INSTALL_DIR}"
 
   printf 'installed %s to %s/atlassian\n' "${release_tag}" "${INSTALL_DIR}"
   case ":${PATH}:" in
