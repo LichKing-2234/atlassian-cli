@@ -217,3 +217,71 @@ def test_jira_provider_uses_token_auth_for_pat_without_username(monkeypatch) -> 
     assert "password" not in captured or captured["password"] is None
     assert captured["token"] == "jira-token"
     assert captured["patched"] == {"Authorization": "Bearer oauth-token"}
+
+
+def test_jira_provider_search_issues_returns_full_search_payload(monkeypatch) -> None:
+    class FakeJira:
+        def __init__(self, **kwargs):
+            self._session = object()
+
+        def jql(self, jql: str, start: int, limit: int) -> dict:
+            return {
+                "total": 2,
+                "startAt": start,
+                "maxResults": limit,
+                "issues": [{"key": "OPS-1"}, {"key": "OPS-2"}],
+            }
+
+    monkeypatch.setattr("atlassian_cli.products.jira.providers.server.Jira", FakeJira)
+    monkeypatch.setattr(
+        "atlassian_cli.products.jira.providers.server.patch_session_headers",
+        lambda session, headers: None,
+    )
+
+    provider = JiraServerProvider(
+        url="https://jira.example.com",
+        username="alice",
+        password="secret",
+        token=None,
+        headers={},
+    )
+
+    result = provider.search_issues("project = OPS", start=0, limit=2)
+
+    assert result["total"] == 2
+    assert [item["key"] for item in result["issues"]] == ["OPS-1", "OPS-2"]
+
+
+def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch) -> None:
+    class FakeConfluence:
+        def __init__(self, **kwargs):
+            self._session = object()
+
+        def get_all_spaces(self, start: int, limit: int) -> dict:
+            return {
+                "results": [{"id": 1, "key": "OPS", "name": "Operations"}],
+                "start": start,
+                "limit": limit,
+            }
+
+    monkeypatch.setattr(
+        "atlassian_cli.products.confluence.providers.server.Confluence",
+        FakeConfluence,
+    )
+    monkeypatch.setattr(
+        "atlassian_cli.products.confluence.providers.server.patch_session_headers",
+        lambda session, headers: None,
+    )
+
+    provider = ConfluenceServerProvider(
+        url="https://confluence.example.com",
+        username="alice",
+        password="secret",
+        token=None,
+        headers={},
+    )
+
+    result = provider.list_spaces(start=0, limit=25)
+
+    assert result["start"] == 0
+    assert result["results"][0]["key"] == "OPS"
