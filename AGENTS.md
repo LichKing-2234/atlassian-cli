@@ -1,5 +1,4 @@
 # Repository Instructions
 
-- Commit messages must follow Conventional Commits, for example `fix: speed up help startup`.
-- Because GitHub squash merge uses the pull request title as the resulting commit message, PR titles must also be written in the same commit-message format.
-- Keep the subject lowercase after the type prefix unless a proper noun requires capitalization.
+- Use Conventional Commits for commit messages, for example `fix: speed up help startup`.
+- Write PR titles in the same format because squash merge uses the PR title as the final commit message.
