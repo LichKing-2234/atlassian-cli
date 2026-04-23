@@ -350,3 +350,25 @@ def test_root_callback_reports_invalid_header_as_usage_error() -> None:
 
     assert result.exit_code == 2
     assert "Invalid value for --header" in plain_output
+
+
+def test_root_callback_reports_missing_pat_token_as_usage_error() -> None:
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "--auth",
+            "pat",
+            "bitbucket",
+            "pr",
+            "list",
+            "SDK",
+            "rtmp_streaming_kit",
+        ],
+        env=ci_output_env(),
+    )
+    plain_output = strip_ansi(result.output)
+
+    assert result.exit_code == 2
+    assert "pat authentication requires a token" in plain_output.lower()

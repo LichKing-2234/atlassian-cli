@@ -11,6 +11,7 @@ def build_provider(context):
 
     if context.product is Product.JIRA:
         return JiraServerProvider(
+            auth_mode=context.auth.mode,
             url=context.url,
             username=context.auth.username,
             password=context.auth.password,
@@ -19,6 +20,7 @@ def build_provider(context):
         )
     if context.product is Product.CONFLUENCE:
         return ConfluenceServerProvider(
+            auth_mode=context.auth.mode,
             url=context.url,
             username=context.auth.username,
             password=context.auth.password,
@@ -27,6 +29,7 @@ def build_provider(context):
         )
     if context.product is Product.BITBUCKET:
         return BitbucketServerProvider(
+            auth_mode=context.auth.mode,
             url=context.url,
             username=context.auth.username,
             password=context.auth.password,

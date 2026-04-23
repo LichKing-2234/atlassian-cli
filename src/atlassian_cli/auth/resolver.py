@@ -1,4 +1,5 @@
 from atlassian_cli.auth.models import AuthMode, ResolvedAuth
+from atlassian_cli.core.errors import ConfigError
 
 
 def resolve_auth(
@@ -10,6 +11,8 @@ def resolve_auth(
     headers: dict[str, str] | None = None,
 ) -> ResolvedAuth:
     mode = auth or AuthMode.BASIC
+    if mode in {AuthMode.PAT, AuthMode.BEARER} and token is None:
+        raise ConfigError(f"{mode.value} authentication requires a token")
     return ResolvedAuth(
         mode=mode,
         username=username,

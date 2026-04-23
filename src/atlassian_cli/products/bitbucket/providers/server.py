@@ -1,5 +1,6 @@
 from atlassian import Bitbucket
 
+from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.auth.session_patch import patch_session_headers
 
 
@@ -7,17 +8,19 @@ class BitbucketServerProvider:
     def __init__(
         self,
         *,
+        auth_mode: AuthMode = AuthMode.BASIC,
         url: str,
         username: str | None,
         password: str | None,
         token: str | None,
         headers: dict[str, str] | None = None,
     ) -> None:
-        kwargs = {
-            "url": url,
-            "username": username,
-            "password": password or token,
-        }
+        kwargs = {"url": url}
+        if auth_mode in {AuthMode.PAT, AuthMode.BEARER} and token is not None:
+            kwargs["token"] = token
+        else:
+            kwargs["username"] = username
+            kwargs["password"] = password or token
         self.client = Bitbucket(**kwargs)
         session = getattr(self.client, "_session", None)
         if session is not None:

@@ -108,19 +108,22 @@ def root_callback(
             token=token,
             headers={},
         )
-    ctx.obj = resolve_runtime_context(
-        profile=base_profile,
-        env=dict(os.environ),
-        default_headers=config.headers,
-        overrides=RuntimeOverrides(
-            product=product,
-            deployment=deployment,
-            url=url,
-            username=username,
-            password=password,
-            token=token,
-            auth=auth,
-            headers=headers,
-            output=output,
-        ),
-    )
+    try:
+        ctx.obj = resolve_runtime_context(
+            profile=base_profile,
+            env=dict(os.environ),
+            default_headers=config.headers,
+            overrides=RuntimeOverrides(
+                product=product,
+                deployment=deployment,
+                url=url,
+                username=username,
+                password=password,
+                token=token,
+                auth=auth,
+                headers=headers,
+                output=output,
+            ),
+        )
+    except ConfigError as exc:
+        raise typer.BadParameter(str(exc)) from exc
