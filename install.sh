@@ -122,19 +122,39 @@ verify_archive_layout() {
   ' || die "archive must contain a top-level atlassian bundle"
 }
 
+reject_hardlinks() {
+  payload_path="$1"
+  if find "${payload_path}" -type f -links +1 | grep . >/dev/null 2>&1; then
+    die "archive contains hard link entries"
+  fi
+}
+
+reject_unsafe_symlinks() {
+  payload_path="$1"
+  find "${payload_path}" -type l -exec sh -c '
+    for link_path do
+      target="$(readlink "${link_path}")" || exit 1
+      case "${target}" in
+        "" | /* | .. | ../* | */.. | */../*)
+          exit 1
+          ;;
+      esac
+    done
+  ' sh {} + || die "archive contains unsafe symbolic link entries"
+}
+
 install_binary() {
-  archive_path="$1"
+  binary_source="$1"
   destination_dir="$2"
-  extract_dir="${TMP_ROOT}/extract"
   temp_binary="${destination_dir}/.atlassian.tmp.$$"
 
-  mkdir -p "${extract_dir}" "${destination_dir}"
-  tar -xzf "${archive_path}" -C "${extract_dir}"
-  [ ! -L "${extract_dir}/atlassian" ] || die "archive extracted a symbolic link for atlassian"
-  [ -f "${extract_dir}/atlassian" ] || die "archive did not extract an atlassian binary"
+  [ ! -L "${binary_source}" ] || die "archive extracted a symbolic link for atlassian"
+  [ -f "${binary_source}" ] || die "archive did not extract an atlassian binary"
+  reject_hardlinks "${binary_source}"
 
-  chmod +x "${extract_dir}/atlassian"
-  cp "${extract_dir}/atlassian" "${temp_binary}"
+  mkdir -p "${destination_dir}"
+  chmod +x "${binary_source}"
+  cp "${binary_source}" "${temp_binary}"
   chmod +x "${temp_binary}"
   mv "${temp_binary}" "${destination_dir}/atlassian"
 }
@@ -149,6 +169,8 @@ install_bundle() {
 
   [ ! -L "${bundle_source}/atlassian" ] || die "archive extracted a symbolic link for atlassian executable"
   [ -f "${bundle_source}/atlassian" ] || die "archive did not extract an atlassian executable"
+  reject_unsafe_symlinks "${bundle_source}"
+  reject_hardlinks "${bundle_source}"
 
   mkdir -p "${runtime_dir}" "${destination_dir}"
   rm -rf "${temp_bundle}" "${temp_shim}"
@@ -173,9 +195,8 @@ install_payload() {
 
   mkdir -p "${extract_dir}" "${destination_dir}"
   tar -xzf "${archive_path}" -C "${extract_dir}"
-  [ ! -L "${extract_dir}/atlassian" ] || die "archive extracted a symbolic link for atlassian"
-  if [ -f "${extract_dir}/atlassian" ]; then
-    install_binary "${archive_path}" "${destination_dir}"
+  if [ -f "${extract_dir}/atlassian" ] || [ -L "${extract_dir}/atlassian" ]; then
+    install_binary "${extract_dir}/atlassian" "${destination_dir}"
     return
   fi
   if [ -d "${extract_dir}/atlassian" ]; then
