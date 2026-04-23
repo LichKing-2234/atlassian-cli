@@ -66,5 +66,19 @@ class BitbucketServerProvider:
     def create_pull_request(self, project_key: str, repo_slug: str, payload: dict) -> dict:
         return self.client.create_pull_request(project_key, repo_slug, data=payload)
 
-    def merge_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
-        return self.client.merge_pull_request(project_key, repo_slug, pr_id)
+    def merge_pull_request(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        *,
+        merge_message: str,
+        pr_version: int | None,
+    ) -> dict:
+        return self.client.merge_pull_request(
+            project_key,
+            repo_slug,
+            pr_id,
+            merge_message,
+            pr_version=pr_version,
+        )
