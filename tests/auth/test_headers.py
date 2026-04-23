@@ -3,6 +3,7 @@ import pytest
 from atlassian_cli.auth.headers import parse_cli_headers
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.auth.resolver import resolve_auth
+from atlassian_cli.core.errors import ConfigError
 
 
 def test_parse_cli_headers_accepts_repeated_name_value_pairs() -> None:
@@ -35,3 +36,15 @@ def test_resolve_auth_preserves_injected_headers() -> None:
 
     assert auth.mode is AuthMode.BASIC
     assert auth.headers == {"Authorization": "Bearer oauth-token"}
+
+
+@pytest.mark.parametrize("auth_mode", [AuthMode.PAT, AuthMode.BEARER])
+def test_resolve_auth_requires_token_for_token_modes(auth_mode: AuthMode) -> None:
+    with pytest.raises(ConfigError, match="requires a token"):
+        resolve_auth(
+            auth=auth_mode,
+            username=None,
+            password=None,
+            token=None,
+            headers={},
+        )
