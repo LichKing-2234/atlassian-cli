@@ -62,3 +62,41 @@ def test_render_output_table_uses_first_row_column_order() -> None:
 
     row = next(line for line in rendered.splitlines() if "OPS-2" in line and "Second" in line)
     assert row.index("OPS-2") < row.index("Second")
+
+
+def test_render_output_table_uses_results_envelope_rows() -> None:
+    payload = {
+        "start_at": 0,
+        "max_results": 2,
+        "results": [
+            {"key": "OPS-1", "summary": "First"},
+            {"key": "OPS-2", "summary": "Second", "assignee": {"display_name": "Alice"}},
+        ],
+    }
+
+    rendered = render_output(payload, output="table")
+
+    assert "OPS-1" in rendered
+    assert "OPS-2" in rendered
+    assert "assignee" in rendered.lower()
+
+
+def test_render_output_table_unions_columns_across_sparse_rows() -> None:
+    payload = [
+        {"key": "OPS-1", "summary": "First"},
+        {"key": "OPS-2", "summary": "Second", "priority": {"name": "High"}},
+    ]
+
+    rendered = render_output(payload, output="table")
+
+    assert "priority" in rendered.lower()
+
+
+def test_render_output_table_wraps_scalar_rows() -> None:
+    payload = ["first", "second"]
+
+    rendered = render_output(payload, output="table")
+
+    assert "value" in rendered.lower()
+    assert "first" in rendered.lower()
+    assert "second" in rendered.lower()

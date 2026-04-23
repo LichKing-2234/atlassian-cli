@@ -39,14 +39,14 @@ class ConfluenceServerProvider:
         self.client.remove_page(page_id)
         return {"id": page_id, "deleted": True}
 
-    def list_spaces(self, *, start: int, limit: int) -> list[dict]:
-        return self.client.get_all_spaces(start=start, limit=limit)["results"]
+    def list_spaces(self, *, start: int, limit: int) -> dict:
+        return self.client.get_all_spaces(start=start, limit=limit)
 
     def get_space(self, space_key: str) -> dict:
         return self.client.get_space(space_key)
 
-    def list_attachments(self, page_id: str) -> list[dict]:
-        return self.client.get_attachments_from_content(page_id)["results"]
+    def list_attachments(self, page_id: str) -> dict:
+        return self.client.get_attachments_from_content(page_id)
 
     def upload_attachment(self, page_id: str, file_path: str) -> dict:
         return self.client.attach_file(file_path, page_id=page_id)

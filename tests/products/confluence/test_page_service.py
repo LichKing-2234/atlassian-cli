@@ -2,11 +2,15 @@ from atlassian_cli.products.confluence.services.page import PageService
 
 
 class FakePageProvider:
+    def __init__(self) -> None:
+        self.client = type("Client", (), {"url": "https://confluence.example.com"})()
+
     def get_page(self, page_id: str) -> dict:
         return {
             "id": page_id,
             "title": "Runbook",
             "type": "page",
+            "status": "current",
             "space": {"key": "OPS", "name": "Operations"},
             "version": {"number": 7},
             "body": {"view": {"value": "<p>huge html</p>"}},
@@ -22,8 +26,10 @@ def test_page_service_normalizes_page_payload() -> None:
         "id": "1234",
         "title": "Runbook",
         "type": "page",
+        "status": "current",
         "space": {"key": "OPS", "name": "Operations"},
         "version": 7,
+        "url": "https://confluence.example.com/pages/viewpage.action?pageId=1234",
     }
 
 

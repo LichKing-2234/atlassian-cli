@@ -29,8 +29,8 @@ class JiraServerProvider:
     def get_issue(self, issue_key: str) -> dict:
         return self.client.issue(issue_key)
 
-    def search_issues(self, jql: str, start: int, limit: int) -> list[dict]:
-        return self.client.jql(jql, start=start, limit=limit)["issues"]
+    def search_issues(self, jql: str, start: int, limit: int) -> dict:
+        return self.client.jql(jql, start=start, limit=limit)
 
     def create_issue(self, fields: dict) -> dict:
         return self.client.issue_create(fields=fields)

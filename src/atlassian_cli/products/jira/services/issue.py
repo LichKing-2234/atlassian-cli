@@ -1,52 +1,28 @@
-from atlassian_cli.products.jira.schemas import JiraFieldName, JiraIssue, JiraPerson
+from atlassian_cli.products.jira.providers.base import JiraProvider
+from atlassian_cli.products.jira.schemas import JiraIssue, JiraSearchResult
 
 
 class IssueService:
-    def __init__(self, provider) -> None:
+    def __init__(self, provider: JiraProvider) -> None:
         self.provider = provider
 
-    def _normalize_issue(self, raw: dict) -> dict:
-        fields = raw["fields"]
-        issue = JiraIssue(
-            key=raw["key"],
-            summary=fields["summary"],
-            status=JiraFieldName(name=fields["status"]["name"]),
-            assignee=(
-                JiraPerson(display_name=fields["assignee"]["displayName"])
-                if fields.get("assignee")
-                else None
-            ),
-            reporter=(
-                JiraPerson(display_name=fields["reporter"]["displayName"])
-                if fields.get("reporter")
-                else None
-            ),
-            priority=(
-                JiraFieldName(name=fields["priority"]["name"]) if fields.get("priority") else None
-            ),
-            updated=fields.get("updated"),
-        )
-        return issue.model_dump(exclude_none=True)
-
     def get(self, issue_key: str) -> dict:
-        raw = self.provider.get_issue(issue_key)
-        return self._normalize_issue(raw)
+        return JiraIssue.from_api_response(self.provider.get_issue(issue_key)).to_simplified_dict()
 
     def get_raw(self, issue_key: str) -> dict:
         return self.provider.get_issue(issue_key)
 
-    def search(self, jql: str, start: int, limit: int) -> list[dict]:
-        return [
-            self._normalize_issue(item) for item in self.provider.search_issues(jql, start, limit)
-        ]
+    def search(self, jql: str, start: int, limit: int) -> dict:
+        raw = self.provider.search_issues(jql, start, limit)
+        return JiraSearchResult.from_api_response(raw).to_simplified_dict()
 
-    def search_raw(self, jql: str, start: int, limit: int) -> list[dict]:
+    def search_raw(self, jql: str, start: int, limit: int) -> dict:
         return self.provider.search_issues(jql, start, limit)
 
     def create(self, fields: dict) -> dict:
         raw = self.provider.create_issue(fields)
         if isinstance(raw, dict) and "fields" in raw and "key" in raw:
-            return self._normalize_issue(raw)
+            return JiraIssue.from_api_response(raw).to_simplified_dict()
         if isinstance(raw, dict) and "key" in raw:
             return {"key": raw["key"]}
         return raw
