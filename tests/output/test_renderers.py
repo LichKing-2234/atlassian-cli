@@ -90,3 +90,13 @@ def test_render_output_table_unions_columns_across_sparse_rows() -> None:
     rendered = render_output(payload, output="table")
 
     assert "priority" in rendered.lower()
+
+
+def test_render_output_table_wraps_scalar_rows() -> None:
+    payload = ["first", "second"]
+
+    rendered = render_output(payload, output="table")
+
+    assert "value" in rendered.lower()
+    assert "first" in rendered.lower()
+    assert "second" in rendered.lower()
