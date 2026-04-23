@@ -9,9 +9,7 @@ class ConfluenceUserRef(ApiModel):
     email: str | None = None
 
     @classmethod
-    def from_api_response(
-        cls, data: dict[str, Any] | None, **kwargs: Any
-    ) -> "ConfluenceUserRef":
+    def from_api_response(cls, data: dict[str, Any] | None, **kwargs: Any) -> "ConfluenceUserRef":
         data = data or {}
         return cls(
             display_name=str(first_present(data.get("displayName"), "Unknown")),
@@ -24,9 +22,7 @@ class ConfluenceVersion(ApiModel):
     by: ConfluenceUserRef | None = None
 
     @classmethod
-    def from_api_response(
-        cls, data: dict[str, Any] | None, **kwargs: Any
-    ) -> "ConfluenceVersion":
+    def from_api_response(cls, data: dict[str, Any] | None, **kwargs: Any) -> "ConfluenceVersion":
         data = data or {}
         return cls(
             number=int(data.get("number", 0)),
@@ -83,7 +79,9 @@ class ConfluenceAttachment(ApiModel):
         return cls(
             id=coerce_str(data.get("id")),
             title=str(first_present(data.get("title"), data.get("fileName"), "")),
-            media_type=coerce_str(first_present(data.get("mediaType"), extensions.get("mediaType"))),
+            media_type=coerce_str(
+                first_present(data.get("mediaType"), extensions.get("mediaType"))
+            ),
             file_size=extensions.get("fileSize"),
             download_url=coerce_str(links.get("download")),
             version_number=int(version["number"]) if version.get("number") is not None else None,
@@ -128,7 +126,11 @@ class ConfluencePage(ApiModel, TimestampMixin):
                 key = space_path.split("/rest/api/space/")[1]
                 space_data = {"key": key, "name": f"Space {key}"}
         space = ConfluenceSpace.from_api_response(space_data) if space_data is not None else None
-        version = ConfluenceVersion.from_api_response(data.get("version")) if data.get("version") else None
+        version = (
+            ConfluenceVersion.from_api_response(data.get("version"))
+            if data.get("version")
+            else None
+        )
         history = data.get("history") if isinstance(data.get("history"), dict) else {}
         base_url = kwargs.get("base_url")
         is_cloud = bool(kwargs.get("is_cloud", False))
@@ -147,7 +149,9 @@ class ConfluencePage(ApiModel, TimestampMixin):
             status=coerce_str(first_present(data.get("status"), "current")),
             space=space,
             version=version,
-            author=ConfluenceUserRef.from_api_response(data.get("author")) if data.get("author") else None,
+            author=ConfluenceUserRef.from_api_response(data.get("author"))
+            if data.get("author")
+            else None,
             created=coerce_str(history.get("createdDate")),
             updated=coerce_str(
                 first_present(

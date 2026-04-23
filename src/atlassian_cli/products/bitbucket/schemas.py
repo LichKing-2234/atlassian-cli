@@ -113,7 +113,9 @@ class BitbucketRepo(ApiModel):
             slug=str(data.get("slug", "")),
             name=str(data.get("name", "")),
             state=coerce_str(data.get("state")),
-            project=BitbucketProject.from_api_response(data.get("project")) if data.get("project") else None,
+            project=BitbucketProject.from_api_response(data.get("project"))
+            if data.get("project")
+            else None,
             public=data.get("public"),
             archived=data.get("archived"),
             forkable=data.get("forkable"),
@@ -185,8 +187,12 @@ class BitbucketPullRequest(ApiModel):
             to_ref=BitbucketRef.from_api_response(data.get("toRef"))
             if isinstance(data.get("toRef"), dict)
             else None,
-            created_date=coerce_str(first_present(data.get("createdDate"), data.get("created_date"))),
-            updated_date=coerce_str(first_present(data.get("updatedDate"), data.get("updated_date"))),
+            created_date=coerce_str(
+                first_present(data.get("createdDate"), data.get("created_date"))
+            ),
+            updated_date=coerce_str(
+                first_present(data.get("updatedDate"), data.get("updated_date"))
+            ),
             links=data.get("links") if isinstance(data.get("links"), dict) else None,
             version=data.get("version"),
         )

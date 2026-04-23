@@ -24,10 +24,10 @@ class TimestampMixin:
         candidate = value.replace("Z", "+00:00")
         if "+" in candidate and ":" not in candidate[-5:]:
             pos = candidate.rfind("+")
-            candidate = f"{candidate[: pos + 3]}:{candidate[pos + 3:]}"
+            candidate = f"{candidate[: pos + 3]}:{candidate[pos + 3 :]}"
         elif "-" in candidate[10:] and ":" not in candidate[-5:]:
             pos = candidate.rfind("-")
-            candidate = f"{candidate[: pos + 3]}:{candidate[pos + 3:]}"
+            candidate = f"{candidate[: pos + 3]}:{candidate[pos + 3 :]}"
 
         try:
             return datetime.fromisoformat(candidate).strftime("%Y-%m-%d %H:%M:%S")

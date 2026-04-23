@@ -14,7 +14,9 @@ class ProjectService:
         return {"results": projects}
 
     def get(self, project_key: str) -> dict:
-        return JiraProject.from_api_response(self.provider.get_project(project_key)).to_simplified_dict()
+        return JiraProject.from_api_response(
+            self.provider.get_project(project_key)
+        ).to_simplified_dict()
 
     def list_raw(self) -> "list[dict]":
         return self.provider.list_projects()

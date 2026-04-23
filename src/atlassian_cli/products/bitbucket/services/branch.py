@@ -13,7 +13,5 @@ class BranchService:
         ]
         return {"results": branches}
 
-    def list_raw(
-        self, project_key: str, repo_slug: str, filter_text: str | None
-    ) -> "list[dict]":
+    def list_raw(self, project_key: str, repo_slug: str, filter_text: str | None) -> "list[dict]":
         return self.provider.list_branches(project_key, repo_slug, filter_text)
