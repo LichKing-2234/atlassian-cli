@@ -15,6 +15,7 @@ from atlassian_cli.config.models import (
 )
 from atlassian_cli.config.resolver import resolve_runtime_context
 from atlassian_cli.config.template import ensure_default_config
+from atlassian_cli.core.context import LazyExecutionContext
 from atlassian_cli.core.errors import ConfigError
 from atlassian_cli.products.bitbucket.commands.branch import app as bitbucket_branch_app
 from atlassian_cli.products.bitbucket.commands.pr import app as bitbucket_pr_app
@@ -74,56 +75,59 @@ def root_callback(
         return
 
     product = Product(ctx.invoked_subcommand)
-    created_template = ensure_default_config(config_file, default_path=DEFAULT_CONFIG_FILE)
-    config = load_config(config_file) if config_file.exists() else LoadedConfig()
     try:
         headers = parse_cli_headers(header)
     except ValueError as exc:
         raise typer.BadParameter(str(exc), param_hint="--header") from exc
 
-    if url is None:
-        product_config = config.product_config(product)
-        if product_config is None:
-            raise typer.BadParameter(
-                _missing_product_message(config_file, product, created=created_template)
-            )
-        try:
-            base_profile = product_config.to_profile_config(
+    def load_runtime_context():
+        created_template = ensure_default_config(config_file, default_path=DEFAULT_CONFIG_FILE)
+        config = load_config(config_file) if config_file.exists() else LoadedConfig()
+        if url is None:
+            product_config = config.product_config(product)
+            if product_config is None:
+                raise typer.BadParameter(
+                    _missing_product_message(config_file, product, created=created_template)
+                )
+            try:
+                base_profile = product_config.to_profile_config(
+                    product=product,
+                    name=product.value,
+                )
+            except ConfigError as exc:
+                raise typer.BadParameter(
+                    _missing_product_message(config_file, product, created=created_template)
+                ) from exc
+        else:
+            base_profile = ProfileConfig(
+                name=f"inline-{product.value}",
                 product=product,
-                name=product.value,
-            )
-        except ConfigError as exc:
-            raise typer.BadParameter(
-                _missing_product_message(config_file, product, created=created_template)
-            ) from exc
-    else:
-        base_profile = ProfileConfig(
-            name=f"inline-{product.value}",
-            product=product,
-            deployment=deployment or Deployment.SERVER,
-            url=url,
-            auth=auth or AuthMode.BASIC,
-            username=username,
-            password=password,
-            token=token,
-            headers={},
-        )
-    try:
-        ctx.obj = resolve_runtime_context(
-            profile=base_profile,
-            env=dict(os.environ),
-            default_headers=config.headers,
-            overrides=RuntimeOverrides(
-                product=product,
-                deployment=deployment,
+                deployment=deployment or Deployment.SERVER,
                 url=url,
+                auth=auth or AuthMode.BASIC,
                 username=username,
                 password=password,
                 token=token,
-                auth=auth,
-                headers=headers,
-                output=output,
-            ),
-        )
-    except ConfigError as exc:
-        raise typer.BadParameter(str(exc)) from exc
+                headers={},
+            )
+        try:
+            return resolve_runtime_context(
+                profile=base_profile,
+                env=dict(os.environ),
+                default_headers=config.headers,
+                overrides=RuntimeOverrides(
+                    product=product,
+                    deployment=deployment,
+                    url=url,
+                    username=username,
+                    password=password,
+                    token=token,
+                    auth=auth,
+                    headers=headers,
+                    output=output,
+                ),
+            )
+        except ConfigError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+
+    ctx.obj = LazyExecutionContext(load_runtime_context)

@@ -47,4 +47,4 @@ jobs:
       - name: Build release binary smoke test
         run: |
           pyinstaller atlassian.spec --clean --noconfirm
-          ./dist/atlassian --help >/dev/null
+          ./dist/atlassian/atlassian --help >/dev/null
