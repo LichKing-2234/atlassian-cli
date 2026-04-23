@@ -24,7 +24,7 @@ def test_project_service_normalizes_project_payload() -> None:
     assert result == {
         "key": "OPS",
         "name": "Operations",
-        "project_type": "software",
+        "avatar_url": "https://example.com/avatar.png",
     }
 
 
@@ -34,3 +34,19 @@ def test_project_service_exposes_raw_project_payload() -> None:
     result = service.get_raw("OPS")
 
     assert "avatarUrls" in result
+
+
+def test_project_service_list_returns_results_envelope() -> None:
+    service = ProjectService(provider=FakeProjectProvider())
+
+    result = service.list()
+
+    assert result == {
+        "results": [
+            {
+                "key": "OPS",
+                "name": "Operations",
+                "avatar_url": "https://example.com/avatar.png",
+            }
+        ]
+    }
