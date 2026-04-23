@@ -87,8 +87,17 @@ Only top-level `[jira]`, `[confluence]`, `[bitbucket]`, and `[headers]` are supp
 
 `json` and `yaml` now return simplified resource-shaped payloads by default.
 
+- Single-resource commands return a resource object.
+- Collection commands return explicit envelopes such as `results` or `issues`.
 - Use `--output raw-json` to inspect the original provider response as JSON.
 - Use `--output raw-yaml` to inspect the original provider response as YAML.
+
+Examples:
+
+- `atlassian jira issue get OPS-1 --output json`
+- `atlassian jira issue search --jql 'project = OPS' --output json`
+- `atlassian confluence space list --output json`
+- `atlassian bitbucket pr list OPS infra --output json`
 
 ## Smoke testing
 
