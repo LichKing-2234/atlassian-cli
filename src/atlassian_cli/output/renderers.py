@@ -8,6 +8,8 @@ from rich.table import Table
 from atlassian_cli.output.formatters import to_json, to_yaml
 from atlassian_cli.output.modes import normalized_output
 
+MAX_TABLE_SEQUENCE_ITEMS = 3
+
 
 def _coerce_table_row(value) -> dict:
     if isinstance(value, dict):
@@ -45,6 +47,10 @@ def _summarize_mapping(value: Mapping[str, object]) -> str:
     if display_name:
         return f"{display_name} <{email}>" if email else display_name
 
+    display_id = _compact_scalar(value.get("display_id"))
+    if display_id:
+        return display_id
+
     name = _compact_scalar(value.get("name"))
     key = _compact_scalar(value.get("key"))
     if key and name and key != name:
@@ -64,6 +70,9 @@ def _summarize_sequence(value: Sequence[object]) -> str:
         text = _format_table_cell(item)
         if text:
             parts.append(text)
+    if len(parts) > MAX_TABLE_SEQUENCE_ITEMS:
+        hidden_count = len(parts) - MAX_TABLE_SEQUENCE_ITEMS
+        parts = [*parts[:MAX_TABLE_SEQUENCE_ITEMS], f"+{hidden_count} more"]
     return ", ".join(parts)
 
 

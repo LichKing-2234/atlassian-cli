@@ -10,16 +10,37 @@ class FakePullRequestProvider:
             {
                 "id": 42,
                 "title": "Ship output cleanup",
+                "description": "Long body that should stay out of list output",
                 "state": "OPEN",
+                "open": True,
+                "closed": False,
                 "version": 7,
+                "updatedDate": 1704153600000,
+                "author": {"user": {"displayName": "Alice", "name": "alice@example.com"}},
+                "participants": [{"user": {"displayName": "Code Owners"}}],
+                "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
                 "reviewers": [{"user": {"displayName": "Bob"}, "approved": True}],
-                "fromRef": {"displayId": "feature/output"},
-                "toRef": {"displayId": "main"},
+                "fromRef": {"displayId": "feature/output", "id": "refs/heads/feature/output"},
+                "toRef": {"displayId": "main", "id": "refs/heads/main"},
             }
         ]
 
     def get_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
-        return self.list_pull_requests(project_key, repo_slug, "OPEN")[0]
+        return {
+            "id": 42,
+            "title": "Ship output cleanup",
+            "description": "Long body that should stay out of list output",
+            "state": "OPEN",
+            "open": True,
+            "closed": False,
+            "version": 7,
+            "updatedDate": 1704153600000,
+            "participants": [{"user": {"displayName": "Code Owners"}}],
+            "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
+            "reviewers": [{"user": {"displayName": "Bob"}, "approved": True}],
+            "fromRef": {"displayId": "feature/output"},
+            "toRef": {"displayId": "main"},
+        }
 
     def merge_pull_request(
         self,
@@ -48,10 +69,37 @@ def test_pull_request_service_normalizes_payload() -> None:
     assert result == {
         "id": 42,
         "title": "Ship output cleanup",
+        "description": "Long body that should stay out of list output",
         "state": "OPEN",
+        "open": True,
+        "closed": False,
+        "updated_date": "1704153600000",
         "from_ref": {"display_id": "feature/output"},
         "to_ref": {"display_id": "main"},
         "reviewers": [{"display_name": "Bob", "approved": True}],
+        "participants": [{"user": {"displayName": "Code Owners"}}],
+        "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
+    }
+
+
+def test_pull_request_service_list_uses_summary_payload() -> None:
+    service = PullRequestService(provider=FakePullRequestProvider())
+
+    result = service.list("AI", "agora-skills", "OPEN")
+
+    assert result == {
+        "results": [
+            {
+                "id": 42,
+                "title": "Ship output cleanup",
+                "state": "OPEN",
+                "author": {"display_name": "Alice", "name": "alice@example.com"},
+                "reviewers": [{"display_name": "Bob", "approved": True}],
+                "from_ref": {"display_id": "feature/output"},
+                "to_ref": {"display_id": "main"},
+                "updated_date": "2024-01-02 00:00:00",
+            }
+        ]
     }
 
 

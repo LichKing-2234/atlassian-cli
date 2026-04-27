@@ -178,3 +178,41 @@ def test_render_output_table_uses_compact_json_fallback_for_unknown_mappings() -
 
     assert '{"alpha":1,"beta":{"x":2}}' in rendered
     assert "{'beta': {'x': 2}, 'alpha': 1}" not in rendered
+
+
+def test_render_output_table_prefers_display_id_for_ref_mappings() -> None:
+    payload = [
+        {
+            "id": 42,
+            "from_ref": {
+                "display_id": "feature/output",
+                "id": "refs/heads/feature/output",
+            },
+        }
+    ]
+
+    rendered = render_output(payload, output="table")
+
+    assert "feature/output" in rendered
+    assert "refs/heads/feature/output" not in rendered
+
+
+def test_render_output_table_truncates_long_sequences() -> None:
+    payload = [
+        {
+            "id": 42,
+            "reviewers": [
+                {"display_name": "Alice"},
+                {"display_name": "Bob"},
+                {"display_name": "Carol"},
+                {"display_name": "Dave"},
+                {"display_name": "Eve"},
+            ],
+        }
+    ]
+
+    rendered = render_output(payload, output="table")
+
+    assert "Alice, Bob, Carol, +2 more" in rendered
+    assert "Dave" not in rendered
+    assert "Eve" not in rendered
