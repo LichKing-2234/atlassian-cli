@@ -8,6 +8,13 @@ class PullRequestService:
 
     def list(self, project_key: str, repo_slug: str, state: str) -> dict:
         prs = [
+            BitbucketPullRequest.from_api_response(item).to_simplified_dict()
+            for item in self.provider.list_pull_requests(project_key, repo_slug, state)
+        ]
+        return {"results": prs}
+
+    def list_table(self, project_key: str, repo_slug: str, state: str) -> dict:
+        prs = [
             BitbucketPullRequest.from_api_response(item).to_list_dict()
             for item in self.provider.list_pull_requests(project_key, repo_slug, state)
         ]

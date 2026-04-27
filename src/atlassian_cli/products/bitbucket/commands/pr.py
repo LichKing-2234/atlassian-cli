@@ -21,11 +21,12 @@ def list_pull_requests(
     output: str = typer.Option("table", "--output"),
 ) -> None:
     service = build_pr_service(ctx.obj)
-    payload = (
-        service.list_raw(project_key, repo_slug, state)
-        if is_raw_output(output)
-        else service.list(project_key, repo_slug, state)
-    )
+    if is_raw_output(output):
+        payload = service.list_raw(project_key, repo_slug, state)
+    elif output == "table":
+        payload = service.list_table(project_key, repo_slug, state)
+    else:
+        payload = service.list(project_key, repo_slug, state)
     typer.echo(render_output(payload, output=output))
 
 

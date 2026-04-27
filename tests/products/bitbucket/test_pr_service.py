@@ -82,10 +82,36 @@ def test_pull_request_service_normalizes_payload() -> None:
     }
 
 
-def test_pull_request_service_list_uses_summary_payload() -> None:
+def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
     result = service.list("AI", "agora-skills", "OPEN")
+
+    assert result == {
+        "results": [
+            {
+                "id": 42,
+                "title": "Ship output cleanup",
+                "description": "Long body that should stay out of list output",
+                "state": "OPEN",
+                "open": True,
+                "closed": False,
+                "updated_date": "1704153600000",
+                "author": {"display_name": "Alice", "name": "alice@example.com"},
+                "reviewers": [{"display_name": "Bob", "approved": True}],
+                "from_ref": {"display_id": "feature/output", "id": "refs/heads/feature/output"},
+                "to_ref": {"display_id": "main", "id": "refs/heads/main"},
+                "participants": [{"user": {"displayName": "Code Owners"}}],
+                "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
+            }
+        ]
+    }
+
+
+def test_pull_request_service_list_table_uses_summary_payload() -> None:
+    service = PullRequestService(provider=FakePullRequestProvider())
+
+    result = service.list_table("AI", "agora-skills", "OPEN")
 
     assert result == {
         "results": [
