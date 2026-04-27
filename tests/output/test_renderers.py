@@ -100,3 +100,55 @@ def test_render_output_table_wraps_scalar_rows() -> None:
     assert "value" in rendered.lower()
     assert "first" in rendered.lower()
     assert "second" in rendered.lower()
+
+
+def test_render_output_table_summarizes_name_mappings() -> None:
+    payload = [{"key": "OPS-1", "status": {"name": "In Progress"}}]
+
+    rendered = render_output(payload, output="table")
+
+    assert "In Progress" in rendered
+    assert "{'name': 'In Progress'}" not in rendered
+
+
+def test_render_output_table_summarizes_display_name_and_email_mappings() -> None:
+    payload = [
+        {
+            "key": "OPS-1",
+            "assignee": {
+                "display_name": "Alice Zhang",
+                "email": "alice@example.com",
+            },
+        }
+    ]
+
+    rendered = render_output(payload, output="table")
+
+    assert "Alice Zhang <alice@example.com>" in rendered
+    assert "display_name" not in rendered
+
+
+def test_render_output_table_summarizes_string_lists() -> None:
+    payload = [{"key": "OPS-1", "labels": ["prod", "sev1", "backend"]}]
+
+    rendered = render_output(payload, output="table")
+
+    assert "prod, sev1, backend" in rendered
+    assert "['prod', 'sev1', 'backend']" not in rendered
+
+
+def test_render_output_table_summarizes_lists_of_mappings() -> None:
+    payload = [
+        {
+            "key": "OPS-1",
+            "reviewers": [
+                {"display_name": "Alice"},
+                {"display_name": "Bob"},
+            ],
+        }
+    ]
+
+    rendered = render_output(payload, output="table")
+
+    assert "Alice, Bob" in rendered
+    assert "display_name" not in rendered
