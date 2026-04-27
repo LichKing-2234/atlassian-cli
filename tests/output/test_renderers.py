@@ -152,3 +152,29 @@ def test_render_output_table_summarizes_lists_of_mappings() -> None:
 
     assert "Alice, Bob" in rendered
     assert "display_name" not in rendered
+
+
+def test_render_output_table_flattens_multiline_strings() -> None:
+    payload = [{"key": "OPS-1", "summary": "First line\nSecond line"}]
+
+    rendered = render_output(payload, output="table")
+
+    assert "First line Second line" in rendered
+    assert "First line\nSecond line" not in rendered
+
+
+def test_render_output_table_uses_compact_json_fallback_for_unknown_mappings() -> None:
+    payload = [
+        {
+            "key": "OPS-1",
+            "metadata": {
+                "beta": {"x": 2},
+                "alpha": 1,
+            },
+        }
+    ]
+
+    rendered = render_output(payload, output="table")
+
+    assert '{"alpha":1,"beta":{"x":2}}' in rendered
+    assert "{'beta': {'x': 2}, 'alpha': 1}" not in rendered

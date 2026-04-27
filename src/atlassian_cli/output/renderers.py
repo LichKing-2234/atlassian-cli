@@ -1,3 +1,4 @@
+import json
 from collections.abc import Mapping, Sequence
 from io import StringIO
 
@@ -26,44 +27,52 @@ def _extract_table_rows(value) -> list[dict]:
     return [_coerce_table_row(value)]
 
 
-def _summarize_mapping(value: Mapping[str, object]) -> str:
-    display_name = value.get("display_name")
-    email = value.get("email")
-    if display_name not in (None, ""):
-        display = str(display_name)
-        return f"{display} <{email}>" if email not in (None, "") else display
+def _compact_scalar(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return " ".join(part.strip() for part in value.splitlines()).strip()
+    return str(value)
 
-    name = value.get("name")
-    key = value.get("key")
-    if key not in (None, "") and name not in (None, "") and str(key) != str(name):
+
+def _fallback_json(value: object) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _summarize_mapping(value: Mapping[str, object]) -> str:
+    display_name = _compact_scalar(value.get("display_name"))
+    email = _compact_scalar(value.get("email"))
+    if display_name:
+        return f"{display_name} <{email}>" if email else display_name
+
+    name = _compact_scalar(value.get("name"))
+    key = _compact_scalar(value.get("key"))
+    if key and name and key != name:
         return f"{key} ({name})"
 
     for field in ("name", "title", "key", "id"):
-        candidate = value.get(field)
-        if candidate not in (None, ""):
-            return str(candidate)
+        candidate = _compact_scalar(value.get(field))
+        if candidate:
+            return candidate
 
-    return str(dict(value))
+    return _fallback_json(dict(value))
 
 
 def _summarize_sequence(value: Sequence[object]) -> str:
     parts: list[str] = []
     for item in value:
-        if isinstance(item, Mapping):
-            parts.append(_summarize_mapping(item))
-        elif item not in (None, ""):
-            parts.append(str(item))
+        text = _format_table_cell(item)
+        if text:
+            parts.append(text)
     return ", ".join(parts)
 
 
 def _format_table_cell(value: object) -> str:
-    if value is None:
-        return ""
     if isinstance(value, Mapping):
         return _summarize_mapping(value)
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
         return _summarize_sequence(value)
-    return str(value)
+    return _compact_scalar(value)
 
 
 def render_output(value, *, output: str) -> str:
