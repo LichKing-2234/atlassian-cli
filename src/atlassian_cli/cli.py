@@ -17,6 +17,7 @@ from atlassian_cli.config.resolver import resolve_runtime_context
 from atlassian_cli.config.template import ensure_default_config
 from atlassian_cli.core.context import LazyExecutionContext
 from atlassian_cli.core.errors import ConfigError
+from atlassian_cli.output.modes import OutputMode
 from atlassian_cli.products.bitbucket.commands.branch import app as bitbucket_branch_app
 from atlassian_cli.products.bitbucket.commands.pr import app as bitbucket_pr_app
 from atlassian_cli.products.bitbucket.commands.project import app as bitbucket_project_app
@@ -69,7 +70,7 @@ def root_callback(
     token: str | None = typer.Option(None, "--token"),
     auth: AuthMode | None = typer.Option(None, "--auth"),
     header: list[str] = typer.Option([], "--header"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     if ctx.invoked_subcommand is None:
         return

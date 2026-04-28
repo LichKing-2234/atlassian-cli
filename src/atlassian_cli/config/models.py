@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, StrictStr
 
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.core.errors import ConfigError
+from atlassian_cli.output.modes import OutputMode
 
 
 class Product(StrEnum):
@@ -82,4 +83,4 @@ class RuntimeOverrides(BaseModel):
     token: str | None = None
     auth: AuthMode | None = None
     headers: dict[str, str] = Field(default_factory=dict)
-    output: str = Field(default="table")
+    output: str = Field(default=OutputMode.MARKDOWN)

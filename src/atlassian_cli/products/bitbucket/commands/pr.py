@@ -1,6 +1,6 @@
 import typer
 
-from atlassian_cli.output.modes import is_raw_output
+from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.products.bitbucket.services.pr import PullRequestService
 from atlassian_cli.products.factory import build_provider
@@ -18,7 +18,7 @@ def list_pull_requests(
     project_key: str,
     repo_slug: str,
     state: str = typer.Option("OPEN", "--state"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_pr_service(ctx.obj)
     if is_raw_output(output):
@@ -36,7 +36,7 @@ def get_pull_request(
     project_key: str,
     repo_slug: str,
     pr_id: int,
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_pr_service(ctx.obj)
     payload = (
@@ -56,7 +56,7 @@ def create_pull_request(
     description: str = typer.Option("", "--description"),
     from_ref: str = typer.Option(..., "--from-ref"),
     to_ref: str = typer.Option(..., "--to-ref"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     payload = {
         "title": title,
@@ -79,7 +79,7 @@ def merge_pull_request(
     project_key: str,
     repo_slug: str,
     pr_id: int,
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_pr_service(ctx.obj)
     result = (
