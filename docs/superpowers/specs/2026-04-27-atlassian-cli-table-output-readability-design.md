@@ -1,5 +1,7 @@
 # Atlassian CLI Table Output Readability Design
 
+> Obsolete as of 2026-04-28. Superseded by the markdown-default and interactive list-browser design in `2026-04-28-atlassian-cli-markdown-default-interactive-lists-design.md`.
+
 ## Summary
 
 Improve `--output table` readability by rendering nested values as terminal-friendly summaries instead of raw Python structure representations.
