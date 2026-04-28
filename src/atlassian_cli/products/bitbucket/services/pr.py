@@ -1,3 +1,4 @@
+from atlassian_cli.output.interactive import CollectionPage
 from atlassian_cli.products.bitbucket.providers.base import BitbucketProvider
 from atlassian_cli.products.bitbucket.schemas import BitbucketPullRequest
 
@@ -6,15 +7,62 @@ class PullRequestService:
     def __init__(self, provider: BitbucketProvider) -> None:
         self.provider = provider
 
-    def list(self, project_key: str, repo_slug: str, state: str) -> dict:
+    def list(
+        self,
+        project_key: str,
+        repo_slug: str,
+        state: str,
+        start: int = 0,
+        limit: int = 25,
+    ) -> dict:
         prs = [
             BitbucketPullRequest.from_api_response(item).to_simplified_dict()
-            for item in self.provider.list_pull_requests(project_key, repo_slug, state)
+            for item in self.provider.list_pull_requests(
+                project_key,
+                repo_slug,
+                state,
+                start=start,
+                limit=limit,
+            )
         ]
-        return {"results": prs}
+        return {"results": prs, "start_at": start, "max_results": limit}
 
-    def list_raw(self, project_key: str, repo_slug: str, state: str) -> "list[dict]":
-        return self.provider.list_pull_requests(project_key, repo_slug, state)
+    def list_page(
+        self,
+        project_key: str,
+        repo_slug: str,
+        state: str,
+        start: int,
+        limit: int,
+    ) -> CollectionPage:
+        prs = [
+            BitbucketPullRequest.from_api_response(item).to_simplified_dict()
+            for item in self.provider.list_pull_requests(
+                project_key,
+                repo_slug,
+                state,
+                start=start,
+                limit=limit,
+            )
+        ]
+        return CollectionPage(items=prs, start=start, limit=limit, total=None)
+
+    def list_raw(
+        self,
+        project_key: str,
+        repo_slug: str,
+        state: str,
+        *,
+        start: int = 0,
+        limit: int = 25,
+    ) -> "list[dict]":
+        return self.provider.list_pull_requests(
+            project_key,
+            repo_slug,
+            state,
+            start=start,
+            limit=limit,
+        )
 
     def get(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
         return BitbucketPullRequest.from_api_response(

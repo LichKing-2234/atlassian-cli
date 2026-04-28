@@ -1,3 +1,4 @@
+from atlassian_cli.output.interactive import CollectionPage
 from atlassian_cli.products.jira.providers.base import JiraProvider
 from atlassian_cli.products.jira.schemas import JiraIssue, JiraSearchResult
 
@@ -15,6 +16,15 @@ class IssueService:
     def search(self, jql: str, start: int, limit: int) -> dict:
         raw = self.provider.search_issues(jql, start, limit)
         return JiraSearchResult.from_api_response(raw).to_simplified_dict()
+
+    def search_page(self, jql: str, start: int, limit: int) -> CollectionPage:
+        payload = self.search(jql, start, limit)
+        return CollectionPage(
+            items=payload["issues"],
+            start=payload["start_at"],
+            limit=payload["max_results"],
+            total=payload["total"],
+        )
 
     def search_raw(self, jql: str, start: int, limit: int) -> dict:
         return self.provider.search_issues(jql, start, limit)

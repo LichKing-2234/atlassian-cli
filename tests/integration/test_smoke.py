@@ -7,4 +7,10 @@ import pytest
 def test_smoke_suite_has_required_env() -> None:
     assert os.getenv("ATLASSIAN_URL")
     assert os.getenv("ATLASSIAN_PRODUCT")
-    assert os.getenv("ATLASSIAN_OUTPUT", "json") in {"json", "yaml", "raw-json", "raw-yaml"}
+    assert os.getenv("ATLASSIAN_OUTPUT", "json") in {
+        "markdown",
+        "json",
+        "yaml",
+        "raw-json",
+        "raw-yaml",
+    }

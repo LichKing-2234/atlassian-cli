@@ -1,7 +1,14 @@
 import typer
 
-from atlassian_cli.output.modes import is_raw_output
+from atlassian_cli.output.interactive import InteractiveCollectionSource, browse_collection
+from atlassian_cli.output.markdown import (
+    render_markdown,
+    render_markdown_list_item,
+    render_markdown_preview,
+)
+from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
+from atlassian_cli.output.tty import should_use_interactive_output
 from atlassian_cli.products.factory import build_provider
 from atlassian_cli.products.jira.services.issue import IssueService
 
@@ -17,7 +24,7 @@ def build_issue_service(context) -> IssueService:
 def get_issue(
     ctx: typer.Context,
     issue_key: str,
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
     payload = service.get_raw(issue_key) if is_raw_output(output) else service.get(issue_key)
@@ -30,14 +37,37 @@ def search_issues(
     jql: str = typer.Option(..., "--jql"),
     start: int = typer.Option(0, "--start"),
     limit: int = typer.Option(25, "--limit"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
-    payload = (
-        service.search_raw(jql=jql, start=start, limit=limit)
-        if is_raw_output(output)
-        else service.search(jql=jql, start=start, limit=limit)
-    )
+    if is_raw_output(output):
+        payload = service.search_raw(jql=jql, start=start, limit=limit)
+        typer.echo(render_output(payload, output=output))
+        return
+
+    if should_use_interactive_output(output, command_kind="collection"):
+        try:
+            browse_collection(
+                InteractiveCollectionSource(
+                    title="Jira issue search",
+                    page_size=limit,
+                    fetch_page=lambda page_start, page_limit: service.search_page(
+                        jql, page_start, page_limit
+                    ),
+                    fetch_detail=lambda item: service.get(item["key"]),
+                    render_item=lambda index, item: render_markdown_list_item(item),
+                    render_preview=render_markdown_preview,
+                    render_detail=render_markdown,
+                    filter_text=lambda item: "\n".join(
+                        [render_markdown_list_item(item), render_markdown_preview(item)]
+                    ),
+                )
+            )
+            return
+        except (ImportError, RuntimeError):
+            pass
+
+    payload = service.search(jql=jql, start=start, limit=limit)
     typer.echo(render_output(payload, output=output))
 
 
@@ -48,7 +78,7 @@ def create_issue(
     issue_type: str = typer.Option(..., "--issue-type"),
     summary: str = typer.Option(..., "--summary"),
     description: str = typer.Option("", "--description"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
     payload = {
@@ -67,7 +97,7 @@ def update_issue(
     issue_key: str,
     summary: str | None = typer.Option(None, "--summary"),
     description: str | None = typer.Option(None, "--description"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
     payload = {
@@ -86,7 +116,7 @@ def transition_issue(
     ctx: typer.Context,
     issue_key: str,
     transition: str = typer.Option(..., "--to"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
     result = (

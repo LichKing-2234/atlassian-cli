@@ -39,64 +39,13 @@ def test_is_raw_output_detects_raw_variants() -> None:
     assert is_raw_output("json") is False
 
 
-def test_render_output_table_includes_columns() -> None:
-    payload = [{"key": "OPS-1", "summary": "Broken deploy"}]
+def test_render_output_markdown_dispatches_to_markdown_renderer() -> None:
+    payload = {"key": "OPS-1", "summary": "Broken deploy"}
 
-    rendered = render_output(payload, output="table")
+    rendered = render_output(payload, output="markdown")
 
-    assert "key" in rendered.lower()
-    assert "broken deploy" in rendered.lower()
-
-
-def test_render_output_table_returns_empty_string_for_empty_lists() -> None:
-    assert render_output([], output="table") == ""
+    assert rendered.startswith("# OPS-1 - Broken deploy")
 
 
-def test_render_output_table_uses_first_row_column_order() -> None:
-    payload = [
-        {"key": "OPS-1", "summary": "First"},
-        {"summary": "Second", "key": "OPS-2"},
-    ]
-
-    rendered = render_output(payload, output="table")
-
-    row = next(line for line in rendered.splitlines() if "OPS-2" in line and "Second" in line)
-    assert row.index("OPS-2") < row.index("Second")
-
-
-def test_render_output_table_uses_results_envelope_rows() -> None:
-    payload = {
-        "start_at": 0,
-        "max_results": 2,
-        "results": [
-            {"key": "OPS-1", "summary": "First"},
-            {"key": "OPS-2", "summary": "Second", "assignee": {"display_name": "Alice"}},
-        ],
-    }
-
-    rendered = render_output(payload, output="table")
-
-    assert "OPS-1" in rendered
-    assert "OPS-2" in rendered
-    assert "assignee" in rendered.lower()
-
-
-def test_render_output_table_unions_columns_across_sparse_rows() -> None:
-    payload = [
-        {"key": "OPS-1", "summary": "First"},
-        {"key": "OPS-2", "summary": "Second", "priority": {"name": "High"}},
-    ]
-
-    rendered = render_output(payload, output="table")
-
-    assert "priority" in rendered.lower()
-
-
-def test_render_output_table_wraps_scalar_rows() -> None:
-    payload = ["first", "second"]
-
-    rendered = render_output(payload, output="table")
-
-    assert "value" in rendered.lower()
-    assert "first" in rendered.lower()
-    assert "second" in rendered.lower()
+def test_render_output_markdown_returns_empty_string_for_empty_lists() -> None:
+    assert render_output([], output="markdown") == ""

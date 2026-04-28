@@ -1,9 +1,24 @@
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import Field
 
 from atlassian_cli.models.base import ApiModel
 from atlassian_cli.models.common import coerce_str, first_present, nested_get
+
+
+def _format_bitbucket_timestamp(value: str | None) -> str | None:
+    if value in (None, ""):
+        return None
+
+    if isinstance(value, str) and value.isdigit():
+        try:
+            timestamp = int(value) / 1000
+            return datetime.fromtimestamp(timestamp, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
+        except (OverflowError, ValueError):
+            return value
+
+    return value
 
 
 class BitbucketUserRef(ApiModel):
@@ -218,4 +233,23 @@ class BitbucketPullRequest(ApiModel):
             payload["from_ref"] = self.from_ref.to_simplified_dict()
         if self.to_ref:
             payload["to_ref"] = self.to_ref.to_simplified_dict()
+        return {key: value for key, value in payload.items() if value not in (None, "", {}, [])}
+
+    def to_list_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "id": self.id,
+            "title": self.title,
+            "state": self.state,
+            "updated_date": _format_bitbucket_timestamp(self.updated_date),
+        }
+
+        if self.author:
+            payload["author"] = self.author.to_simplified_dict()
+        if self.reviewers:
+            payload["reviewers"] = [item.to_simplified_dict() for item in self.reviewers]
+        if self.from_ref and self.from_ref.display_id:
+            payload["from_ref"] = {"display_id": self.from_ref.display_id}
+        if self.to_ref and self.to_ref.display_id:
+            payload["to_ref"] = {"display_id": self.to_ref.display_id}
+
         return {key: value for key, value in payload.items() if value not in (None, "", {}, [])}

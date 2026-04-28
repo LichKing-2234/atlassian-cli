@@ -52,3 +52,29 @@ def test_nested_command_help_does_not_resolve_runtime_config(tmp_path, monkeypat
     assert result.exit_code == 0
     assert "Usage:" in result.stdout
     assert commands == []
+
+
+def test_nested_command_help_lists_markdown_output_mode() -> None:
+    result = runner.invoke(app, ["jira", "issue", "get", "--help"])
+
+    assert result.exit_code == 0
+    assert "markdown" in result.stdout
+    assert "table" not in result.stdout
+
+
+def test_cli_rejects_removed_table_output_mode() -> None:
+    result = runner.invoke(
+        app,
+        ["--url", "https://jira.example.com", "jira", "issue", "get", "OPS-1", "--output", "table"],
+    )
+
+    assert result.exit_code != 0
+    assert "table" in result.output
+
+
+def test_pr_list_help_mentions_markdown_output_mode() -> None:
+    result = runner.invoke(app, ["bitbucket", "pr", "list", "--help"])
+
+    assert result.exit_code == 0
+    assert "markdown" in result.stdout
+    assert "table" not in result.stdout
