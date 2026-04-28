@@ -100,3 +100,53 @@ def test_issue_service_search_page_returns_collection_page() -> None:
     assert page.limit == 2
     assert page.total == 2
     assert [item["key"] for item in page.items] == ["OPS-1", "OPS-2"]
+
+
+def test_issue_service_delete_returns_success_payload() -> None:
+    class FakeDeleteProvider:
+        def delete_issue(self, issue_key: str) -> None:
+            assert issue_key == "OPS-1"
+
+    service = IssueService(provider=FakeDeleteProvider())
+
+    assert service.delete("OPS-1") == {"key": "OPS-1", "deleted": True}
+
+
+def test_issue_service_batch_create_normalizes_created_issues() -> None:
+    class FakeBatchProvider:
+        def create_issues(self, issues: list[dict]) -> list[dict]:
+            assert issues == [
+                {
+                    "project": {"key": "OPS"},
+                    "issuetype": {"name": "Task"},
+                    "summary": "First issue",
+                }
+            ]
+            return [{"key": "OPS-1"}]
+
+    service = IssueService(provider=FakeBatchProvider())
+
+    result = service.batch_create(
+        [
+            {
+                "project": {"key": "OPS"},
+                "issuetype": {"name": "Task"},
+                "summary": "First issue",
+            }
+        ]
+    )
+
+    assert result == {"issues": [{"key": "OPS-1"}]}
+
+
+def test_issue_service_batch_create_preserves_unexpected_payload_shapes() -> None:
+    class FakeBatchProvider:
+        def create_issues(self, issues: list[dict]) -> list[object]:
+            assert issues == [{"summary": "First issue"}]
+            return [{"error": "validation failed"}, "unexpected"]
+
+    service = IssueService(provider=FakeBatchProvider())
+
+    result = service.batch_create([{"summary": "First issue"}])
+
+    assert result == {"issues": [{"error": "validation failed"}, "unexpected"]}

@@ -23,8 +23,11 @@ from atlassian_cli.products.bitbucket.commands.pr import app as bitbucket_pr_app
 from atlassian_cli.products.bitbucket.commands.project import app as bitbucket_project_app
 from atlassian_cli.products.bitbucket.commands.repo import app as bitbucket_repo_app
 from atlassian_cli.products.confluence.commands.attachment import app as confluence_attachment_app
+from atlassian_cli.products.confluence.commands.comment import app as confluence_comment_app
 from atlassian_cli.products.confluence.commands.page import app as confluence_page_app
 from atlassian_cli.products.confluence.commands.space import app as confluence_space_app
+from atlassian_cli.products.jira.commands.comment import app as jira_comment_app
+from atlassian_cli.products.jira.commands.field import app as jira_field_app
 from atlassian_cli.products.jira.commands.issue import app as jira_issue_app
 from atlassian_cli.products.jira.commands.project import app as jira_project_app
 from atlassian_cli.products.jira.commands.user import app as jira_user_app
@@ -36,9 +39,12 @@ confluence_app = typer.Typer(help="Confluence commands")
 bitbucket_app = typer.Typer(help="Bitbucket commands")
 
 jira_app.add_typer(jira_issue_app, name="issue")
+jira_app.add_typer(jira_field_app, name="field")
+jira_app.add_typer(jira_comment_app, name="comment")
 jira_app.add_typer(jira_project_app, name="project")
 jira_app.add_typer(jira_user_app, name="user")
 confluence_app.add_typer(confluence_page_app, name="page")
+confluence_app.add_typer(confluence_comment_app, name="comment")
 confluence_app.add_typer(confluence_space_app, name="space")
 confluence_app.add_typer(confluence_attachment_app, name="attachment")
 bitbucket_app.add_typer(bitbucket_project_app, name="project")

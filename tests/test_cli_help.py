@@ -16,6 +16,19 @@ def test_root_help_displays_products() -> None:
     assert "--profile" not in result.stdout
 
 
+def test_root_help_lists_default_alignment_command_groups() -> None:
+    result = runner.invoke(app, ["jira", "--help"])
+
+    assert result.exit_code == 0
+    assert "field" in result.stdout
+    assert "comment" in result.stdout
+
+    result = runner.invoke(app, ["confluence", "--help"])
+
+    assert result.exit_code == 0
+    assert "comment" in result.stdout
+
+
 def test_nested_command_help_does_not_resolve_runtime_config(tmp_path, monkeypatch) -> None:
     config_file = tmp_path / "config.toml"
     config_file.write_text(

@@ -120,6 +120,15 @@ Keybindings:
 
 `j/k move  n/p page  / filter  r refresh  enter detail  b/esc back  q quit`
 
+## Default Toolset Alignment
+
+The CLI now covers the `mcp-atlassian` `TOOLSETS=default` Jira and Confluence command groups for Server/Data Center:
+
+- Jira issues, fields, comments, and transitions
+- Confluence pages and comments
+
+One default MCP capability remains explicitly unsupported in CLI v1: Jira batch changelog fetch. That workflow depends on Cloud support, and the current CLI still rejects `--deployment cloud`.
+
 ## Smoke testing
 
 Set `ATLASSIAN_SMOKE=1` and product-specific env vars before running `.venv/bin/python -m pytest tests/integration/test_smoke.py -v`.

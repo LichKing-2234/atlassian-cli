@@ -1,3 +1,6 @@
+import json
+from pathlib import Path
+
 import typer
 
 from atlassian_cli.output.interactive import InteractiveCollectionSource, browse_collection
@@ -125,3 +128,67 @@ def transition_issue(
         else service.transition(issue_key, transition)
     )
     typer.echo(render_output(result, output=output))
+
+
+@app.command("transitions")
+def get_transitions(
+    ctx: typer.Context,
+    issue_key: str,
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_issue_service(ctx.obj)
+    payload = (
+        service.get_transitions_raw(issue_key)
+        if is_raw_output(output)
+        else service.get_transitions(issue_key)
+    )
+    typer.echo(render_output(payload, output=output))
+
+
+@app.command("delete")
+def delete_issue(
+    ctx: typer.Context,
+    issue_key: str,
+    yes: bool = typer.Option(False, "--yes"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    if not yes:
+        raise typer.BadParameter("pass --yes to confirm delete")
+    service = build_issue_service(ctx.obj)
+    payload = service.delete_raw(issue_key) if is_raw_output(output) else service.delete(issue_key)
+    typer.echo(render_output(payload, output=output))
+
+
+@app.command("batch-create")
+def batch_create_issues(
+    ctx: typer.Context,
+    file_path: str = typer.Option(..., "--file"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    try:
+        issues = json.loads(Path(file_path).read_text())
+    except FileNotFoundError as exc:
+        raise typer.BadParameter(f"file not found: {file_path}", param_hint="--file") from exc
+    except json.JSONDecodeError as exc:
+        raise typer.BadParameter(
+            f"invalid JSON in {file_path}: {exc.msg}", param_hint="--file"
+        ) from exc
+
+    if not isinstance(issues, list):
+        raise typer.BadParameter(
+            "batch create input must be a JSON array of issues", param_hint="--file"
+        )
+
+    service = build_issue_service(ctx.obj)
+    payload = (
+        service.batch_create_raw(issues) if is_raw_output(output) else service.batch_create(issues)
+    )
+    typer.echo(render_output(payload, output=output))
+
+
+@app.command("changelog-batch")
+def batch_get_changelogs(
+    issue_keys: list[str] = typer.Option(..., "--issue"),
+) -> None:
+    del issue_keys
+    raise typer.BadParameter("Cloud support is not available in v1")

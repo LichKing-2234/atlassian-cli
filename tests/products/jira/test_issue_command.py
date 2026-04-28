@@ -1,9 +1,13 @@
+import json
+import re
+
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
 from atlassian_cli.output.interactive import CollectionPage
 
 runner = CliRunner()
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def test_jira_issue_get_outputs_json(monkeypatch) -> None:
@@ -231,3 +235,223 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_runtime_fails
 
     assert result.exit_code == 0
     assert "1. OPS-1 - Broken deploy" in result.stdout
+
+
+def test_jira_issue_transitions_outputs_available_ids(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {
+                "get_transitions": lambda self, issue_key: {
+                    "results": [{"id": "31", "name": "Done"}]
+                }
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "transitions",
+            "OPS-1",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"id": "31"' in result.stdout
+
+
+def test_jira_issue_delete_requires_confirmation(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {"delete": lambda self, issue_key: {"key": issue_key, "deleted": True}},
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        ["--url", "https://jira.example.com", "jira", "issue", "delete", "OPS-1"],
+    )
+
+    assert result.exit_code != 0
+    stripped_output = ANSI_ESCAPE_RE.sub("", result.output)
+    normalized_output = " ".join(
+        token for token in stripped_output.split() if token.strip("│╭╮╰╯─")
+    )
+    assert "pass --yes to confirm delete" in normalized_output
+
+
+def test_jira_issue_delete_outputs_json(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {"delete": lambda self, issue_key: {"key": issue_key, "deleted": True}},
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "delete",
+            "OPS-1",
+            "--yes",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"deleted": true' in result.stdout
+
+
+def test_jira_issue_batch_create_reads_json_file(monkeypatch, tmp_path) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    file_path = tmp_path / "issues.json"
+    file_path.write_text(
+        json.dumps(
+            [
+                {
+                    "project": {"key": "OPS"},
+                    "issuetype": {"name": "Task"},
+                    "summary": "First issue",
+                }
+            ]
+        )
+    )
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {"batch_create": lambda self, issues: {"issues": [{"key": "OPS-1"}]}},
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "batch-create",
+            "--file",
+            str(file_path),
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"key": "OPS-1"' in result.stdout
+
+
+def test_jira_issue_batch_create_rejects_missing_file(tmp_path) -> None:
+    missing = tmp_path / "missing.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "batch-create",
+            "--file",
+            str(missing),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "file not found" in result.output
+
+
+def test_jira_issue_batch_create_rejects_invalid_json(tmp_path) -> None:
+    file_path = tmp_path / "issues.json"
+    file_path.write_text("{not-json")
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "batch-create",
+            "--file",
+            str(file_path),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "invalid JSON" in result.output
+
+
+def test_jira_issue_batch_create_requires_array_input(tmp_path) -> None:
+    file_path = tmp_path / "issues.json"
+    file_path.write_text(json.dumps({"summary": "not-a-list"}))
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "batch-create",
+            "--file",
+            str(file_path),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "JSON array" in result.output
+
+
+def test_jira_issue_changelog_batch_is_explicitly_unsupported_on_server() -> None:
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "--deployment",
+            "server",
+            "jira",
+            "issue",
+            "changelog-batch",
+            "--issue",
+            "OPS-1",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Cloud support is not available in v1" in result.output
