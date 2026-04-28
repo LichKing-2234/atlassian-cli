@@ -229,3 +229,109 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
     )
     assert "Reviewers: Alice, Bob, Carol, +1 more" in captured["preview"]
     assert captured["detail"].startswith("# 24990 - [FEAT] CSD-77462 add configurable mic test")
+
+
+def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(
+    monkeypatch,
+) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr as pr_module
+
+    monkeypatch.setattr(pr_module, "should_use_interactive_output", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        pr_module, "browse_collection", lambda source: (_ for _ in ()).throw(ImportError("boom"))
+    )
+    monkeypatch.setattr(
+        pr_module,
+        "build_pr_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {
+                "list": lambda self, project_key, repo_slug, state, start=0, limit=25: {
+                    "results": [
+                        {
+                            "id": 42,
+                            "title": "Ship output cleanup",
+                            "description": "Long body",
+                            "state": "OPEN",
+                        }
+                    ],
+                    "start_at": start,
+                    "max_results": limit,
+                },
+                "list_page": lambda self, project_key, repo_slug, state, start, limit: (
+                    CollectionPage(
+                        items=[{"id": 42, "title": "Ship output cleanup"}],
+                        start=start,
+                        limit=limit,
+                        total=1,
+                    )
+                ),
+                "get": lambda self, project_key, repo_slug, pr_id: {
+                    "id": pr_id,
+                    "title": "Ship output cleanup",
+                },
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "OPS", "infra"],
+    )
+
+    assert result.exit_code == 0
+    assert "Ship output cleanup" in result.stdout
+
+
+def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_runtime_fails(
+    monkeypatch,
+) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr as pr_module
+
+    monkeypatch.setattr(pr_module, "should_use_interactive_output", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        pr_module, "browse_collection", lambda source: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
+    monkeypatch.setattr(
+        pr_module,
+        "build_pr_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {
+                "list": lambda self, project_key, repo_slug, state, start=0, limit=25: {
+                    "results": [
+                        {
+                            "id": 42,
+                            "title": "Ship output cleanup",
+                            "description": "Long body",
+                            "state": "OPEN",
+                        }
+                    ],
+                    "start_at": start,
+                    "max_results": limit,
+                },
+                "list_page": lambda self, project_key, repo_slug, state, start, limit: (
+                    CollectionPage(
+                        items=[{"id": 42, "title": "Ship output cleanup"}],
+                        start=start,
+                        limit=limit,
+                        total=1,
+                    )
+                ),
+                "get": lambda self, project_key, repo_slug, pr_id: {
+                    "id": pr_id,
+                    "title": "Ship output cleanup",
+                },
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "OPS", "infra"],
+    )
+
+    assert result.exit_code == 0
+    assert "Ship output cleanup" in result.stdout

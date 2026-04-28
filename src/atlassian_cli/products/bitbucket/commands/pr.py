@@ -36,23 +36,26 @@ def list_pull_requests(
         return
 
     if should_use_interactive_output(output, command_kind="collection"):
-        browse_collection(
-            InteractiveCollectionSource(
-                title="Bitbucket pull requests",
-                page_size=limit,
-                fetch_page=lambda page_start, page_limit: service.list_page(
-                    project_key, repo_slug, state, page_start, page_limit
-                ),
-                fetch_detail=lambda item: service.get(project_key, repo_slug, item["id"]),
-                render_item=render_pull_request_item,
-                render_preview=render_pull_request_preview,
-                render_detail=render_pull_request_detail,
-                filter_text=lambda item: "\n".join(
-                    [render_pull_request_item(0, item), render_pull_request_preview(item)]
-                ),
+        try:
+            browse_collection(
+                InteractiveCollectionSource(
+                    title="Bitbucket pull requests",
+                    page_size=limit,
+                    fetch_page=lambda page_start, page_limit: service.list_page(
+                        project_key, repo_slug, state, page_start, page_limit
+                    ),
+                    fetch_detail=lambda item: service.get(project_key, repo_slug, item["id"]),
+                    render_item=render_pull_request_item,
+                    render_preview=render_pull_request_preview,
+                    render_detail=render_pull_request_detail,
+                    filter_text=lambda item: "\n".join(
+                        [render_pull_request_item(0, item), render_pull_request_preview(item)]
+                    ),
+                )
             )
-        )
-        return
+            return
+        except (ImportError, RuntimeError):
+            pass
 
     payload = service.list(project_key, repo_slug, state, start=start, limit=limit)
     typer.echo(render_output(payload, output=output))

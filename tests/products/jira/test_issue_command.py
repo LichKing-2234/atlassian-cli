@@ -145,3 +145,89 @@ def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monk
     assert captured["item"] == "OPS-1  Open  Alice  Broken deploy"
     assert "Status: Open" in captured["preview"]
     assert "Assignee: Alice" in captured["preview"]
+
+
+def test_jira_issue_search_falls_back_to_markdown_when_interactive_import_fails(
+    monkeypatch,
+) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(issue_module, "should_use_interactive_output", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        issue_module, "browse_collection", lambda source: (_ for _ in ()).throw(ImportError("boom"))
+    )
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {
+                "search": lambda self, jql, start, limit: {
+                    "issues": [{"key": "OPS-1", "summary": "Broken deploy"}],
+                    "start_at": start,
+                    "max_results": limit,
+                    "total": 1,
+                },
+                "search_page": lambda self, jql, start, limit: CollectionPage(
+                    items=[{"key": "OPS-1", "summary": "Broken deploy"}],
+                    start=start,
+                    limit=limit,
+                    total=1,
+                ),
+                "get": lambda self, issue_key: {"key": issue_key, "summary": "Broken deploy"},
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = OPS"],
+    )
+
+    assert result.exit_code == 0
+    assert "1. OPS-1 - Broken deploy" in result.stdout
+
+
+def test_jira_issue_search_falls_back_to_markdown_when_interactive_runtime_fails(
+    monkeypatch,
+) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(issue_module, "should_use_interactive_output", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        issue_module,
+        "browse_collection",
+        lambda source: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {
+                "search": lambda self, jql, start, limit: {
+                    "issues": [{"key": "OPS-1", "summary": "Broken deploy"}],
+                    "start_at": start,
+                    "max_results": limit,
+                    "total": 1,
+                },
+                "search_page": lambda self, jql, start, limit: CollectionPage(
+                    items=[{"key": "OPS-1", "summary": "Broken deploy"}],
+                    start=start,
+                    limit=limit,
+                    total=1,
+                ),
+                "get": lambda self, issue_key: {"key": issue_key, "summary": "Broken deploy"},
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = OPS"],
+    )
+
+    assert result.exit_code == 0
+    assert "1. OPS-1 - Broken deploy" in result.stdout

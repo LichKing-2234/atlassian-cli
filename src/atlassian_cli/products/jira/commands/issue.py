@@ -46,23 +46,26 @@ def search_issues(
         return
 
     if should_use_interactive_output(output, command_kind="collection"):
-        browse_collection(
-            InteractiveCollectionSource(
-                title="Jira issue search",
-                page_size=limit,
-                fetch_page=lambda page_start, page_limit: service.search_page(
-                    jql, page_start, page_limit
-                ),
-                fetch_detail=lambda item: service.get(item["key"]),
-                render_item=lambda index, item: render_markdown_list_item(item),
-                render_preview=render_markdown_preview,
-                render_detail=render_markdown,
-                filter_text=lambda item: "\n".join(
-                    [render_markdown_list_item(item), render_markdown_preview(item)]
-                ),
+        try:
+            browse_collection(
+                InteractiveCollectionSource(
+                    title="Jira issue search",
+                    page_size=limit,
+                    fetch_page=lambda page_start, page_limit: service.search_page(
+                        jql, page_start, page_limit
+                    ),
+                    fetch_detail=lambda item: service.get(item["key"]),
+                    render_item=lambda index, item: render_markdown_list_item(item),
+                    render_preview=render_markdown_preview,
+                    render_detail=render_markdown,
+                    filter_text=lambda item: "\n".join(
+                        [render_markdown_list_item(item), render_markdown_preview(item)]
+                    ),
+                )
             )
-        )
-        return
+            return
+        except (ImportError, RuntimeError):
+            pass
 
     payload = service.search(jql=jql, start=start, limit=limit)
     typer.echo(render_output(payload, output=output))
