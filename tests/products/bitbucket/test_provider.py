@@ -61,13 +61,18 @@ def test_list_pull_requests_materializes_paged_generator() -> None:
         ):
             calls["args"] = (project_key, repo_slug, state, limit, start)
             yield {"id": 1, "title": "Add release automation"}
+            yield {"id": 2, "title": "Refine release notes"}
+            yield {"id": 3, "title": "Fix packaging"}
 
     provider = build_provider_with_client(FakeClient())
 
-    result = provider.list_pull_requests("OPS", "infra", "OPEN", start=25, limit=10)
+    result = provider.list_pull_requests("OPS", "infra", "OPEN", start=25, limit=2)
 
-    assert result == [{"id": 1, "title": "Add release automation"}]
-    assert calls["args"] == ("OPS", "infra", "OPEN", 10, 25)
+    assert result == [
+        {"id": 1, "title": "Add release automation"},
+        {"id": 2, "title": "Refine release notes"},
+    ]
+    assert calls["args"] == ("OPS", "infra", "OPEN", 2, 25)
 
 
 def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() -> None:

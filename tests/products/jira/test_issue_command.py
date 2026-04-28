@@ -96,3 +96,46 @@ def test_jira_issue_search_non_tty_falls_back_to_markdown(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert "1. OPS-1 - Broken deploy" in result.stdout
+
+
+def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    sample_issue = {
+        "key": "OPS-1",
+        "summary": "Broken deploy",
+        "status": {"name": "Open"},
+        "assignee": {"display_name": "Alice"},
+        "description": "Investigate rollout health",
+    }
+    captured: dict[str, str] = {}
+
+    class FakeService:
+        def search_page(self, jql, start, limit):
+            return CollectionPage(items=[sample_issue], start=start, limit=limit, total=1)
+
+        def get(self, issue_key):
+            return sample_issue
+
+    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService())
+    monkeypatch.setattr(issue_module, "should_use_interactive_output", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        issue_module,
+        "browse_collection",
+        lambda source: captured.update(
+            {
+                "item": source.render_item(1, sample_issue),
+                "preview": source.render_preview(sample_issue),
+            }
+        ),
+    )
+
+    result = runner.invoke(
+        app,
+        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = OPS"],
+    )
+
+    assert result.exit_code == 0
+    assert captured["item"] == "OPS-1  Open  Alice  Broken deploy"
+    assert "Status: Open" in captured["preview"]
+    assert "Assignee: Alice" in captured["preview"]

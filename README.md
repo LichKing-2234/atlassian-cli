@@ -105,6 +105,21 @@ Examples:
 - `atlassian jira issue get OPS-1 --output json`
 - `atlassian bitbucket pr list OPS infra --output json`
 
+### Interactive browser behavior
+
+TTY collection commands open a compact browser instead of printing a long static list.
+
+- The top region is a dense single-line-per-item list for fast scanning.
+- The bottom preview is a live preview that shows metadata for the selected item without opening full detail.
+- `Enter` opens the full markdown detail view for the selected item.
+- `b` or `Esc` returns from detail to the list.
+- `/` filters only the items already loaded into the current browser session.
+- `r` refreshes the first page and returns the browser to list mode.
+
+Keybindings:
+
+`j/k move  n/p page  / filter  r refresh  enter detail  b/esc back  q quit`
+
 ## Smoke testing
 
 Set `ATLASSIAN_SMOKE=1` and product-specific env vars before running `.venv/bin/python -m pytest tests/integration/test_smoke.py -v`.

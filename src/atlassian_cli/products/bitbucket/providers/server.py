@@ -1,3 +1,5 @@
+from itertools import islice
+
 from atlassian import Bitbucket
 
 from atlassian_cli.auth.models import AuthMode
@@ -26,22 +28,26 @@ class BitbucketServerProvider:
         if session is not None:
             patch_session_headers(session, headers or {})
 
-    def _paged_items(self, value) -> list[dict]:
+    def _paged_items(self, value, *, limit: int | None = None) -> list[dict]:
         if isinstance(value, dict):
-            return value.get("values", [])
+            values = value.get("values", [])
+            return values[:limit] if limit is not None else values
         if isinstance(value, list):
-            return value
+            return value[:limit] if limit is not None else value
+        if limit is not None:
+            return list(islice(value, limit))
         return list(value)
 
     def list_projects(self, *, start: int, limit: int) -> list[dict]:
-        return self._paged_items(self.client.project_list(limit=limit, start=start))
+        return self._paged_items(self.client.project_list(limit=limit, start=start), limit=limit)
 
     def get_project(self, project_key: str) -> dict:
         return self.client.project(project_key)
 
     def list_repos(self, *, project_key: str | None, start: int, limit: int) -> list[dict]:
         return self._paged_items(
-            self.client.repo_list(project_key=project_key, limit=limit, start=start)
+            self.client.repo_list(project_key=project_key, limit=limit, start=start),
+            limit=limit,
         )
 
     def get_repo(self, project_key: str, repo_slug: str) -> dict:
@@ -73,7 +79,8 @@ class BitbucketServerProvider:
                 state=state,
                 limit=limit,
                 start=start,
-            )
+            ),
+            limit=limit,
         )
 
     def get_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:

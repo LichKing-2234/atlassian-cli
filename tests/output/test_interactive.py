@@ -2,6 +2,8 @@ from atlassian_cli.output.interactive import (
     CollectionBrowserState,
     CollectionPage,
     InteractiveCollectionSource,
+    _truncate_line,
+    _render_state,
 )
 
 
@@ -61,3 +63,317 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
 
     state.close_detail()
     assert state.mode == "list"
+
+
+def test_collection_browser_state_loads_next_page_without_total_when_page_is_full() -> None:
+    calls: list[tuple[int, int]] = []
+
+    def fetch_page(start: int, limit: int) -> CollectionPage:
+        calls.append((start, limit))
+        if start == 0:
+            return CollectionPage(
+                items=[
+                    {"id": 1, "title": "Item 1"},
+                    {"id": 2, "title": "Item 2"},
+                ],
+                start=start,
+                limit=limit,
+                total=None,
+            )
+        return CollectionPage(
+            items=[{"id": 3, "title": "Item 3"}],
+            start=start,
+            limit=limit,
+            total=None,
+        )
+
+    source = InteractiveCollectionSource(
+        title="Demo",
+        page_size=2,
+        fetch_page=fetch_page,
+        fetch_detail=lambda item: item,
+        render_item=lambda index, item: item["title"],
+        render_detail=lambda item: item["title"],
+    )
+    state = CollectionBrowserState(source)
+
+    state.load_initial()
+    state.move(1)
+    state.move(1)
+
+    assert calls == [(0, 2), (2, 2)]
+    assert state.selected_index == 2
+    assert [item["title"] for item in state.items] == ["Item 1", "Item 2", "Item 3"]
+
+
+def test_render_state_uses_incrementing_list_numbers() -> None:
+    source = InteractiveCollectionSource(
+        title="Demo",
+        page_size=2,
+        fetch_page=lambda start, limit: CollectionPage(
+            items=[{"id": 1, "title": "Item 1"}, {"id": 2, "title": "Item 2"}],
+            start=start,
+            limit=limit,
+            total=2,
+        ),
+        fetch_detail=lambda item: item,
+        render_item=lambda index, item: item["title"],
+        render_detail=lambda item: item["title"],
+    )
+    state = CollectionBrowserState(source)
+
+    state.load_initial()
+
+    rendered = _render_state(state)
+
+    assert "> 1. Item 1" in rendered
+    assert "  2. Item 2" in rendered
+
+
+def test_render_state_in_detail_mode_has_detail_header_and_back_hint() -> None:
+    source = InteractiveCollectionSource(
+        title="Demo",
+        page_size=1,
+        fetch_page=lambda start, limit: CollectionPage(
+            items=[{"id": 1, "title": "OPS-1"}],
+            start=start,
+            limit=limit,
+            total=1,
+        ),
+        fetch_detail=lambda item: {"id": item["id"], "title": item["title"], "description": "Broken deploy"},
+        render_item=lambda index, item: item["title"],
+        render_detail=lambda item: item["description"],
+    )
+    state = CollectionBrowserState(source)
+
+    state.load_initial()
+    state.open_selected_detail()
+
+    rendered = _render_state(state)
+
+    assert rendered.startswith("Detail")
+    assert "Broken deploy" in rendered
+    assert "b/esc: back" in rendered
+
+
+def test_truncate_line_adds_ellipsis_for_long_lines() -> None:
+    text = "1234567890"
+
+    assert _truncate_line(text, max_width=6) == "12345…"
+
+
+def test_collection_browser_state_page_down_and_page_up_follow_page_size() -> None:
+    calls: list[tuple[int, int]] = []
+
+    def fetch_page(start: int, limit: int) -> CollectionPage:
+        calls.append((start, limit))
+        if start == 0:
+            return CollectionPage(
+                items=[
+                    {"id": 1, "title": "Item 1"},
+                    {"id": 2, "title": "Item 2"},
+                ],
+                start=start,
+                limit=limit,
+                total=4,
+            )
+        return CollectionPage(
+            items=[
+                {"id": 3, "title": "Item 3"},
+                {"id": 4, "title": "Item 4"},
+            ],
+            start=start,
+            limit=limit,
+            total=4,
+        )
+
+    source = InteractiveCollectionSource(
+        title="Demo",
+        page_size=2,
+        fetch_page=fetch_page,
+        fetch_detail=lambda item: item,
+        render_item=lambda index, item: item["title"],
+        render_detail=lambda item: item["title"],
+    )
+    state = CollectionBrowserState(source)
+
+    state.load_initial()
+    state.page_down()
+    state.page_up()
+
+    assert calls == [(0, 2), (2, 2)]
+    assert state.selected_index == 0
+    assert [item["title"] for item in state.items] == ["Item 1", "Item 2", "Item 3", "Item 4"]
+
+
+def test_collection_browser_state_refresh_reloads_first_page_and_resets_selection() -> None:
+    responses = [
+        CollectionPage(
+            items=[{"id": 1, "title": "Old 1"}, {"id": 2, "title": "Old 2"}],
+            start=0,
+            limit=2,
+            total=4,
+        ),
+        CollectionPage(
+            items=[{"id": 1, "title": "New 1"}, {"id": 2, "title": "New 2"}],
+            start=0,
+            limit=2,
+            total=4,
+        ),
+    ]
+    calls: list[tuple[int, int]] = []
+
+    def fetch_page(start: int, limit: int) -> CollectionPage:
+        calls.append((start, limit))
+        return responses.pop(0)
+
+    source = InteractiveCollectionSource(
+        title="Demo",
+        page_size=2,
+        fetch_page=fetch_page,
+        fetch_detail=lambda item: {"description": item["title"]},
+        render_item=lambda index, item: item["title"],
+        render_detail=lambda item: item["description"],
+    )
+    state = CollectionBrowserState(source)
+
+    state.load_initial()
+    state.move(1)
+    state.open_selected_detail()
+    state.refresh()
+
+    assert calls == [(0, 2), (0, 2)]
+    assert state.mode == "list"
+    assert state.selected_index == 0
+    assert [item["title"] for item in state.items] == ["New 1", "New 2"]
+
+
+def test_collection_browser_state_filters_loaded_items_locally() -> None:
+    source = InteractiveCollectionSource(
+        title="Demo",
+        page_size=3,
+        fetch_page=lambda start, limit: CollectionPage(
+            items=[
+                {"id": 1, "title": "Apple"},
+                {"id": 2, "title": "Banana"},
+                {"id": 3, "title": "Apricot"},
+            ],
+            start=start,
+            limit=limit,
+            total=3,
+        ),
+        fetch_detail=lambda item: item,
+        render_item=lambda index, item: item["title"],
+        render_detail=lambda item: item["title"],
+    )
+    state = CollectionBrowserState(source)
+
+    state.load_initial()
+    state.move(2)
+    state.start_filter()
+    state.append_filter("a")
+    state.append_filter("p")
+    state.apply_filter()
+
+    assert state.selected_index == 0
+    assert [item["title"] for item in state.visible_items()] == ["Apple", "Apricot"]
+
+
+def test_collection_browser_state_filter_mode_uses_live_buffer() -> None:
+    source = InteractiveCollectionSource(
+        title="Demo",
+        page_size=2,
+        fetch_page=lambda start, limit: CollectionPage(
+            items=[{"id": 1, "title": "Apple"}, {"id": 2, "title": "Banana"}],
+            start=start,
+            limit=limit,
+            total=2,
+        ),
+        fetch_detail=lambda item: item,
+        render_item=lambda index, item: item["title"],
+        render_detail=lambda item: item["title"],
+    )
+    state = CollectionBrowserState(source)
+
+    state.load_initial()
+    state.start_filter()
+    state.append_filter("a")
+
+    rendered = _render_state(state)
+
+    assert state.mode == "filter"
+    assert "Filter: a" in rendered
+
+
+def build_preview_source() -> InteractiveCollectionSource:
+    items = [
+        {
+            "id": 24990,
+            "state": "OPEN",
+            "author": "huangpeilin",
+            "title": "[FEAT] CSD-77462 add configurable mic test playback across desktop, mobile, and web",
+            "preview": "\n".join(
+                [
+                    "State: OPEN",
+                    "Author: huangpeilin",
+                    "Reviewers: Alice, Bob, Carol, +1 more",
+                    "From: jira/CSD-77462/release/4.5",
+                    "To: release/4.5",
+                    "Updated: 2026-04-27 13:19:55",
+                    "",
+                    "Description:",
+                    "Add configurable recording device test playback across C++, Android, and Objective-C.",
+                ]
+            ),
+            "detail": "# PR #24990\n\nFull markdown detail",
+        },
+        {
+            "id": 24991,
+            "state": "MERGED",
+            "author": "alice",
+            "title": "Release cleanup",
+            "preview": "State: MERGED\nAuthor: alice",
+            "detail": "# PR #24991\n\nMerged detail",
+        },
+    ]
+
+    return InteractiveCollectionSource(
+        title="Bitbucket pull requests",
+        page_size=2,
+        fetch_page=lambda start, limit: CollectionPage(
+            items=items[start : start + limit],
+            start=start,
+            limit=limit,
+            total=len(items),
+        ),
+        fetch_detail=lambda item: item,
+        render_item=lambda index, item: f"{item['id']}  {item['state']}  {item['author']}  {item['title']}",
+        render_preview=lambda item: item["preview"],
+        render_detail=lambda item: item["detail"],
+    )
+
+
+def test_render_state_stacks_list_preview_and_footer() -> None:
+    state = CollectionBrowserState(build_preview_source())
+    state.load_initial()
+
+    rendered = _render_state(state)
+
+    assert "Preview:" in rendered
+    assert "j/k move  n/p page  / filter  r refresh  enter detail  b/esc back  q quit" in rendered
+    selected_line = next(line for line in rendered.splitlines() if line.startswith("> "))
+    assert "\n" not in selected_line
+    assert selected_line.endswith("…")
+
+
+def test_collection_browser_state_updates_preview_when_selection_changes() -> None:
+    state = CollectionBrowserState(build_preview_source())
+    state.load_initial()
+
+    assert "Author: huangpeilin" in _render_state(state)
+
+    state.move(1)
+
+    rendered = _render_state(state)
+    assert "Author: alice" in rendered
+    assert "Author: huangpeilin" not in rendered

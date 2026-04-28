@@ -5,6 +5,11 @@ from atlassian_cli.output.markdown import render_markdown
 from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.output.tty import should_use_interactive_output
+from atlassian_cli.products.bitbucket.browser import (
+    render_pull_request_detail,
+    render_pull_request_item,
+    render_pull_request_preview,
+)
 from atlassian_cli.products.bitbucket.services.pr import PullRequestService
 from atlassian_cli.products.factory import build_provider
 
@@ -40,8 +45,12 @@ def list_pull_requests(
                     project_key, repo_slug, state, page_start, page_limit
                 ),
                 fetch_detail=lambda item: service.get(project_key, repo_slug, item["id"]),
-                render_item=lambda index, item: render_markdown({"results": [item]}).splitlines()[0],
-                render_detail=render_markdown,
+                render_item=render_pull_request_item,
+                render_preview=render_pull_request_preview,
+                render_detail=render_pull_request_detail,
+                filter_text=lambda item: "\n".join(
+                    [render_pull_request_item(0, item), render_pull_request_preview(item)]
+                ),
             )
         )
         return

@@ -1,7 +1,11 @@
 import typer
 
 from atlassian_cli.output.interactive import InteractiveCollectionSource, browse_collection
-from atlassian_cli.output.markdown import render_markdown
+from atlassian_cli.output.markdown import (
+    render_markdown,
+    render_markdown_list_item,
+    render_markdown_preview,
+)
 from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.output.tty import should_use_interactive_output
@@ -50,8 +54,12 @@ def search_issues(
                     jql, page_start, page_limit
                 ),
                 fetch_detail=lambda item: service.get(item["key"]),
-                render_item=lambda index, item: render_markdown({"results": [item]}).splitlines()[0],
+                render_item=lambda index, item: render_markdown_list_item(item),
+                render_preview=render_markdown_preview,
                 render_detail=render_markdown,
+                filter_text=lambda item: "\n".join(
+                    [render_markdown_list_item(item), render_markdown_preview(item)]
+                ),
             )
         )
         return
