@@ -50,9 +50,11 @@ You can also download a tarball from the GitHub Release page and run `atlassian/
 
 ## Examples
 
-- `atlassian jira issue get OPS-1 --output json`
-- `atlassian confluence page get 1234 --output json`
-- `atlassian bitbucket repo get OPS infra --output json`
+- `atlassian jira issue get OPS-1`
+- `atlassian confluence page get 1234`
+- `atlassian bitbucket repo get OPS infra`
+- `atlassian bitbucket pr list SDK rte_sdk`
+- `atlassian bitbucket pr list SDK rte_sdk --output json`
 
 ## Header injection
 
@@ -60,7 +62,7 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.agoralab.co --header 'accessToken: ...' bitbucket pr list SDK rte_sdk --output json`
+- `atlassian --url https://bitbucket.agoralab.co --header 'accessToken: ...' bitbucket pr list SDK rte_sdk`
 
 Config file example:
 
@@ -77,7 +79,7 @@ auth = "pat"
 accessToken = "$(agora-oauth token)"
 ```
 
-- `atlassian bitbucket pr list SDK rte_sdk --output json`
+- `atlassian bitbucket pr list SDK rte_sdk`
 
 Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
 The default `~/.config/atlassian-cli/config.toml` file is auto-created as a template on first use.
@@ -85,18 +87,22 @@ Only top-level `[jira]`, `[confluence]`, `[bitbucket]`, and `[headers]` are supp
 
 ## Output Modes
 
-`json` and `yaml` now return simplified resource-shaped payloads by default.
+The CLI now uses `markdown` as the default human-readable output mode.
 
-- Single-resource commands return a resource object.
-- Collection commands return explicit envelopes such as `results` or `issues`.
+- Single-resource commands default to markdown detail output.
+- Collection commands default to an interactive browser in a TTY.
+- Collection commands fall back to markdown summary output outside a TTY.
+- Use `--output json` or `--output yaml` for normalized machine-readable output.
 - Use `--output raw-json` to inspect the original provider response as JSON.
 - Use `--output raw-yaml` to inspect the original provider response as YAML.
 
 Examples:
 
+- `atlassian jira issue get OPS-1`
+- `atlassian jira issue search --jql 'project = OPS'`
+- `atlassian confluence space list`
+- `atlassian bitbucket pr list OPS infra`
 - `atlassian jira issue get OPS-1 --output json`
-- `atlassian jira issue search --jql 'project = OPS' --output json`
-- `atlassian confluence space list --output json`
 - `atlassian bitbucket pr list OPS infra --output json`
 
 ## Smoke testing

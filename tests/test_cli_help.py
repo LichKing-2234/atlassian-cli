@@ -70,3 +70,11 @@ def test_cli_rejects_removed_table_output_mode() -> None:
 
     assert result.exit_code != 0
     assert "table" in result.output
+
+
+def test_pr_list_help_mentions_markdown_output_mode() -> None:
+    result = runner.invoke(app, ["bitbucket", "pr", "list", "--help"])
+
+    assert result.exit_code == 0
+    assert "markdown" in result.stdout
+    assert "table" not in result.stdout
