@@ -1,5 +1,6 @@
-from typer.testing import CliRunner
 import json
+
+from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
 from atlassian_cli.output.interactive import CollectionPage

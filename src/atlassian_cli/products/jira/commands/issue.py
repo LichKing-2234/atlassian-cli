@@ -1,7 +1,7 @@
-import typer
+import json
 from pathlib import Path
 
-import json
+import typer
 
 from atlassian_cli.output.interactive import InteractiveCollectionSource, browse_collection
 from atlassian_cli.output.markdown import (
