@@ -137,3 +137,16 @@ def test_issue_service_batch_create_normalizes_created_issues() -> None:
     )
 
     assert result == {"issues": [{"key": "OPS-1"}]}
+
+
+def test_issue_service_batch_create_preserves_unexpected_payload_shapes() -> None:
+    class FakeBatchProvider:
+        def create_issues(self, issues: list[dict]) -> list[object]:
+            assert issues == [{"summary": "First issue"}]
+            return [{"error": "validation failed"}, "unexpected"]
+
+    service = IssueService(provider=FakeBatchProvider())
+
+    result = service.batch_create([{"summary": "First issue"}])
+
+    assert result == {"issues": [{"error": "validation failed"}, "unexpected"]}

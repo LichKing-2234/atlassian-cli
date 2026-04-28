@@ -1,3 +1,4 @@
+from collections import deque
 from difflib import unified_diff
 
 from atlassian_cli.models.common import nested_get
@@ -22,10 +23,10 @@ class PageService:
     def get_raw(self, page_id: str) -> dict:
         return self.provider.get_page(page_id)
 
-    def get_by_title(self, space_key: str, title: str) -> dict:
+    def get_by_title(self, space_key: str, title: str) -> dict | None:
         page = self.provider.get_page_by_title(space_key, title)
         if page is None:
-            return {}
+            return None
         return self._normalize_page(page)
 
     def get_by_title_raw(self, space_key: str, title: str) -> dict | None:
@@ -54,10 +55,10 @@ class PageService:
     def tree(self, space_key: str) -> dict:
         root = self.provider.get_space_homepage(space_key)
         results: list[dict] = []
-        queue: list[tuple[dict, int]] = [(root, 0)]
+        queue = deque([(root, 0)])
 
         while queue:
-            page, depth = queue.pop(0)
+            page, depth = queue.popleft()
             normalized = self._normalize_page(page)
             normalized["depth"] = depth
             results.append(normalized)

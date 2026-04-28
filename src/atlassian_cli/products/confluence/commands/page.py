@@ -29,6 +29,8 @@ def get_page(
             if is_raw_output(output)
             else service.get_by_title(space_key, title)
         )
+        if payload is None:
+            raise typer.BadParameter(f"page not found: {title} in {space_key}")
     else:
         raise typer.BadParameter("provide a page id or both --title and --space")
     typer.echo(render_output(payload, output=output))

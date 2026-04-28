@@ -32,8 +32,15 @@ class ConfluenceServerProvider:
     def get_page_by_title(self, space_key: str, title: str) -> dict | None:
         return self.client.get_page_by_title(space_key, title, expand="space,version")
 
+    @staticmethod
+    def _quote_cql_string(value: str) -> str:
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
+
     def search_pages(self, query: str, limit: int) -> list[dict]:
-        raw = self.client.cql(f'text ~ "{query}"', limit=limit, expand="space,version")
+        raw = self.client.cql(
+            f"text ~ {self._quote_cql_string(query)}", limit=limit, expand="space,version"
+        )
         results = raw.get("results", [])
         return [item.get("content", item) for item in results if isinstance(item, dict)]
 

@@ -375,6 +375,68 @@ def test_jira_issue_batch_create_reads_json_file(monkeypatch, tmp_path) -> None:
     assert '"key": "OPS-1"' in result.stdout
 
 
+def test_jira_issue_batch_create_rejects_missing_file(tmp_path) -> None:
+    missing = tmp_path / "missing.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "batch-create",
+            "--file",
+            str(missing),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "file not found" in result.output
+
+
+def test_jira_issue_batch_create_rejects_invalid_json(tmp_path) -> None:
+    file_path = tmp_path / "issues.json"
+    file_path.write_text("{not-json")
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "batch-create",
+            "--file",
+            str(file_path),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "invalid JSON" in result.output
+
+
+def test_jira_issue_batch_create_requires_array_input(tmp_path) -> None:
+    file_path = tmp_path / "issues.json"
+    file_path.write_text(json.dumps({"summary": "not-a-list"}))
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "batch-create",
+            "--file",
+            str(file_path),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "JSON array" in result.output
+
+
 def test_jira_issue_changelog_batch_is_explicitly_unsupported_on_server() -> None:
     result = runner.invoke(
         app,

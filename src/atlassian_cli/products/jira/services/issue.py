@@ -44,10 +44,11 @@ class IssueService:
         return {
             "issues": [
                 JiraIssue.from_api_response(item).to_simplified_dict()
-                if isinstance(item, dict) and "fields" in item
+                if isinstance(item, dict) and "fields" in item and "key" in item
                 else {"key": item["key"]}
+                if isinstance(item, dict) and "key" in item
+                else item
                 for item in self.provider.create_issues(issues)
-                if isinstance(item, dict)
             ]
         }
 

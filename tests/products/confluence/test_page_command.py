@@ -70,6 +70,38 @@ def test_confluence_page_get_by_title_outputs_json(monkeypatch) -> None:
     assert '"title": "Runbook"' in result.stdout
 
 
+def test_confluence_page_get_by_title_missing_page_exits_nonzero(monkeypatch) -> None:
+    from atlassian_cli.products.confluence.commands import page as page_module
+
+    monkeypatch.setattr(
+        page_module,
+        "build_page_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {"get_by_title": lambda self, space_key, title: None},
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "page",
+            "get",
+            "--title",
+            "Missing",
+            "--space",
+            "OPS",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "page not found" in result.output.lower()
+
+
 def test_confluence_page_search_outputs_json(monkeypatch) -> None:
     from atlassian_cli.products.confluence.commands import page as page_module
 

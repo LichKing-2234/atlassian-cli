@@ -113,6 +113,18 @@ def test_page_service_get_by_title_normalizes_page_payload() -> None:
     assert result["title"] == "Runbook"
 
 
+def test_page_service_get_by_title_returns_none_when_missing() -> None:
+    class MissingPageProvider(FakePageProvider):
+        def get_page_by_title(self, space_key: str, title: str) -> dict | None:
+            return None
+
+    service = PageService(provider=MissingPageProvider())
+
+    result = service.get_by_title("OPS", "Missing")
+
+    assert result is None
+
+
 def test_page_service_search_normalizes_results() -> None:
     service = PageService(provider=FakePageProvider())
 

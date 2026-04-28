@@ -165,7 +165,20 @@ def batch_create_issues(
     file_path: str = typer.Option(..., "--file"),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
-    issues = json.loads(Path(file_path).read_text())
+    try:
+        issues = json.loads(Path(file_path).read_text())
+    except FileNotFoundError as exc:
+        raise typer.BadParameter(f"file not found: {file_path}", param_hint="--file") from exc
+    except json.JSONDecodeError as exc:
+        raise typer.BadParameter(
+            f"invalid JSON in {file_path}: {exc.msg}", param_hint="--file"
+        ) from exc
+
+    if not isinstance(issues, list):
+        raise typer.BadParameter(
+            "batch create input must be a JSON array of issues", param_hint="--file"
+        )
+
     service = build_issue_service(ctx.obj)
     payload = (
         service.batch_create_raw(issues) if is_raw_output(output) else service.batch_create(issues)
