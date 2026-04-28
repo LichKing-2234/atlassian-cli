@@ -169,3 +169,11 @@ def batch_create_issues(
     service = build_issue_service(ctx.obj)
     payload = service.batch_create_raw(issues) if is_raw_output(output) else service.batch_create(issues)
     typer.echo(render_output(payload, output=output))
+
+
+@app.command("changelog-batch")
+def batch_get_changelogs(
+    issue_keys: list[str] = typer.Option(..., "--issue"),
+) -> None:
+    del issue_keys
+    raise typer.BadParameter("Cloud support is not available in v1")

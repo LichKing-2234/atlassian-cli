@@ -366,3 +366,23 @@ def test_jira_issue_batch_create_reads_json_file(monkeypatch, tmp_path) -> None:
 
     assert result.exit_code == 0
     assert '"key": "OPS-1"' in result.stdout
+
+
+def test_jira_issue_changelog_batch_is_explicitly_unsupported_on_server() -> None:
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "--deployment",
+            "server",
+            "jira",
+            "issue",
+            "changelog-batch",
+            "--issue",
+            "OPS-1",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Cloud support is not available in v1" in result.output
