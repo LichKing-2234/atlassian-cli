@@ -48,15 +48,26 @@ def test_list_branches_materializes_paged_generator() -> None:
 
 
 def test_list_pull_requests_materializes_paged_generator() -> None:
+    calls = {}
+
     class FakeClient:
-        def get_pull_requests(self, project_key: str, repo_slug: str, state: str):
+        def get_pull_requests(
+            self,
+            project_key: str,
+            repo_slug: str,
+            state: str,
+            limit: int,
+            start: int,
+        ):
+            calls["args"] = (project_key, repo_slug, state, limit, start)
             yield {"id": 1, "title": "Add release automation"}
 
     provider = build_provider_with_client(FakeClient())
 
-    result = provider.list_pull_requests("OPS", "infra", "OPEN")
+    result = provider.list_pull_requests("OPS", "infra", "OPEN", start=25, limit=10)
 
     assert result == [{"id": 1, "title": "Add release automation"}]
+    assert calls["args"] == ("OPS", "infra", "OPEN", 10, 25)
 
 
 def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() -> None:

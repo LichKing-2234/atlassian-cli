@@ -1,7 +1,10 @@
 import typer
 
+from atlassian_cli.output.interactive import InteractiveCollectionSource, browse_collection
+from atlassian_cli.output.markdown import render_markdown
 from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
+from atlassian_cli.output.tty import should_use_interactive_output
 from atlassian_cli.products.factory import build_provider
 from atlassian_cli.products.jira.services.issue import IssueService
 
@@ -33,11 +36,27 @@ def search_issues(
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
-    payload = (
-        service.search_raw(jql=jql, start=start, limit=limit)
-        if is_raw_output(output)
-        else service.search(jql=jql, start=start, limit=limit)
-    )
+    if is_raw_output(output):
+        payload = service.search_raw(jql=jql, start=start, limit=limit)
+        typer.echo(render_output(payload, output=output))
+        return
+
+    if should_use_interactive_output(output, command_kind="collection"):
+        browse_collection(
+            InteractiveCollectionSource(
+                title="Jira issue search",
+                page_size=limit,
+                fetch_page=lambda page_start, page_limit: service.search_page(
+                    jql, page_start, page_limit
+                ),
+                fetch_detail=lambda item: service.get(item["key"]),
+                render_item=lambda index, item: render_markdown({"results": [item]}).splitlines()[0],
+                render_detail=render_markdown,
+            )
+        )
+        return
+
+    payload = service.search(jql=jql, start=start, limit=limit)
     typer.echo(render_output(payload, output=output))
 
 

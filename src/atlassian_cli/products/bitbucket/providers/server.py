@@ -57,8 +57,24 @@ class BitbucketServerProvider:
             self.client.get_branches(project_key, repo_slug, filter=filter_text)
         )
 
-    def list_pull_requests(self, project_key: str, repo_slug: str, state: str) -> list[dict]:
-        return self._paged_items(self.client.get_pull_requests(project_key, repo_slug, state=state))
+    def list_pull_requests(
+        self,
+        project_key: str,
+        repo_slug: str,
+        state: str,
+        *,
+        start: int,
+        limit: int,
+    ) -> list[dict]:
+        return self._paged_items(
+            self.client.get_pull_requests(
+                project_key,
+                repo_slug,
+                state=state,
+                limit=limit,
+                start=start,
+            )
+        )
 
     def get_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
         return self.client.get_pull_request(project_key, repo_slug, pr_id)

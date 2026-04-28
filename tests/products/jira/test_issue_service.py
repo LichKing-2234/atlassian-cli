@@ -1,4 +1,5 @@
 from atlassian_cli.products.jira.services.issue import IssueService
+from atlassian_cli.output.interactive import CollectionPage
 
 
 class FakeIssueProvider:
@@ -87,3 +88,15 @@ def test_issue_service_search_normalizes_without_refetching_each_issue() -> None
     assert [item["key"] for item in result["issues"]] == ["OPS-1", "OPS-2"]
     assert [item["status"]["name"] for item in result["issues"]] == ["Open", "In Progress"]
     assert provider.get_issue_calls == 0
+
+
+def test_issue_service_search_page_returns_collection_page() -> None:
+    service = IssueService(provider=FakeIssueProvider())
+
+    page = service.search_page("project = OPS", start=0, limit=2)
+
+    assert isinstance(page, CollectionPage)
+    assert page.start == 0
+    assert page.limit == 2
+    assert page.total == 2
+    assert [item["key"] for item in page.items] == ["OPS-1", "OPS-2"]
