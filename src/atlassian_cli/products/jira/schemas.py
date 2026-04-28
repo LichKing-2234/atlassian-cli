@@ -51,6 +51,26 @@ class JiraNamedField(ApiModel):
         return {"name": self.name}
 
 
+class JiraField(ApiModel):
+    id: str = ""
+    name: str = ""
+    type: str | None = None
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any] | None, **kwargs: Any) -> "JiraField":
+        data = data or {}
+        schema = data.get("schema") if isinstance(data.get("schema"), dict) else {}
+        return cls(
+            id=str(data.get("id", "")),
+            name=str(data.get("name", "")),
+            type=coerce_str(schema.get("type")),
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        payload = {"id": self.id, "name": self.name, "type": self.type}
+        return {key: value for key, value in payload.items() if value not in (None, "")}
+
+
 class JiraProject(ApiModel):
     id: str | None = None
     key: str = ""

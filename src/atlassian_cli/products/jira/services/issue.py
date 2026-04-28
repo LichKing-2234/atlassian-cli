@@ -51,3 +51,9 @@ class IssueService:
 
     def transition_raw(self, issue_key: str, transition: str) -> dict:
         return self.provider.transition_issue(issue_key, transition)
+
+    def get_transitions(self, issue_key: str) -> dict:
+        return {"results": self.provider.get_issue_transitions(issue_key)}
+
+    def get_transitions_raw(self, issue_key: str) -> list[dict]:
+        return self.provider.get_issue_transitions(issue_key)

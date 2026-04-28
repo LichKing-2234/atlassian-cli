@@ -231,3 +231,38 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_runtime_fails
 
     assert result.exit_code == 0
     assert "1. OPS-1 - Broken deploy" in result.stdout
+
+
+def test_jira_issue_transitions_outputs_available_ids(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {
+                "get_transitions": lambda self, issue_key: {
+                    "results": [{"id": "31", "name": "Done"}]
+                }
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "transitions",
+            "OPS-1",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"id": "31"' in result.stdout

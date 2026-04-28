@@ -43,6 +43,30 @@ class JiraServerProvider:
         self.client.set_issue_status(issue_key, transition)
         return {"key": issue_key, "transition": transition}
 
+    def get_issue_transitions(self, issue_key: str) -> list[dict]:
+        return self.client.get_issue_transitions(issue_key)
+
+    def search_fields(self, query: str) -> list[dict]:
+        fields = self.client.get_all_fields()
+        query_lower = query.lower()
+        return [
+            field
+            for field in fields
+            if not query or query_lower in str(field.get("name", "")).lower()
+        ]
+
+    def get_field_options(self, field_id: str, project_key: str, issue_type: str) -> list[dict]:
+        meta = self.client.issue_createmeta(project_key, issue_type)
+        projects = meta.get("projects", [])
+        if not projects:
+            return []
+        issue_types = projects[0].get("issuetypes", [])
+        if not issue_types:
+            return []
+        fields = issue_types[0].get("fields", {})
+        field_meta = fields.get(field_id, {})
+        return field_meta.get("allowedValues", [])
+
     def list_projects(self) -> list[dict]:
         return self.client.projects()
 

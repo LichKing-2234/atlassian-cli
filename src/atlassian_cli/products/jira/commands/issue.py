@@ -125,3 +125,18 @@ def transition_issue(
         else service.transition(issue_key, transition)
     )
     typer.echo(render_output(result, output=output))
+
+
+@app.command("transitions")
+def get_transitions(
+    ctx: typer.Context,
+    issue_key: str,
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_issue_service(ctx.obj)
+    payload = (
+        service.get_transitions_raw(issue_key)
+        if is_raw_output(output)
+        else service.get_transitions(issue_key)
+    )
+    typer.echo(render_output(payload, output=output))
