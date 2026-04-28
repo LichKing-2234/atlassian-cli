@@ -289,7 +289,8 @@ def test_jira_issue_delete_requires_confirmation(monkeypatch) -> None:
     )
 
     assert result.exit_code != 0
-    assert "pass --yes to confirm delete" in result.output
+    normalized_output = " ".join(token for token in result.output.split() if token.strip("│╭╮╰╯─"))
+    assert "pass --yes to confirm delete" in normalized_output
 
 
 def test_jira_issue_delete_outputs_json(monkeypatch) -> None:
