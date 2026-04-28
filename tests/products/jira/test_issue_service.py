@@ -1,5 +1,5 @@
-from atlassian_cli.products.jira.services.issue import IssueService
 from atlassian_cli.output.interactive import CollectionPage
+from atlassian_cli.products.jira.services.issue import IssueService
 
 
 class FakeIssueProvider:

@@ -1,4 +1,9 @@
-from atlassian_cli.output.modes import OutputMode, is_machine_output, is_raw_output, normalized_output
+from atlassian_cli.output.modes import (
+    OutputMode,
+    is_machine_output,
+    is_raw_output,
+    normalized_output,
+)
 
 
 def test_normalized_output_preserves_markdown() -> None:

@@ -136,7 +136,9 @@ def test_bitbucket_pr_list_uses_interactive_browser_for_markdown_tty(monkeypatch
     calls: dict[str, object] = {}
 
     monkeypatch.setattr(pr_module, "should_use_interactive_output", lambda *args, **kwargs: True)
-    monkeypatch.setattr(pr_module, "browse_collection", lambda source: calls.setdefault("source", source))
+    monkeypatch.setattr(
+        pr_module, "browse_collection", lambda source: calls.setdefault("source", source)
+    )
     monkeypatch.setattr(
         pr_module,
         "build_pr_service",
@@ -149,11 +151,13 @@ def test_bitbucket_pr_list_uses_interactive_browser_for_markdown_tty(monkeypatch
                     "start_at": start,
                     "max_results": limit,
                 },
-                "list_page": lambda self, project_key, repo_slug, state, start, limit: CollectionPage(
-                    items=[{"id": 42, "title": "Ship output cleanup"}],
-                    start=start,
-                    limit=limit,
-                    total=1,
+                "list_page": lambda self, project_key, repo_slug, state, start, limit: (
+                    CollectionPage(
+                        items=[{"id": 42, "title": "Ship output cleanup"}],
+                        start=start,
+                        limit=limit,
+                        total=1,
+                    )
                 ),
                 "get": lambda self, project_key, repo_slug, pr_id: {
                     "id": pr_id,
@@ -220,6 +224,8 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
     )
 
     assert result.exit_code == 0
-    assert captured["item"] == "24990  OPEN  huangpeilin  [FEAT] CSD-77462 add configurable mic test"
+    assert (
+        captured["item"] == "24990  OPEN  huangpeilin  [FEAT] CSD-77462 add configurable mic test"
+    )
     assert "Reviewers: Alice, Bob, Carol, +1 more" in captured["preview"]
     assert captured["detail"].startswith("# 24990 - [FEAT] CSD-77462 add configurable mic test")

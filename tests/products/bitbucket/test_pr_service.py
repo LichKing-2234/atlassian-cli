@@ -1,5 +1,5 @@
-from atlassian_cli.products.bitbucket.services.pr import PullRequestService
 from atlassian_cli.output.interactive import CollectionPage
+from atlassian_cli.products.bitbucket.services.pr import PullRequestService
 
 
 class FakePullRequestProvider:

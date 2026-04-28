@@ -34,7 +34,9 @@ def test_jira_issue_search_uses_interactive_browser_for_markdown_tty(monkeypatch
     calls: dict[str, object] = {}
 
     monkeypatch.setattr(issue_module, "should_use_interactive_output", lambda *args, **kwargs: True)
-    monkeypatch.setattr(issue_module, "browse_collection", lambda source: calls.setdefault("source", source))
+    monkeypatch.setattr(
+        issue_module, "browse_collection", lambda source: calls.setdefault("source", source)
+    )
     monkeypatch.setattr(
         issue_module,
         "build_issue_service",
@@ -71,7 +73,9 @@ def test_jira_issue_search_uses_interactive_browser_for_markdown_tty(monkeypatch
 def test_jira_issue_search_non_tty_falls_back_to_markdown(monkeypatch) -> None:
     from atlassian_cli.products.jira.commands import issue as issue_module
 
-    monkeypatch.setattr(issue_module, "should_use_interactive_output", lambda *args, **kwargs: False)
+    monkeypatch.setattr(
+        issue_module, "should_use_interactive_output", lambda *args, **kwargs: False
+    )
     monkeypatch.setattr(
         issue_module,
         "build_issue_service",
@@ -117,7 +121,9 @@ def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monk
         def get(self, issue_key):
             return sample_issue
 
-    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService())
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
     monkeypatch.setattr(issue_module, "should_use_interactive_output", lambda *args, **kwargs: True)
     monkeypatch.setattr(
         issue_module,

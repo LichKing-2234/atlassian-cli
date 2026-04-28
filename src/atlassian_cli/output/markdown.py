@@ -1,7 +1,6 @@
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-
 MAX_SUMMARY_LIST_ITEMS = 3
 DETAIL_BODY_FIELDS = {"description", "content"}
 PREVIEW_FIELDS = (

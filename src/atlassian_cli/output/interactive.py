@@ -101,11 +101,7 @@ class CollectionBrowserState:
         query = self.current_filter().strip().lower()
         if not query:
             return self.items
-        return [
-            item
-            for item in self.items
-            if query in self._item_filter_text(item).lower()
-        ]
+        return [item for item in self.items if query in self._item_filter_text(item).lower()]
 
     def start_filter(self) -> None:
         self.mode = "filter"

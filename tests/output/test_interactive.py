@@ -2,8 +2,8 @@ from atlassian_cli.output.interactive import (
     CollectionBrowserState,
     CollectionPage,
     InteractiveCollectionSource,
-    _truncate_line,
     _render_state,
+    _truncate_line,
 )
 
 
@@ -26,7 +26,11 @@ def test_collection_browser_state_loads_next_page_when_advancing_past_loaded_ite
         title="Demo",
         page_size=2,
         fetch_page=fetch_page,
-        fetch_detail=lambda item: {"id": item["id"], "title": item["title"], "description": "Detail"},
+        fetch_detail=lambda item: {
+            "id": item["id"],
+            "title": item["title"],
+            "description": "Detail",
+        },
         render_item=lambda index, item: f"{index}. {item['title']}",
         render_detail=lambda item: item["description"],
     )
@@ -50,7 +54,11 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
             limit=limit,
             total=1,
         ),
-        fetch_detail=lambda item: {"id": item["id"], "title": item["title"], "description": "Broken deploy"},
+        fetch_detail=lambda item: {
+            "id": item["id"],
+            "title": item["title"],
+            "description": "Broken deploy",
+        },
         render_item=lambda index, item: f"{index}. {item['title']}",
         render_detail=lambda item: item["description"],
     )
@@ -140,7 +148,11 @@ def test_render_state_in_detail_mode_has_detail_header_and_back_hint() -> None:
             limit=limit,
             total=1,
         ),
-        fetch_detail=lambda item: {"id": item["id"], "title": item["title"], "description": "Broken deploy"},
+        fetch_detail=lambda item: {
+            "id": item["id"],
+            "title": item["title"],
+            "description": "Broken deploy",
+        },
         render_item=lambda index, item: item["title"],
         render_detail=lambda item: item["description"],
     )
@@ -347,7 +359,9 @@ def build_preview_source() -> InteractiveCollectionSource:
             total=len(items),
         ),
         fetch_detail=lambda item: item,
-        render_item=lambda index, item: f"{item['id']}  {item['state']}  {item['author']}  {item['title']}",
+        render_item=lambda index, item: (
+            f"{item['id']}  {item['state']}  {item['author']}  {item['title']}"
+        ),
         render_preview=lambda item: item["preview"],
         render_detail=lambda item: item["detail"],
     )

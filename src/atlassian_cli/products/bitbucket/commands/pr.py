@@ -1,7 +1,6 @@
 import typer
 
 from atlassian_cli.output.interactive import InteractiveCollectionSource, browse_collection
-from atlassian_cli.output.markdown import render_markdown
 from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.output.tty import should_use_interactive_output
