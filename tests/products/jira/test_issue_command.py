@@ -1,4 +1,5 @@
 from typer.testing import CliRunner
+import json
 
 from atlassian_cli.cli import app
 from atlassian_cli.output.interactive import CollectionPage
@@ -266,3 +267,102 @@ def test_jira_issue_transitions_outputs_available_ids(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert '"id": "31"' in result.stdout
+
+
+def test_jira_issue_delete_requires_confirmation(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {"delete": lambda self, issue_key: {"key": issue_key, "deleted": True}},
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        ["--url", "https://jira.example.com", "jira", "issue", "delete", "OPS-1"],
+    )
+
+    assert result.exit_code != 0
+    assert "pass --yes to confirm delete" in result.output
+
+
+def test_jira_issue_delete_outputs_json(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {"delete": lambda self, issue_key: {"key": issue_key, "deleted": True}},
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "delete",
+            "OPS-1",
+            "--yes",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"deleted": true' in result.stdout
+
+
+def test_jira_issue_batch_create_reads_json_file(monkeypatch, tmp_path) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    file_path = tmp_path / "issues.json"
+    file_path.write_text(
+        json.dumps(
+            [
+                {
+                    "project": {"key": "OPS"},
+                    "issuetype": {"name": "Task"},
+                    "summary": "First issue",
+                }
+            ]
+        )
+    )
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {"batch_create": lambda self, issues: {"issues": [{"key": "OPS-1"}]}},
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "batch-create",
+            "--file",
+            str(file_path),
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"key": "OPS-1"' in result.stdout

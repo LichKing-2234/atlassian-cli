@@ -40,6 +40,20 @@ class IssueService:
     def create_raw(self, fields: dict) -> dict:
         return self.provider.create_issue(fields)
 
+    def batch_create(self, issues: list[dict]) -> dict:
+        return {
+            "issues": [
+                JiraIssue.from_api_response(item).to_simplified_dict()
+                if isinstance(item, dict) and "fields" in item
+                else {"key": item["key"]}
+                for item in self.provider.create_issues(issues)
+                if isinstance(item, dict)
+            ]
+        }
+
+    def batch_create_raw(self, issues: list[dict]) -> list[dict]:
+        return self.provider.create_issues(issues)
+
     def update(self, issue_key: str, fields: dict) -> dict:
         return self.provider.update_issue(issue_key, fields)
 
@@ -57,3 +71,11 @@ class IssueService:
 
     def get_transitions_raw(self, issue_key: str) -> list[dict]:
         return self.provider.get_issue_transitions(issue_key)
+
+    def delete(self, issue_key: str) -> dict:
+        self.provider.delete_issue(issue_key)
+        return {"key": issue_key, "deleted": True}
+
+    def delete_raw(self, issue_key: str) -> dict:
+        self.provider.delete_issue(issue_key)
+        return {"key": issue_key, "deleted": True}

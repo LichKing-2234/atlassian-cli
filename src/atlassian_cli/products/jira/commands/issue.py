@@ -1,4 +1,7 @@
 import typer
+from pathlib import Path
+
+import json
 
 from atlassian_cli.output.interactive import InteractiveCollectionSource, browse_collection
 from atlassian_cli.output.markdown import (
@@ -139,4 +142,30 @@ def get_transitions(
         if is_raw_output(output)
         else service.get_transitions(issue_key)
     )
+    typer.echo(render_output(payload, output=output))
+
+
+@app.command("delete")
+def delete_issue(
+    ctx: typer.Context,
+    issue_key: str,
+    yes: bool = typer.Option(False, "--yes"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    if not yes:
+        raise typer.BadParameter("pass --yes to confirm delete")
+    service = build_issue_service(ctx.obj)
+    payload = service.delete_raw(issue_key) if is_raw_output(output) else service.delete(issue_key)
+    typer.echo(render_output(payload, output=output))
+
+
+@app.command("batch-create")
+def batch_create_issues(
+    ctx: typer.Context,
+    file_path: str = typer.Option(..., "--file"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    issues = json.loads(Path(file_path).read_text())
+    service = build_issue_service(ctx.obj)
+    payload = service.batch_create_raw(issues) if is_raw_output(output) else service.batch_create(issues)
     typer.echo(render_output(payload, output=output))

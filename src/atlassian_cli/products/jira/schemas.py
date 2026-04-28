@@ -71,6 +71,29 @@ class JiraField(ApiModel):
         return {key: value for key, value in payload.items() if value not in (None, "")}
 
 
+class JiraComment(ApiModel):
+    id: str | None = None
+    body: str | None = None
+    author: JiraUser | None = None
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any] | None, **kwargs: Any) -> "JiraComment":
+        data = data or {}
+        raw_body = data.get("body")
+        body = adf_to_text(raw_body) if isinstance(raw_body, dict) else coerce_str(raw_body)
+        return cls(
+            id=coerce_str(data.get("id")),
+            body=body,
+            author=JiraUser.from_api_response(data.get("author")) if data.get("author") else None,
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        payload = {"id": self.id, "body": self.body}
+        if self.author:
+            payload["author"] = self.author.to_simplified_dict()
+        return {key: value for key, value in payload.items() if value not in (None, "")}
+
+
 class JiraProject(ApiModel):
     id: str | None = None
     key: str = ""
