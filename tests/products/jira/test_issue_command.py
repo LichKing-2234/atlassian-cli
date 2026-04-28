@@ -1,4 +1,5 @@
 import json
+import re
 
 from typer.testing import CliRunner
 
@@ -6,6 +7,7 @@ from atlassian_cli.cli import app
 from atlassian_cli.output.interactive import CollectionPage
 
 runner = CliRunner()
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def test_jira_issue_get_outputs_json(monkeypatch) -> None:
@@ -289,7 +291,10 @@ def test_jira_issue_delete_requires_confirmation(monkeypatch) -> None:
     )
 
     assert result.exit_code != 0
-    normalized_output = " ".join(token for token in result.output.split() if token.strip("│╭╮╰╯─"))
+    stripped_output = ANSI_ESCAPE_RE.sub("", result.output)
+    normalized_output = " ".join(
+        token for token in stripped_output.split() if token.strip("│╭╮╰╯─")
+    )
     assert "pass --yes to confirm delete" in normalized_output
 
 
