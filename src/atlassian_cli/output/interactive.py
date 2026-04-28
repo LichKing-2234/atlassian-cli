@@ -151,6 +151,7 @@ class CollectionBrowserState:
 
 def browse_collection(source: InteractiveCollectionSource) -> None:
     from prompt_toolkit import Application
+    from prompt_toolkit.application.current import get_app
     from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.keys import Keys
     from prompt_toolkit.layout import HSplit, Layout, Window
@@ -158,7 +159,13 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
 
     state = CollectionBrowserState(source)
     state.load_initial()
-    body = FormattedTextControl(text=lambda: _render_state(state))
+    body = FormattedTextControl(
+        text=lambda: _render_state(
+            state,
+            max_width=max(20, get_app().output.get_size().columns - 1),
+            max_height=max(8, get_app().output.get_size().rows),
+        )
+    )
     bindings = KeyBindings()
 
     @bindings.add("q")
@@ -298,7 +305,24 @@ def _truncate_block(
     return visible
 
 
-def _render_state(state: CollectionBrowserState) -> str:
+def _window_bounds(total_items: int, selected_index: int, window_size: int) -> tuple[int, int]:
+    if total_items <= window_size:
+        return 0, total_items
+
+    start = max(0, selected_index - (window_size // 2))
+    end = start + window_size
+    if end > total_items:
+        end = total_items
+        start = end - window_size
+    return start, end
+
+
+def _render_state(
+    state: CollectionBrowserState,
+    *,
+    max_width: int = MAX_LIST_LINE_WIDTH,
+    max_height: int | None = None,
+) -> str:
     if state.mode == "detail":
         return "\n".join(
             [
@@ -310,13 +334,30 @@ def _render_state(state: CollectionBrowserState) -> str:
             ]
         )
 
-    lines = [state.source.title, ""]
-    for index, item in enumerate(state.visible_items()):
-        prefix = "> " if index == state.selected_index else "  "
-        line = f"{prefix}{index + 1}. {state.source.render_item(index + 1, item)}"
-        lines.append(_truncate_line(line))
+    visible_items = state.visible_items()
+    preview_max_lines = MAX_PREVIEW_LINES
+    if max_height is not None:
+        preview_max_lines = max(1, min(MAX_PREVIEW_LINES, max_height - 7))
+    preview_lines = _truncate_block(
+        state.current_preview(),
+        max_lines=preview_max_lines,
+        max_width=max_width,
+    )
 
-    preview_lines = _truncate_block(state.current_preview())
+    if max_height is None:
+        start, end = 0, len(visible_items)
+    else:
+        list_capacity = max(1, max_height - 6 - len(preview_lines))
+        start, end = _window_bounds(len(visible_items), state.selected_index, list_capacity)
+
+    lines = [_truncate_line(state.source.title, max_width=max_width), ""]
+    for item_index in range(start, end):
+        item = visible_items[item_index]
+        display_index = item_index + 1
+        prefix = "> " if item_index == state.selected_index else "  "
+        line = f"{prefix}{display_index}. {state.source.render_item(display_index, item)}"
+        lines.append(_truncate_line(line, max_width=max_width))
+
     lines.extend(["", "Preview:"])
     lines.extend(preview_lines or ["No preview."])
 
@@ -327,5 +368,5 @@ def _render_state(state: CollectionBrowserState) -> str:
         if state.filter_query:
             footer = f"{footer}  active filter: {state.filter_query}"
 
-    lines.extend(["", footer])
+    lines.extend(["", _truncate_line(footer, max_width=max_width)])
     return "\n".join(lines)

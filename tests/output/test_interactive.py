@@ -391,3 +391,53 @@ def test_collection_browser_state_updates_preview_when_selection_changes() -> No
     rendered = _render_state(state)
     assert "Author: alice" in rendered
     assert "Author: huangpeilin" not in rendered
+
+
+def test_render_state_clips_to_terminal_height_and_keeps_preview_visible() -> None:
+    items = [
+        {
+            "id": index,
+            "title": f"Item {index} with a very long title that should be width bounded",
+            "preview": f"Preview for item {index}",
+            "detail": f"Detail for item {index}",
+        }
+        for index in range(1, 21)
+    ]
+    source = InteractiveCollectionSource(
+        title="Demo",
+        page_size=20,
+        fetch_page=lambda start, limit: CollectionPage(
+            items=items[start : start + limit],
+            start=start,
+            limit=limit,
+            total=len(items),
+        ),
+        fetch_detail=lambda item: item,
+        render_item=lambda index, item: item["title"],
+        render_preview=lambda item: item["preview"],
+        render_detail=lambda item: item["detail"],
+    )
+    state = CollectionBrowserState(source)
+
+    state.load_initial()
+    state.move(14)
+
+    rendered = _render_state(state, max_width=40, max_height=12)
+    lines = rendered.splitlines()
+
+    assert len(lines) <= 12
+    assert lines[-1].startswith("j/k move")
+    assert len(lines[-1]) <= 40
+    assert "Preview:" in rendered
+    assert "Preview for item 15" in rendered
+    assert any("> 15. Item 15" in line for line in lines)
+    assert not any("Item 1 with" in line for line in lines)
+
+
+def test_render_state_uses_terminal_width_for_all_lines() -> None:
+    state = CollectionBrowserState(build_preview_source())
+    state.load_initial()
+
+    rendered = _render_state(state, max_width=32, max_height=12)
+
+    assert all(len(line) <= 32 for line in rendered.splitlines())
