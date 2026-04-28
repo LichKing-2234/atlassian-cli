@@ -79,7 +79,11 @@ def test_confluence_page_search_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"search": lambda self, query, limit: {"results": [{"id": "1234", "title": "Runbook"}]}},
+            {
+                "search": lambda self, query, limit: {
+                    "results": [{"id": "1234", "title": "Runbook"}]
+                }
+            },
         )(),
     )
 
@@ -111,7 +115,11 @@ def test_confluence_page_children_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"children": lambda self, page_id: {"results": [{"id": "child-1", "title": "Child One"}]}},
+            {
+                "children": lambda self, page_id: {
+                    "results": [{"id": "child-1", "title": "Child One"}]
+                }
+            },
         )(),
     )
 
@@ -206,7 +214,11 @@ def test_confluence_page_diff_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"diff": lambda self, page_id, from_version, to_version: {"diff": "--- version-1\\n+++ version-2"}},
+            {
+                "diff": lambda self, page_id, from_version, to_version: {
+                    "diff": "--- version-1\\n+++ version-2"
+                }
+            },
         )(),
     )
 
@@ -241,7 +253,12 @@ def test_confluence_page_move_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"move": lambda self, page_id, target_parent_id=None, target_space_key=None, position='append': {"id": page_id, "version": 8}},
+            {
+                "move": lambda self, page_id, target_parent_id=None, target_space_key=None, position="append": {
+                    "id": page_id,
+                    "version": 8,
+                }
+            },
         )(),
     )
 

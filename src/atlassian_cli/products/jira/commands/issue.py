@@ -167,7 +167,9 @@ def batch_create_issues(
 ) -> None:
     issues = json.loads(Path(file_path).read_text())
     service = build_issue_service(ctx.obj)
-    payload = service.batch_create_raw(issues) if is_raw_output(output) else service.batch_create(issues)
+    payload = (
+        service.batch_create_raw(issues) if is_raw_output(output) else service.batch_create(issues)
+    )
     typer.echo(render_output(payload, output=output))
 
 

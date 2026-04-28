@@ -42,7 +42,11 @@ def search_pages(
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
-    payload = service.search_raw(query, limit=limit) if is_raw_output(output) else service.search(query, limit=limit)
+    payload = (
+        service.search_raw(query, limit=limit)
+        if is_raw_output(output)
+        else service.search(query, limit=limit)
+    )
     typer.echo(render_output(payload, output=output))
 
 

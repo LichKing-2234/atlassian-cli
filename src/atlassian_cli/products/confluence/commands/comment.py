@@ -31,7 +31,9 @@ def add_comment(
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_comment_service(ctx.obj)
-    payload = service.add_raw(page_id, body) if is_raw_output(output) else service.add(page_id, body)
+    payload = (
+        service.add_raw(page_id, body) if is_raw_output(output) else service.add(page_id, body)
+    )
     typer.echo(render_output(payload, output=output))
 
 

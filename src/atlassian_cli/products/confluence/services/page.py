@@ -33,7 +33,9 @@ class PageService:
 
     def search(self, query: str, *, limit: int) -> dict:
         return {
-            "results": [self._normalize_page(item) for item in self.provider.search_pages(query, limit)]
+            "results": [
+                self._normalize_page(item) for item in self.provider.search_pages(query, limit)
+            ]
         }
 
     def search_raw(self, query: str, *, limit: int) -> list[dict]:
@@ -41,7 +43,9 @@ class PageService:
 
     def children(self, page_id: str) -> dict:
         return {
-            "results": [self._normalize_page(item) for item in self.provider.get_page_children(page_id)]
+            "results": [
+                self._normalize_page(item) for item in self.provider.get_page_children(page_id)
+            ]
         }
 
     def children_raw(self, page_id: str) -> list[dict]:
