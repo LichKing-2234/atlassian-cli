@@ -1,11 +1,22 @@
 from atlassian_cli.products.bitbucket.services.pr import PullRequestService
+from atlassian_cli.output.interactive import CollectionPage
 
 
 class FakePullRequestProvider:
     def __init__(self) -> None:
         self.merge_calls = []
 
-    def list_pull_requests(self, project_key: str, repo_slug: str, state: str) -> list[dict]:
+    def list_pull_requests(
+        self,
+        project_key: str,
+        repo_slug: str,
+        state: str,
+        *,
+        start: int = 0,
+        limit: int = 25,
+    ) -> list[dict]:
+        assert start >= 0
+        assert limit > 0
         return [
             {
                 "id": 42,
@@ -104,29 +115,32 @@ def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> No
                 "participants": [{"user": {"displayName": "Code Owners"}}],
                 "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
             }
-        ]
+        ],
+        "start_at": 0,
+        "max_results": 25,
     }
 
 
-def test_pull_request_service_list_table_uses_summary_payload() -> None:
+def test_pull_request_service_list_accepts_start_and_limit() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.list_table("AI", "agora-skills", "OPEN")
+    result = service.list("AI", "agora-skills", "OPEN", start=25, limit=10)
 
-    assert result == {
-        "results": [
-            {
-                "id": 42,
-                "title": "Ship output cleanup",
-                "state": "OPEN",
-                "author": {"display_name": "Alice", "name": "alice@example.com"},
-                "reviewers": [{"display_name": "Bob", "approved": True}],
-                "from_ref": {"display_id": "feature/output"},
-                "to_ref": {"display_id": "main"},
-                "updated_date": "2024-01-02 00:00:00",
-            }
-        ]
-    }
+    assert result["results"][0]["id"] == 42
+    assert result["start_at"] == 25
+    assert result["max_results"] == 10
+
+
+def test_pull_request_service_list_page_returns_collection_page() -> None:
+    service = PullRequestService(provider=FakePullRequestProvider())
+
+    page = service.list_page("AI", "agora-skills", "OPEN", start=25, limit=10)
+
+    assert isinstance(page, CollectionPage)
+    assert page.start == 25
+    assert page.limit == 10
+    assert page.total is None
+    assert page.items[0]["id"] == 42
 
 
 def test_pull_request_service_exposes_raw_payload() -> None:

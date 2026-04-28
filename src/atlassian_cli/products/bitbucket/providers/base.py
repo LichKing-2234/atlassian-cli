@@ -10,7 +10,15 @@ class BitbucketProvider(Protocol):
     def list_branches(
         self, project_key: str, repo_slug: str, filter_text: str | None
     ) -> list[dict]: ...
-    def list_pull_requests(self, project_key: str, repo_slug: str, state: str) -> list[dict]: ...
+    def list_pull_requests(
+        self,
+        project_key: str,
+        repo_slug: str,
+        state: str,
+        *,
+        start: int,
+        limit: int,
+    ) -> list[dict]: ...
     def get_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict: ...
     def create_pull_request(self, project_key: str, repo_slug: str, payload: dict) -> dict: ...
     def merge_pull_request(

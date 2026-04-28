@@ -1,6 +1,6 @@
 import typer
 
-from atlassian_cli.output.modes import is_raw_output
+from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.products.confluence.services.page import PageService
 from atlassian_cli.products.factory import build_provider
@@ -16,7 +16,7 @@ def build_page_service(context) -> PageService:
 def get_page(
     ctx: typer.Context,
     page_id: str,
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
     payload = service.get_raw(page_id) if is_raw_output(output) else service.get(page_id)
@@ -29,7 +29,7 @@ def create_page(
     space_key: str = typer.Option(..., "--space"),
     title: str = typer.Option(..., "--title"),
     body: str = typer.Option(..., "--body"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
     payload = (
@@ -46,7 +46,7 @@ def update_page(
     page_id: str,
     title: str = typer.Option(..., "--title"),
     body: str = typer.Option(..., "--body"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
     payload = (
@@ -62,7 +62,7 @@ def delete_page(
     ctx: typer.Context,
     page_id: str,
     yes: bool = typer.Option(False, "--yes"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     if not yes:
         raise typer.BadParameter("pass --yes to confirm delete")

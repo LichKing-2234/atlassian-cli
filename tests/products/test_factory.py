@@ -14,7 +14,7 @@ def test_build_provider_returns_jira_server_provider() -> None:
         product=Product.JIRA,
         deployment=Deployment.SERVER,
         url="https://jira.example.com",
-        output="table",
+        output="markdown",
         auth=ResolvedAuth(mode=AuthMode.BASIC, username="alice", token="secret"),
     )
 
@@ -29,7 +29,7 @@ def test_build_provider_rejects_cloud() -> None:
         product=Product.JIRA,
         deployment=Deployment.CLOUD,
         url="https://example.atlassian.net",
-        output="table",
+        output="markdown",
         auth=ResolvedAuth(mode=AuthMode.BASIC, username="alice", token="secret"),
     )
 

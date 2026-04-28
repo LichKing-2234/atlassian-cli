@@ -1,6 +1,6 @@
 import typer
 
-from atlassian_cli.output.modes import is_raw_output
+from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.products.confluence.services.attachment import AttachmentService
 from atlassian_cli.products.factory import build_provider
@@ -16,7 +16,7 @@ def build_attachment_service(context) -> AttachmentService:
 def list_attachments(
     ctx: typer.Context,
     page_id: str,
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_attachment_service(ctx.obj)
     payload = service.list_raw(page_id) if is_raw_output(output) else service.list(page_id)
@@ -28,7 +28,7 @@ def upload_attachment(
     ctx: typer.Context,
     page_id: str,
     file_path: str = typer.Option(..., "--file"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_attachment_service(ctx.obj)
     payload = (
@@ -44,7 +44,7 @@ def download_attachment(
     ctx: typer.Context,
     attachment_id: str,
     destination: str = typer.Option(..., "--destination"),
-    output: str = typer.Option("table", "--output"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_attachment_service(ctx.obj)
     payload = (
