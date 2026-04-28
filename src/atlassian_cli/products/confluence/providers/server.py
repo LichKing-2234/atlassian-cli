@@ -80,6 +80,27 @@ class ConfluenceServerProvider:
     def get_space(self, space_key: str) -> dict:
         return self.client.get_space(space_key)
 
+    def list_comments(self, page_id: str) -> list[dict]:
+        return self.client.get_page_comments(page_id)
+
+    def add_comment(self, page_id: str, body: str) -> dict:
+        return self.client.add_comment(page_id, body)
+
+    def reply_to_comment(self, comment_id: str, body: str) -> dict:
+        session = getattr(self.client, "_session", None)
+        base_url = str(getattr(self.client, "url", "")).rstrip("/")
+        if session is None or not base_url:
+            raise RuntimeError("replying to comments is unavailable without an HTTP session")
+        response = session.post(
+            f"{base_url}/rest/api/content/{comment_id}/child/comment",
+            json={
+                "type": "comment",
+                "body": {"storage": {"value": body, "representation": "storage"}},
+            },
+        )
+        response.raise_for_status()
+        return response.json()
+
     def list_attachments(self, page_id: str) -> dict:
         return self.client.get_attachments_from_content(page_id)
 

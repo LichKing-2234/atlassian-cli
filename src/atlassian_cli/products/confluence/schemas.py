@@ -180,3 +180,22 @@ class ConfluencePage(ApiModel, TimestampMixin):
         if self.author:
             payload["author"] = self.author.display_name
         return {key: value for key, value in payload.items() if value not in (None, "")}
+
+
+class ConfluenceComment(ApiModel):
+    id: str | None = None
+    body: str | None = None
+    created: str | None = None
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any] | None, **kwargs: Any) -> "ConfluenceComment":
+        data = data or {}
+        return cls(
+            id=coerce_str(data.get("id")),
+            body=coerce_str(nested_get(data, "body", "storage", "value")),
+            created=coerce_str(nested_get(data, "history", "createdDate")),
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        payload = {"id": self.id, "body": self.body, "created": self.created}
+        return {key: value for key, value in payload.items() if value not in (None, "")}
