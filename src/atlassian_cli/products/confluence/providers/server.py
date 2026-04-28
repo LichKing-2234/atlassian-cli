@@ -29,6 +29,41 @@ class ConfluenceServerProvider:
     def get_page(self, page_id: str) -> dict:
         return self.client.get_page_by_id(page_id, expand="space,version")
 
+    def get_page_by_title(self, space_key: str, title: str) -> dict | None:
+        return self.client.get_page_by_title(space_key, title, expand="space,version")
+
+    def search_pages(self, query: str, limit: int) -> list[dict]:
+        raw = self.client.cql(f'text ~ "{query}"', limit=limit, expand="space,version")
+        results = raw.get("results", [])
+        return [item.get("content", item) for item in results if isinstance(item, dict)]
+
+    def get_page_children(self, page_id: str) -> list[dict]:
+        return self.client.get_child_pages(page_id)
+
+    def get_space_homepage(self, space_key: str) -> dict:
+        return self.client.get_home_page_of_space(space_key)
+
+    def move_page(
+        self,
+        page_id: str,
+        target_parent_id: str | None = None,
+        target_space_key: str | None = None,
+        position: str = "append",
+    ) -> dict:
+        current_page = self.get_page(page_id)
+        current_space_key = current_page.get("space", {}).get("key")
+        space_key = target_space_key or current_space_key
+        target_id = target_parent_id
+        if target_id is None and target_space_key:
+            target_id = self.get_space_homepage(target_space_key).get("id")
+        self.client.move_page(space_key, page_id, target_id=target_id, position=position)
+        return self.get_page(page_id)
+
+    def get_page_version(self, page_id: str, version: int) -> dict:
+        return self.client.get_page_by_id(
+            page_id, expand="space,version,body.storage", version=version
+        )
+
     def create_page(self, *, space_key: str, title: str, body: str) -> dict:
         return self.client.create_page(space=space_key, title=title, body=body)
 
