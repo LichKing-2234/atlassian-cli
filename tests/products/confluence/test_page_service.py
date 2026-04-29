@@ -8,17 +8,17 @@ class FakePageProvider:
     def get_page(self, page_id: str) -> dict:
         return {
             "id": page_id,
-            "title": "Runbook",
+            "title": "Example Page",
             "type": "page",
             "status": "current",
-            "space": {"key": "OPS", "name": "Operations"},
+            "space": {"key": "DEMO", "name": "Demo Project"},
             "version": {"number": 7},
             "body": {"view": {"value": "<p>huge html</p>"}},
         }
 
     def get_page_by_title(self, space_key: str, title: str) -> dict | None:
-        assert space_key == "OPS"
-        assert title == "Runbook"
+        assert space_key == "DEMO"
+        assert title == "Example Page"
         return self.get_page("1234")
 
     def search_pages(self, query: str, limit: int) -> list[dict]:
@@ -33,19 +33,19 @@ class FakePageProvider:
                     "id": "child-1",
                     "title": "Child One",
                     "type": "page",
-                    "space": {"key": "OPS", "name": "Operations"},
+                    "space": {"key": "DEMO", "name": "Demo Project"},
                     "version": {"number": 1},
                 }
             ]
         return []
 
     def get_space_homepage(self, space_key: str) -> dict:
-        assert space_key == "OPS"
+        assert space_key == "DEMO"
         return {
             "id": "root",
             "title": "Root Page",
             "type": "page",
-            "space": {"key": "OPS", "name": "Operations"},
+            "space": {"key": "DEMO", "name": "Demo Project"},
             "version": {"number": 1},
         }
 
@@ -62,9 +62,9 @@ class FakePageProvider:
         assert position == "append"
         return {
             "id": page_id,
-            "title": "Runbook",
+            "title": "Example Page",
             "type": "page",
-            "space": {"key": "OPS", "name": "Operations"},
+            "space": {"key": "DEMO", "name": "Demo Project"},
             "version": {"number": 8},
         }
 
@@ -72,9 +72,9 @@ class FakePageProvider:
         body = "hello\nworld\n" if version == 1 else "hello\nops\n"
         return {
             "id": page_id,
-            "title": "Runbook",
+            "title": "Example Page",
             "type": "page",
-            "space": {"key": "OPS", "name": "Operations"},
+            "space": {"key": "DEMO", "name": "Demo Project"},
             "version": {"number": version},
             "body": {"storage": {"value": body}},
         }
@@ -87,10 +87,10 @@ def test_page_service_normalizes_page_payload() -> None:
 
     assert result == {
         "id": "1234",
-        "title": "Runbook",
+        "title": "Example Page",
         "type": "page",
         "status": "current",
-        "space": {"key": "OPS", "name": "Operations"},
+        "space": {"key": "DEMO", "name": "Demo Project"},
         "version": 7,
         "url": "https://confluence.example.com/pages/viewpage.action?pageId=1234",
     }
@@ -107,10 +107,10 @@ def test_page_service_exposes_raw_page_payload() -> None:
 def test_page_service_get_by_title_normalizes_page_payload() -> None:
     service = PageService(provider=FakePageProvider())
 
-    result = service.get_by_title("OPS", "Runbook")
+    result = service.get_by_title("DEMO", "Example Page")
 
     assert result["id"] == "1234"
-    assert result["title"] == "Runbook"
+    assert result["title"] == "Example Page"
 
 
 def test_page_service_get_by_title_returns_none_when_missing() -> None:
@@ -120,7 +120,7 @@ def test_page_service_get_by_title_returns_none_when_missing() -> None:
 
     service = PageService(provider=MissingPageProvider())
 
-    result = service.get_by_title("OPS", "Missing")
+    result = service.get_by_title("DEMO", "Missing")
 
     assert result is None
 
@@ -130,7 +130,7 @@ def test_page_service_search_normalizes_results() -> None:
 
     result = service.search("runbook", limit=10)
 
-    assert result["results"][0]["title"] == "Runbook"
+    assert result["results"][0]["title"] == "Example Page"
 
 
 def test_page_service_children_normalizes_results() -> None:
@@ -144,7 +144,7 @@ def test_page_service_children_normalizes_results() -> None:
 def test_page_service_tree_flattens_hierarchy() -> None:
     service = PageService(provider=FakePageProvider())
 
-    result = service.tree("OPS")
+    result = service.tree("DEMO")
 
     assert result["results"][0]["id"] == "root"
     assert result["results"][0]["depth"] == 0

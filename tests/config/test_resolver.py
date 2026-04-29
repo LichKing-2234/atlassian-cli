@@ -40,7 +40,7 @@ def test_profile_headers_override_top_level_headers() -> None:
         auth=AuthMode.PAT,
         token="legacy-token",
         headers={
-            "accessToken": "$(agora-oauth token --profile prod-bitbucket)",
+            "accessToken": "$(example-oauth token --profile prod-bitbucket)",
             "X-Request-Source": "profile-default",
         },
     )
@@ -71,7 +71,7 @@ def test_flag_headers_override_config_headers() -> None:
         url="https://bitbucket.example.com",
         auth=AuthMode.PAT,
         token="legacy-token",
-        headers={"accessToken": "$(agora-oauth token)"},
+        headers={"accessToken": "$(example-oauth token)"},
     )
 
     context = resolve_runtime_context(

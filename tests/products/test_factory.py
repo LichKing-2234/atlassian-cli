@@ -15,7 +15,7 @@ def test_build_provider_returns_jira_server_provider() -> None:
         deployment=Deployment.SERVER,
         url="https://jira.example.com",
         output="markdown",
-        auth=ResolvedAuth(mode=AuthMode.BASIC, username="alice", token="secret"),
+        auth=ResolvedAuth(mode=AuthMode.BASIC, username="example-user", token="secret"),
     )
 
     provider = build_provider(context)
@@ -30,7 +30,7 @@ def test_build_provider_rejects_cloud() -> None:
         deployment=Deployment.CLOUD,
         url="https://example.atlassian.net",
         output="markdown",
-        auth=ResolvedAuth(mode=AuthMode.BASIC, username="alice", token="secret"),
+        auth=ResolvedAuth(mode=AuthMode.BASIC, username="example-user", token="secret"),
     )
 
     with pytest.raises(UnsupportedError):

@@ -35,7 +35,7 @@ def test_root_callback_uses_jira_product_config_without_profile(
         deployment = "server"
         url = "https://jira.example.com"
         auth = "basic"
-        username = "alice"
+        username = "example-user"
         token = "secret"
         """.strip()
     )
@@ -60,7 +60,7 @@ def test_root_callback_uses_jira_product_config_without_profile(
             "jira",
             "issue",
             "get",
-            "OPS-1",
+            "DEMO-1",
             "--output",
             "json",
         ],
@@ -132,7 +132,7 @@ def test_root_callback_uses_bitbucket_product_headers_without_profile(
         token = "repo-token"
 
         [bitbucket.headers]
-        accessToken = "$(agora-oauth token)"
+        accessToken = "$(example-oauth token)"
         """.strip()
     )
 
@@ -193,7 +193,7 @@ def test_root_callback_flag_headers_override_config_headers(
         token = "repo-token"
 
         [bitbucket.headers]
-        accessToken = "$(agora-oauth token)"
+        accessToken = "$(example-oauth token)"
         """.strip()
     )
 
@@ -253,7 +253,7 @@ def test_root_callback_reports_created_template_for_missing_product_config(
             "jira",
             "issue",
             "get",
-            "OPS-1",
+            "DEMO-1",
         ],
         env=ci_output_env(),
     )
@@ -283,7 +283,7 @@ def test_root_callback_does_not_load_default_profile_credentials_when_url_is_exp
         deployment = "server"
         url = "https://jira.product.local"
         auth = "basic"
-        username = "alice"
+        username = "example-user"
         token = "secret"
         """.strip()
     )
@@ -318,7 +318,7 @@ def test_root_callback_does_not_load_default_profile_credentials_when_url_is_exp
             "jira",
             "issue",
             "get",
-            "OPS-1",
+            "DEMO-1",
             "--output",
             "json",
         ],
@@ -342,7 +342,7 @@ def test_root_callback_reports_invalid_header_as_usage_error() -> None:
             "jira",
             "issue",
             "get",
-            "OPS-1",
+            "DEMO-1",
         ],
         env=ci_output_env(),
     )
@@ -363,8 +363,8 @@ def test_root_callback_reports_missing_pat_token_as_usage_error() -> None:
             "bitbucket",
             "pr",
             "list",
-            "SDK",
-            "rtmp_streaming_kit",
+            "EXAMPLE",
+            "example-repo",
         ],
         env=ci_output_env(),
     )

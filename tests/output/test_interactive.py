@@ -49,7 +49,7 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
         title="Demo",
         page_size=1,
         fetch_page=lambda start, limit: CollectionPage(
-            items=[{"id": 1, "title": "OPS-1"}],
+            items=[{"id": 1, "title": "DEMO-1"}],
             start=start,
             limit=limit,
             total=1,
@@ -57,7 +57,7 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
         fetch_detail=lambda item: {
             "id": item["id"],
             "title": item["title"],
-            "description": "Broken deploy",
+            "description": "Example issue summary",
         },
         render_item=lambda index, item: f"{index}. {item['title']}",
         render_detail=lambda item: item["description"],
@@ -67,7 +67,7 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
     state.load_initial()
     state.open_selected_detail()
     assert state.mode == "detail"
-    assert state.detail_text == "Broken deploy"
+    assert state.detail_text == "Example issue summary"
 
     state.close_detail()
     assert state.mode == "list"
@@ -143,7 +143,7 @@ def test_render_state_in_detail_mode_has_detail_header_and_back_hint() -> None:
         title="Demo",
         page_size=1,
         fetch_page=lambda start, limit: CollectionPage(
-            items=[{"id": 1, "title": "OPS-1"}],
+            items=[{"id": 1, "title": "DEMO-1"}],
             start=start,
             limit=limit,
             total=1,
@@ -151,7 +151,7 @@ def test_render_state_in_detail_mode_has_detail_header_and_back_hint() -> None:
         fetch_detail=lambda item: {
             "id": item["id"],
             "title": item["title"],
-            "description": "Broken deploy",
+            "description": "Example issue summary",
         },
         render_item=lambda index, item: item["title"],
         render_detail=lambda item: item["description"],
@@ -164,7 +164,7 @@ def test_render_state_in_detail_mode_has_detail_header_and_back_hint() -> None:
     rendered = _render_state(state)
 
     assert rendered.startswith("Detail")
-    assert "Broken deploy" in rendered
+    assert "Example issue summary" in rendered
     assert "b/esc: back" in rendered
 
 
@@ -322,19 +322,19 @@ def build_preview_source() -> InteractiveCollectionSource:
         {
             "id": 24990,
             "state": "OPEN",
-            "author": "huangpeilin",
-            "title": "[FEAT] CSD-77462 add configurable mic test playback across desktop, mobile, and web",
+            "author": "Example Author",
+            "title": "[FEAT] DEMO-1234 example preview change with extended summary text",
             "preview": "\n".join(
                 [
                     "State: OPEN",
-                    "Author: huangpeilin",
-                    "Reviewers: Alice, Bob, Carol, +1 more",
-                    "From: jira/CSD-77462/release/4.5",
-                    "To: release/4.5",
+                    "Author: Example Author",
+                    "Reviewers: reviewer-one, reviewer-two, reviewer-three, +1 more",
+                    "From: feature/DEMO-1234/example-change",
+                    "To: main",
                     "Updated: 2026-04-27 13:19:55",
                     "",
                     "Description:",
-                    "Add configurable recording device test playback across C++, Android, and Objective-C.",
+                    "Example description for preview rendering.",
                 ]
             ),
             "detail": "# PR #24990\n\nFull markdown detail",
@@ -342,9 +342,9 @@ def build_preview_source() -> InteractiveCollectionSource:
         {
             "id": 24991,
             "state": "MERGED",
-            "author": "alice",
-            "title": "Release cleanup",
-            "preview": "State: MERGED\nAuthor: alice",
+            "author": "Example Collaborator",
+            "title": "Example merged change",
+            "preview": "State: MERGED\nAuthor: Example Collaborator",
             "detail": "# PR #24991\n\nMerged detail",
         },
     ]
@@ -384,13 +384,13 @@ def test_collection_browser_state_updates_preview_when_selection_changes() -> No
     state = CollectionBrowserState(build_preview_source())
     state.load_initial()
 
-    assert "Author: huangpeilin" in _render_state(state)
+    assert "Author: Example Author" in _render_state(state)
 
     state.move(1)
 
     rendered = _render_state(state)
-    assert "Author: alice" in rendered
-    assert "Author: huangpeilin" not in rendered
+    assert "Author: Example Collaborator" in rendered
+    assert "Author: Example Author" not in rendered
 
 
 def test_render_state_clips_to_terminal_height_and_keeps_preview_visible() -> None:

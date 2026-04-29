@@ -1,4 +1,5 @@
 from atlassian import Jira
+from requests import HTTPError
 
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.auth.session_patch import patch_session_headers
@@ -36,7 +37,13 @@ class JiraServerProvider:
         return self.client.issue_create(fields=fields)
 
     def create_issues(self, issues: list[dict]) -> list[dict]:
-        return self.client.create_issues(issues)
+        try:
+            return self.client.create_issues(issues)
+        except HTTPError as exc:
+            response = getattr(exc, "response", None)
+            if response is None or response.status_code < 500:
+                raise
+            return [self.client.issue_create(fields=issue) for issue in issues]
 
     def update_issue(self, issue_key: str, fields: dict) -> dict:
         self.client.issue_update(issue_key, fields=fields)
@@ -62,14 +69,24 @@ class JiraServerProvider:
         ]
 
     def get_field_options(self, field_id: str, project_key: str, issue_type: str) -> list[dict]:
-        meta = self.client.issue_createmeta(project_key, issue_type)
+        meta = self.client.issue_createmeta(project_key, expand="projects.issuetypes.fields")
         projects = meta.get("projects", [])
         if not projects:
             return []
         issue_types = projects[0].get("issuetypes", [])
         if not issue_types:
             return []
-        fields = issue_types[0].get("fields", {})
+        issue_type_meta = next(
+            (
+                item
+                for item in issue_types
+                if item.get("name") == issue_type or str(item.get("id")) == issue_type
+            ),
+            None,
+        )
+        if issue_type_meta is None:
+            return []
+        fields = issue_type_meta.get("fields", {})
         field_meta = fields.get(field_id, {})
         return field_meta.get("allowedValues", [])
 

@@ -7,7 +7,7 @@ class FakeCommentProvider:
         return [
             {
                 "id": "c1",
-                "body": {"storage": {"value": "LGTM"}},
+                "body": {"storage": {"value": "example approval"}},
                 "history": {"createdDate": "2026-04-28"},
             }
         ]
@@ -32,16 +32,16 @@ def test_comment_service_list_normalizes_results() -> None:
 def test_comment_service_add_normalizes_result() -> None:
     service = CommentService(provider=FakeCommentProvider())
 
-    result = service.add("1234", "ship it")
+    result = service.add("1234", "example approval comment")
 
     assert result["id"] == "c2"
-    assert result["body"] == "ship it"
+    assert result["body"] == "example approval comment"
 
 
 def test_comment_service_reply_normalizes_result() -> None:
     service = CommentService(provider=FakeCommentProvider())
 
-    result = service.reply("c1", "ack")
+    result = service.reply("c1", "example response")
 
     assert result["id"] == "c3"
-    assert result["body"] == "ack"
+    assert result["body"] == "example response"

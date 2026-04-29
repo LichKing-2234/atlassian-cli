@@ -174,7 +174,7 @@ class FakeFieldProvider:
 
     def get_field_options(self, field_id: str, project_key: str, issue_type: str) -> list[dict]:
         assert field_id == "customfield_10001"
-        assert project_key == "OPS"
+        assert project_key == "DEMO"
         assert issue_type == "Bug"
         return [{"id": "1", "value": "1"}, {"id": "2", "value": "2"}]
 
@@ -194,7 +194,7 @@ def test_field_service_search_normalizes_results() -> None:
 def test_field_service_options_normalizes_results() -> None:
     service = FieldService(provider=FakeFieldProvider())
 
-    result = service.options("customfield_10001", project_key="OPS", issue_type="Bug")
+    result = service.options("customfield_10001", project_key="DEMO", issue_type="Bug")
 
     assert result["results"] == [{"id": "1", "value": "1"}, {"id": "2", "value": "2"}]
 ```
@@ -222,7 +222,7 @@ def test_jira_issue_transitions_outputs_available_ids(monkeypatch) -> None:
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "transitions", "OPS-1", "--output", "json"],
+        ["--url", "https://jira.example.com", "jira", "issue", "transitions", "DEMO-1", "--output", "json"],
     )
 
     assert result.exit_code == 0
@@ -342,21 +342,21 @@ from atlassian_cli.products.jira.services.comment import CommentService
 
 class FakeCommentProvider:
     def add_comment(self, issue_key: str, body: str) -> dict:
-        return {"id": "10001", "body": body, "author": {"displayName": "Alice"}}
+        return {"id": "10001", "body": body, "author": {"displayName": "Example Author"}}
 
     def edit_comment(self, issue_key: str, comment_id: str, body: str) -> dict:
-        return {"id": comment_id, "body": body, "author": {"displayName": "Alice"}}
+        return {"id": comment_id, "body": body, "author": {"displayName": "Example Author"}}
 
 
 def test_comment_service_add_normalizes_result() -> None:
     service = CommentService(provider=FakeCommentProvider())
 
-    result = service.add("OPS-1", "Looks good")
+    result = service.add("DEMO-1", "Looks good")
 
     assert result == {
         "id": "10001",
         "body": "Looks good",
-        "author": {"display_name": "Alice", "name": "Alice"},
+        "author": {"display_name": "Example Author", "name": "Example Author"},
     }
 ```
 
@@ -364,11 +364,11 @@ def test_comment_service_add_normalizes_result() -> None:
 def test_issue_service_delete_returns_success_payload() -> None:
     class FakeIssueProvider:
         def delete_issue(self, issue_key: str) -> None:
-            assert issue_key == "OPS-1"
+            assert issue_key == "DEMO-1"
 
     service = IssueService(provider=FakeIssueProvider())
 
-    assert service.delete("OPS-1") == {"key": "OPS-1", "deleted": True}
+    assert service.delete("DEMO-1") == {"key": "DEMO-1", "deleted": True}
 ```
 
 ```python
@@ -387,7 +387,7 @@ def test_jira_comment_add_outputs_json(monkeypatch) -> None:
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "comment", "add", "OPS-1", "--body", "ship it", "--output", "json"],
+        ["--url", "https://jira.example.com", "jira", "comment", "add", "DEMO-1", "--body", "example approval comment", "--output", "json"],
     )
 
     assert result.exit_code == 0
@@ -496,13 +496,13 @@ def test_page_service_search_normalizes_results() -> None:
 
         def search_pages(self, query: str, limit: int) -> list[dict]:
             assert query == "runbook"
-            return [{"id": "1234", "title": "Runbook", "space": {"key": "OPS", "name": "Operations"}}]
+            return [{"id": "1234", "title": "Example Page", "space": {"key": "DEMO", "name": "Demo Project"}}]
 
     service = PageService(provider=FakePageProvider())
 
     result = service.search("runbook", limit=10)
 
-    assert result["results"][0]["title"] == "Runbook"
+    assert result["results"][0]["title"] == "Example Page"
 ```
 
 ```python
@@ -512,7 +512,7 @@ def test_page_service_diff_returns_unified_diff() -> None:
 
         def get_page_version(self, page_id: str, version: int) -> dict:
             body = "hello\nworld\n" if version == 1 else "hello\nops\n"
-            return {"id": page_id, "title": "Runbook", "body": {"storage": {"value": body}}}
+            return {"id": page_id, "title": "Example Page", "body": {"storage": {"value": body}}}
 
     service = PageService(provider=FakePageProvider())
 
@@ -532,7 +532,7 @@ def test_confluence_page_search_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"search": lambda self, query, limit: {"results": [{"id": "1234", "title": "Runbook"}]}},
+            {"search": lambda self, query, limit: {"results": [{"id": "1234", "title": "Example Page"}]}},
         )(),
     )
 
@@ -542,7 +542,7 @@ def test_confluence_page_search_outputs_json(monkeypatch) -> None:
     )
 
     assert result.exit_code == 0
-    assert '"title": "Runbook"' in result.stdout
+    assert '"title": "Example Page"' in result.stdout
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -645,7 +645,7 @@ from atlassian_cli.products.confluence.services.comment import CommentService
 
 class FakeCommentProvider:
     def list_comments(self, page_id: str) -> list[dict]:
-        return [{"id": "c1", "body": {"storage": {"value": "LGTM"}}, "history": {"createdDate": "2026-04-28"}}]
+        return [{"id": "c1", "body": {"storage": {"value": "example approval"}}, "history": {"createdDate": "2026-04-28"}}]
 
     def add_comment(self, page_id: str, body: str) -> dict:
         return {"id": "c2", "body": {"storage": {"value": body}}}
@@ -678,7 +678,7 @@ def test_confluence_comment_reply_outputs_json(monkeypatch) -> None:
 
     result = runner.invoke(
         app,
-        ["--url", "https://confluence.example.com", "confluence", "comment", "reply", "c1", "--body", "ack", "--output", "json"],
+        ["--url", "https://confluence.example.com", "confluence", "comment", "reply", "c1", "--body", "example response", "--output", "json"],
     )
 
     assert result.exit_code == 0
@@ -771,7 +771,7 @@ def test_jira_issue_changelog_batch_is_explicitly_unsupported_on_server(monkeypa
             "issue",
             "changelog-batch",
             "--issue",
-            "OPS-1",
+            "DEMO-1",
         ],
     )
 

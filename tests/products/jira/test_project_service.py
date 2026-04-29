@@ -5,8 +5,8 @@ class FakeProjectProvider:
     def list_projects(self) -> list[dict]:
         return [
             {
-                "key": "OPS",
-                "name": "Operations",
+                "key": "DEMO",
+                "name": "Demo Project",
                 "avatarUrls": {"48x48": "https://example.com/avatar.png"},
                 "projectTypeKey": "software",
             }
@@ -19,11 +19,11 @@ class FakeProjectProvider:
 def test_project_service_normalizes_project_payload() -> None:
     service = ProjectService(provider=FakeProjectProvider())
 
-    result = service.get("OPS")
+    result = service.get("DEMO")
 
     assert result == {
-        "key": "OPS",
-        "name": "Operations",
+        "key": "DEMO",
+        "name": "Demo Project",
         "avatar_url": "https://example.com/avatar.png",
     }
 
@@ -31,7 +31,7 @@ def test_project_service_normalizes_project_payload() -> None:
 def test_project_service_exposes_raw_project_payload() -> None:
     service = ProjectService(provider=FakeProjectProvider())
 
-    result = service.get_raw("OPS")
+    result = service.get_raw("DEMO")
 
     assert "avatarUrls" in result
 
@@ -44,8 +44,8 @@ def test_project_service_list_returns_results_envelope() -> None:
     assert result == {
         "results": [
             {
-                "key": "OPS",
-                "name": "Operations",
+                "key": "DEMO",
+                "name": "Demo Project",
                 "avatar_url": "https://example.com/avatar.png",
             }
         ]

@@ -6,29 +6,9 @@ CLI for Atlassian Server and Data Center products.
 
 `python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'`
 
-## GitHub Actions
-
-The repository ships two GitHub Actions workflows:
-
-- `CI`: runs on every pull request and on pushes to `main` and `release/*`
-- `Release`: runs on tags matching `v*` and can also be started manually with `workflow_dispatch`
-
-`CI` is intended to back branch protection for `main` and `release/*`.
-
-## Release Binaries
-
-Tagged releases publish standalone CLI bundles for:
-
-- `linux/amd64`
-- `darwin/arm64`
-
-Each release uploads:
-
-- `atlassian-cli_<version>_linux_amd64.tar.gz`
-- `atlassian-cli_<version>_darwin_arm64.tar.gz`
-- `checksums.txt`
-
 ## Install From GitHub Release
+
+Tagged releases publish standalone bundles for `linux/amd64` and `darwin/arm64`, plus `checksums.txt`.
 
 Install the latest binary release:
 
@@ -50,11 +30,11 @@ You can also download a tarball from the GitHub Release page and run `atlassian/
 
 ## Examples
 
-- `atlassian jira issue get OPS-1`
+- `atlassian jira issue get DEMO-1`
 - `atlassian confluence page get 1234`
-- `atlassian bitbucket repo get OPS infra`
-- `atlassian bitbucket pr list SDK rte_sdk`
-- `atlassian bitbucket pr list SDK rte_sdk --output json`
+- `atlassian bitbucket repo get DEMO example-repo`
+- `atlassian bitbucket pr list DEMO example-repo`
+- `atlassian bitbucket pr list DEMO example-repo --output json`
 
 ## Header injection
 
@@ -62,24 +42,24 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.agoralab.co --header 'accessToken: ...' bitbucket pr list SDK rte_sdk`
+- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list DEMO example-repo`
 
 Config file example:
 
 ```toml
 [headers]
-X-Request-Source = "agora-oauth"
+X-Request-Source = "example-oauth"
 
 [bitbucket]
 deployment = "dc"
-url = "https://bitbucket.agoralab.co"
+url = "https://bitbucket.example.com"
 auth = "pat"
 
 [bitbucket.headers]
-accessToken = "$(agora-oauth token)"
+accessToken = "$(example-oauth token)"
 ```
 
-- `atlassian bitbucket pr list SDK rte_sdk`
+- `atlassian bitbucket pr list DEMO example-repo`
 
 Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
 The default `~/.config/atlassian-cli/config.toml` file is auto-created as a template on first use.
@@ -98,12 +78,12 @@ The CLI now uses `markdown` as the default human-readable output mode.
 
 Examples:
 
-- `atlassian jira issue get OPS-1`
-- `atlassian jira issue search --jql 'project = OPS'`
+- `atlassian jira issue get DEMO-1`
+- `atlassian jira issue search --jql 'project = DEMO'`
 - `atlassian confluence space list`
-- `atlassian bitbucket pr list OPS infra`
-- `atlassian jira issue get OPS-1 --output json`
-- `atlassian bitbucket pr list OPS infra --output json`
+- `atlassian bitbucket pr list DEMO example-repo`
+- `atlassian jira issue get DEMO-1 --output json`
+- `atlassian bitbucket pr list DEMO example-repo --output json`
 
 ### Interactive browser behavior
 
@@ -120,7 +100,7 @@ Keybindings:
 
 `j/k move  n/p page  / filter  r refresh  enter detail  b/esc back  q quit`
 
-## Default Toolset Alignment
+## Scope
 
 The CLI now covers the `mcp-atlassian` `TOOLSETS=default` Jira and Confluence command groups for Server/Data Center:
 
@@ -129,6 +109,6 @@ The CLI now covers the `mcp-atlassian` `TOOLSETS=default` Jira and Confluence co
 
 One default MCP capability remains explicitly unsupported in CLI v1: Jira batch changelog fetch. That workflow depends on Cloud support, and the current CLI still rejects `--deployment cloud`.
 
-## Smoke testing
+## Contributing
 
-Set `ATLASSIAN_SMOKE=1` and product-specific env vars before running `.venv/bin/python -m pytest tests/integration/test_smoke.py -v`.
+Contributor workflows, including local setup, smoke tests, live e2e execution, CI/release notes, and maintenance checklists, are documented in [CONTRIBUTING.md](CONTRIBUTING.md).

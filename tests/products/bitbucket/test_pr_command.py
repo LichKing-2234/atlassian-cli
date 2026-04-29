@@ -17,7 +17,7 @@ def test_bitbucket_pr_list_outputs_results_envelope(monkeypatch) -> None:
             (),
             {
                 "list": lambda self, project_key, repo_slug, state, start=0, limit=25: {
-                    "results": [{"id": 42, "title": "Ship output cleanup", "state": "OPEN"}]
+                    "results": [{"id": 42, "title": "Example pull request", "state": "OPEN"}]
                 }
             },
         )(),
@@ -31,8 +31,8 @@ def test_bitbucket_pr_list_outputs_results_envelope(monkeypatch) -> None:
             "bitbucket",
             "pr",
             "list",
-            "OPS",
-            "infra",
+            "DEMO",
+            "example-repo",
             "--output",
             "json",
         ],
@@ -56,7 +56,7 @@ def test_bitbucket_pr_list_json_keeps_full_payload(monkeypatch) -> None:
                     "results": [
                         {
                             "id": 42,
-                            "title": "Ship output cleanup",
+                            "title": "Example pull request",
                             "description": "Long body",
                             "state": "OPEN",
                         }
@@ -74,8 +74,8 @@ def test_bitbucket_pr_list_json_keeps_full_payload(monkeypatch) -> None:
             "bitbucket",
             "pr",
             "list",
-            "OPS",
-            "infra",
+            "DEMO",
+            "example-repo",
             "--output",
             "json",
         ],
@@ -100,7 +100,7 @@ def test_bitbucket_pr_list_markdown_non_tty_uses_summary_payload(monkeypatch) ->
                     "results": [
                         {
                             "id": 42,
-                            "title": "Ship output cleanup",
+                            "title": "Example pull request",
                             "description": "Long body",
                             "state": "OPEN",
                         }
@@ -118,15 +118,15 @@ def test_bitbucket_pr_list_markdown_non_tty_uses_summary_payload(monkeypatch) ->
             "bitbucket",
             "pr",
             "list",
-            "OPS",
-            "infra",
+            "DEMO",
+            "example-repo",
             "--output",
             "markdown",
         ],
     )
 
     assert result.exit_code == 0
-    assert "Ship output cleanup" in result.stdout
+    assert "Example pull request" in result.stdout
     assert "Long body" not in result.stdout
 
 
@@ -147,13 +147,13 @@ def test_bitbucket_pr_list_uses_interactive_browser_for_markdown_tty(monkeypatch
             (),
             {
                 "list": lambda self, project_key, repo_slug, state, start=0, limit=25: {
-                    "results": [{"id": 42, "title": "Ship output cleanup"}],
+                    "results": [{"id": 42, "title": "Example pull request"}],
                     "start_at": start,
                     "max_results": limit,
                 },
                 "list_page": lambda self, project_key, repo_slug, state, start, limit: (
                     CollectionPage(
-                        items=[{"id": 42, "title": "Ship output cleanup"}],
+                        items=[{"id": 42, "title": "Example pull request"}],
                         start=start,
                         limit=limit,
                         total=1,
@@ -161,7 +161,7 @@ def test_bitbucket_pr_list_uses_interactive_browser_for_markdown_tty(monkeypatch
                 ),
                 "get": lambda self, project_key, repo_slug, pr_id: {
                     "id": pr_id,
-                    "title": "Ship output cleanup",
+                    "title": "Example pull request",
                 },
             },
         )(),
@@ -169,7 +169,15 @@ def test_bitbucket_pr_list_uses_interactive_browser_for_markdown_tty(monkeypatch
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "OPS", "infra"],
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
     )
 
     assert result.exit_code == 0
@@ -182,16 +190,16 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
     sample_item = {
         "id": 24990,
         "state": "OPEN",
-        "author": {"display_name": "huangpeilin"},
-        "title": "[FEAT] CSD-77462 add configurable mic test",
+        "author": {"display_name": "Example Author"},
+        "title": "[FEAT] DEMO-1234 example preview change",
         "reviewers": [
-            {"display_name": "Alice"},
-            {"display_name": "Bob"},
-            {"display_name": "Carol"},
-            {"display_name": "Dave"},
+            {"display_name": "reviewer-one"},
+            {"display_name": "reviewer-two"},
+            {"display_name": "reviewer-three"},
+            {"display_name": "reviewer-four"},
         ],
-        "from_ref": {"display_id": "jira/CSD-77462/release/4.5"},
-        "to_ref": {"display_id": "release/4.5"},
+        "from_ref": {"display_id": "feature/DEMO-1234/example-change"},
+        "to_ref": {"display_id": "main"},
         "updated_date": "2026-04-27T13:19:55+00:00",
         "description": "Line one\nLine two\nLine three\nLine four",
     }
@@ -220,15 +228,23 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "OPS", "infra"],
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
     )
 
     assert result.exit_code == 0
     assert (
-        captured["item"] == "24990  OPEN  huangpeilin  [FEAT] CSD-77462 add configurable mic test"
+        captured["item"] == "24990  OPEN  Example Author  [FEAT] DEMO-1234 example preview change"
     )
-    assert "Reviewers: Alice, Bob, Carol, +1 more" in captured["preview"]
-    assert captured["detail"].startswith("# 24990 - [FEAT] CSD-77462 add configurable mic test")
+    assert "Reviewers: reviewer-one, reviewer-two, reviewer-three, +1 more" in captured["preview"]
+    assert captured["detail"].startswith("# 24990 - [FEAT] DEMO-1234 example preview change")
 
 
 def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(
@@ -251,7 +267,7 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(
                     "results": [
                         {
                             "id": 42,
-                            "title": "Ship output cleanup",
+                            "title": "Example pull request",
                             "description": "Long body",
                             "state": "OPEN",
                         }
@@ -261,7 +277,7 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(
                 },
                 "list_page": lambda self, project_key, repo_slug, state, start, limit: (
                     CollectionPage(
-                        items=[{"id": 42, "title": "Ship output cleanup"}],
+                        items=[{"id": 42, "title": "Example pull request"}],
                         start=start,
                         limit=limit,
                         total=1,
@@ -269,7 +285,7 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(
                 ),
                 "get": lambda self, project_key, repo_slug, pr_id: {
                     "id": pr_id,
-                    "title": "Ship output cleanup",
+                    "title": "Example pull request",
                 },
             },
         )(),
@@ -277,11 +293,19 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "OPS", "infra"],
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
     )
 
     assert result.exit_code == 0
-    assert "Ship output cleanup" in result.stdout
+    assert "Example pull request" in result.stdout
 
 
 def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_runtime_fails(
@@ -304,7 +328,7 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_runtime_fails
                     "results": [
                         {
                             "id": 42,
-                            "title": "Ship output cleanup",
+                            "title": "Example pull request",
                             "description": "Long body",
                             "state": "OPEN",
                         }
@@ -314,7 +338,7 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_runtime_fails
                 },
                 "list_page": lambda self, project_key, repo_slug, state, start, limit: (
                     CollectionPage(
-                        items=[{"id": 42, "title": "Ship output cleanup"}],
+                        items=[{"id": 42, "title": "Example pull request"}],
                         start=start,
                         limit=limit,
                         total=1,
@@ -322,7 +346,7 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_runtime_fails
                 ),
                 "get": lambda self, project_key, repo_slug, pr_id: {
                     "id": pr_id,
-                    "title": "Ship output cleanup",
+                    "title": "Example pull request",
                 },
             },
         )(),
@@ -330,8 +354,16 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_runtime_fails
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "OPS", "infra"],
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
     )
 
     assert result.exit_code == 0
-    assert "Ship output cleanup" in result.stdout
+    assert "Example pull request" in result.stdout

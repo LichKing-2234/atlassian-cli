@@ -1,17 +1,17 @@
 from pathlib import Path
 
 DEFAULT_CONFIG_TEMPLATE = """[headers]
-# accessToken = "$(agora-oauth token)"
+# accessToken = "$(example-oauth token)"
 
 [jira]
 # deployment = "server"
 # url = "https://jira.example.com"
 # auth = "basic"
-# username = "alice"
+# username = "example-user"
 # token = "secret"
 
 [jira.headers]
-# accessToken = "$(agora-oauth token)"
+# accessToken = "$(example-oauth token)"
 
 [confluence]
 # deployment = "dc"
@@ -20,7 +20,7 @@ DEFAULT_CONFIG_TEMPLATE = """[headers]
 # token = "secret"
 
 [confluence.headers]
-# accessToken = "$(agora-oauth token)"
+# accessToken = "$(example-oauth token)"
 
 [bitbucket]
 # deployment = "dc"
@@ -29,7 +29,7 @@ DEFAULT_CONFIG_TEMPLATE = """[headers]
 # token = "secret"
 
 [bitbucket.headers]
-# accessToken = "$(agora-oauth token)"
+# accessToken = "$(example-oauth token)"
 """
 
 

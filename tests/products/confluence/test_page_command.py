@@ -14,7 +14,7 @@ def test_confluence_page_get_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"get": lambda self, page_id: {"id": page_id, "title": "Runbook"}},
+            {"get": lambda self, page_id: {"id": page_id, "title": "Example Page"}},
         )(),
     )
 
@@ -58,16 +58,16 @@ def test_confluence_page_get_by_title_outputs_json(monkeypatch) -> None:
             "page",
             "get",
             "--title",
-            "Runbook",
+            "Example Page",
             "--space",
-            "OPS",
+            "DEMO",
             "--output",
             "json",
         ],
     )
 
     assert result.exit_code == 0
-    assert '"title": "Runbook"' in result.stdout
+    assert '"title": "Example Page"' in result.stdout
 
 
 def test_confluence_page_get_by_title_missing_page_exits_nonzero(monkeypatch) -> None:
@@ -94,7 +94,7 @@ def test_confluence_page_get_by_title_missing_page_exits_nonzero(monkeypatch) ->
             "--title",
             "Missing",
             "--space",
-            "OPS",
+            "DEMO",
         ],
     )
 
@@ -113,7 +113,7 @@ def test_confluence_page_search_outputs_json(monkeypatch) -> None:
             (),
             {
                 "search": lambda self, query, limit: {
-                    "results": [{"id": "1234", "title": "Runbook"}]
+                    "results": [{"id": "1234", "title": "Example Page"}]
                 }
             },
         )(),
@@ -135,7 +135,7 @@ def test_confluence_page_search_outputs_json(monkeypatch) -> None:
     )
 
     assert result.exit_code == 0
-    assert '"title": "Runbook"' in result.stdout
+    assert '"title": "Example Page"' in result.stdout
 
 
 def test_confluence_page_children_outputs_json(monkeypatch) -> None:
@@ -194,7 +194,7 @@ def test_confluence_page_tree_outputs_json(monkeypatch) -> None:
             "confluence",
             "page",
             "tree",
-            "OPS",
+            "DEMO",
             "--output",
             "json",
         ],

@@ -69,13 +69,13 @@ def test_parse_cli_headers_accepts_repeated_name_value_pairs() -> None:
     headers = parse_cli_headers(
         [
             "Authorization: Bearer flag-token",
-            "X-Request-Source: agora-oauth",
+            "X-Request-Source: example-oauth",
         ]
     )
 
     assert headers == {
         "Authorization": "Bearer flag-token",
-        "X-Request-Source": "agora-oauth",
+        "X-Request-Source": "example-oauth",
     }
 
 
@@ -95,7 +95,7 @@ def test_collect_env_headers_reads_single_header_value() -> None:
 def test_resolve_auth_preserves_injected_headers() -> None:
     auth = resolve_auth(
         auth=AuthMode.BASIC,
-        username="alice",
+        username="example-user",
         password=None,
         token="legacy-token",
         headers={"Authorization": "Bearer oauth-token"},
@@ -216,7 +216,7 @@ def test_flag_headers_override_environment_headers() -> None:
         token="legacy-token",
     )
     env = {
-        "ATLASSIAN_HEADER": "X-Request-Source: agora-oauth",
+        "ATLASSIAN_HEADER": "X-Request-Source: example-oauth",
     }
     overrides = RuntimeOverrides(
         url="https://bitbucket.example.com",
@@ -227,7 +227,7 @@ def test_flag_headers_override_environment_headers() -> None:
 
     assert context.auth.headers == {
         "accessToken": "flag-token",
-        "X-Request-Source": "agora-oauth",
+        "X-Request-Source": "example-oauth",
     }
 ```
 
@@ -288,12 +288,12 @@ def test_root_callback_reads_header_flag_and_env(tmp_path: Path, monkeypatch) ->
             "--output",
             "json",
         ],
-        env={"ATLASSIAN_HEADER": "X-Request-Source: agora-oauth"},
+        env={"ATLASSIAN_HEADER": "X-Request-Source: example-oauth"},
     )
 
     assert result.exit_code == 0
     assert '"accessToken": "flag-token"' in result.stdout
-    assert '"X-Request-Source": "agora-oauth"' in result.stdout
+    assert '"X-Request-Source": "example-oauth"' in result.stdout
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -564,12 +564,12 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.agoralab.co --header 'Authorization: Bearer ...' bitbucket pr list SDK rte_sdk --output json`
+- `atlassian --url https://bitbucket.example.com --header 'Authorization: Bearer ...' bitbucket pr list DEMO example-repo --output json`
 
 Environment variable example:
 
 - `export ATLASSIAN_HEADER='Authorization: Bearer ...'`
-- `atlassian --url https://bitbucket.agoralab.co bitbucket pr list SDK rte_sdk --output json`
+- `atlassian --url https://bitbucket.example.com bitbucket pr list DEMO example-repo --output json`
 ```
 
 - [ ] **Step 4: Run verification commands**

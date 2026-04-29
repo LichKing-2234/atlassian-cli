@@ -9,11 +9,11 @@ def test_confluence_page_from_api_response_builds_rich_resource() -> None:
     page = ConfluencePage.from_api_response(
         {
             "id": 1234,
-            "title": "Runbook",
+            "title": "Example Page",
             "type": "page",
             "status": "current",
-            "space": {"id": 7, "key": "OPS", "name": "Operations"},
-            "version": {"number": 3, "by": {"displayName": "Alice"}},
+            "space": {"id": 7, "key": "DEMO", "name": "Demo Project"},
+            "version": {"number": 3, "by": {"displayName": "Example Author"}},
             "history": {"createdDate": "2026-04-20T10:00:00.000Z"},
         },
         base_url="https://confluence.example.com",
@@ -22,20 +22,20 @@ def test_confluence_page_from_api_response_builds_rich_resource() -> None:
 
     simplified = page.to_simplified_dict()
 
-    assert simplified["space"]["key"] == "OPS"
+    assert simplified["space"]["key"] == "DEMO"
     assert simplified["version"] == 3
     assert "url" in simplified
 
 
 def test_confluence_space_from_api_response_keeps_status_and_type() -> None:
     space = ConfluenceSpace.from_api_response(
-        {"id": 9, "key": "OPS", "name": "Operations", "type": "global", "status": "current"}
+        {"id": 9, "key": "DEMO", "name": "Demo Project", "type": "global", "status": "current"}
     )
 
     assert space.to_simplified_dict() == {
         "id": "9",
-        "key": "OPS",
-        "name": "Operations",
+        "key": "DEMO",
+        "name": "Demo Project",
         "type": "global",
         "status": "current",
     }
@@ -48,7 +48,7 @@ def test_confluence_attachment_from_api_response_reads_download_metadata() -> No
             "title": "deploy.log",
             "_links": {"download": "/download/attachments/55/deploy.log"},
             "extensions": {"mediaType": "text/plain", "fileSize": 42},
-            "version": {"number": 2, "by": {"displayName": "Alice"}},
+            "version": {"number": 2, "by": {"displayName": "Example Author"}},
         }
     )
 
@@ -56,4 +56,4 @@ def test_confluence_attachment_from_api_response_reads_download_metadata() -> No
 
     assert simplified["download_url"] == "/download/attachments/55/deploy.log"
     assert simplified["file_size"] == 42
-    assert simplified["author_display_name"] == "Alice"
+    assert simplified["author_display_name"] == "Example Author"

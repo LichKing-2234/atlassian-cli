@@ -20,18 +20,21 @@ class FakePullRequestProvider:
         return [
             {
                 "id": 42,
-                "title": "Ship output cleanup",
+                "title": "Example pull request",
                 "description": "Long body that should stay out of list output",
                 "state": "OPEN",
                 "open": True,
                 "closed": False,
                 "version": 7,
                 "updatedDate": 1704153600000,
-                "author": {"user": {"displayName": "Alice", "name": "alice@example.com"}},
+                "author": {"user": {"displayName": "Example Author", "name": "example-user-id"}},
                 "participants": [{"user": {"displayName": "Code Owners"}}],
                 "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
-                "reviewers": [{"user": {"displayName": "Bob"}, "approved": True}],
-                "fromRef": {"displayId": "feature/output", "id": "refs/heads/feature/output"},
+                "reviewers": [{"user": {"displayName": "reviewer-one"}, "approved": True}],
+                "fromRef": {
+                    "displayId": "feature/DEMO-1234/example-change",
+                    "id": "refs/heads/feature/DEMO-1234/example-change",
+                },
                 "toRef": {"displayId": "main", "id": "refs/heads/main"},
             }
         ]
@@ -39,7 +42,7 @@ class FakePullRequestProvider:
     def get_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
         return {
             "id": 42,
-            "title": "Ship output cleanup",
+            "title": "Example pull request",
             "description": "Long body that should stay out of list output",
             "state": "OPEN",
             "open": True,
@@ -48,8 +51,8 @@ class FakePullRequestProvider:
             "updatedDate": 1704153600000,
             "participants": [{"user": {"displayName": "Code Owners"}}],
             "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
-            "reviewers": [{"user": {"displayName": "Bob"}, "approved": True}],
-            "fromRef": {"displayId": "feature/output"},
+            "reviewers": [{"user": {"displayName": "reviewer-one"}, "approved": True}],
+            "fromRef": {"displayId": "feature/DEMO-1234/example-change"},
             "toRef": {"displayId": "main"},
         }
 
@@ -65,9 +68,9 @@ class FakePullRequestProvider:
         self.merge_calls.append((project_key, repo_slug, pr_id, merge_message, pr_version))
         return {
             "id": pr_id,
-            "title": "Ship output cleanup",
+            "title": "Example pull request",
             "state": "MERGED",
-            "fromRef": {"displayId": "feature/output"},
+            "fromRef": {"displayId": "feature/DEMO-1234/example-change"},
             "toRef": {"displayId": "main"},
         }
 
@@ -75,19 +78,19 @@ class FakePullRequestProvider:
 def test_pull_request_service_normalizes_payload() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.get("AI", "agora-skills", 42)
+    result = service.get("DEMO", "example-skills", 42)
 
     assert result == {
         "id": 42,
-        "title": "Ship output cleanup",
+        "title": "Example pull request",
         "description": "Long body that should stay out of list output",
         "state": "OPEN",
         "open": True,
         "closed": False,
         "updated_date": "1704153600000",
-        "from_ref": {"display_id": "feature/output"},
+        "from_ref": {"display_id": "feature/DEMO-1234/example-change"},
         "to_ref": {"display_id": "main"},
-        "reviewers": [{"display_name": "Bob", "approved": True}],
+        "reviewers": [{"display_name": "reviewer-one", "approved": True}],
         "participants": [{"user": {"displayName": "Code Owners"}}],
         "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
     }
@@ -96,21 +99,24 @@ def test_pull_request_service_normalizes_payload() -> None:
 def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.list("AI", "agora-skills", "OPEN")
+    result = service.list("DEMO", "example-skills", "OPEN")
 
     assert result == {
         "results": [
             {
                 "id": 42,
-                "title": "Ship output cleanup",
+                "title": "Example pull request",
                 "description": "Long body that should stay out of list output",
                 "state": "OPEN",
                 "open": True,
                 "closed": False,
                 "updated_date": "1704153600000",
-                "author": {"display_name": "Alice", "name": "alice@example.com"},
-                "reviewers": [{"display_name": "Bob", "approved": True}],
-                "from_ref": {"display_id": "feature/output", "id": "refs/heads/feature/output"},
+                "author": {"display_name": "Example Author", "name": "example-user-id"},
+                "reviewers": [{"display_name": "reviewer-one", "approved": True}],
+                "from_ref": {
+                    "display_id": "feature/DEMO-1234/example-change",
+                    "id": "refs/heads/feature/DEMO-1234/example-change",
+                },
                 "to_ref": {"display_id": "main", "id": "refs/heads/main"},
                 "participants": [{"user": {"displayName": "Code Owners"}}],
                 "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
@@ -124,7 +130,7 @@ def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> No
 def test_pull_request_service_list_accepts_start_and_limit() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.list("AI", "agora-skills", "OPEN", start=25, limit=10)
+    result = service.list("DEMO", "example-skills", "OPEN", start=25, limit=10)
 
     assert result["results"][0]["id"] == 42
     assert result["start_at"] == 25
@@ -134,7 +140,7 @@ def test_pull_request_service_list_accepts_start_and_limit() -> None:
 def test_pull_request_service_list_page_returns_collection_page() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    page = service.list_page("AI", "agora-skills", "OPEN", start=25, limit=10)
+    page = service.list_page("DEMO", "example-skills", "OPEN", start=25, limit=10)
 
     assert isinstance(page, CollectionPage)
     assert page.start == 25
@@ -146,7 +152,7 @@ def test_pull_request_service_list_page_returns_collection_page() -> None:
 def test_pull_request_service_exposes_raw_payload() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.get_raw("AI", "agora-skills", 42)
+    result = service.get_raw("DEMO", "example-skills", 42)
 
     assert "version" in result
 
@@ -155,9 +161,9 @@ def test_pull_request_service_merge_prefetches_title_and_version() -> None:
     provider = FakePullRequestProvider()
     service = PullRequestService(provider=provider)
 
-    result = service.merge("OPS", "infra", 42)
+    result = service.merge("DEMO", "example-repo", 42)
 
     assert result["state"] == "MERGED"
     assert provider.merge_calls == [
-        ("OPS", "infra", 42, "Merge pull request #42: Ship output cleanup", 7)
+        ("DEMO", "example-repo", 42, "Merge pull request #42: Example pull request", 7)
     ]

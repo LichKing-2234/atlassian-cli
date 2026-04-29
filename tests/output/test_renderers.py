@@ -3,11 +3,11 @@ from atlassian_cli.output.renderers import render_output
 
 
 def test_render_output_json_returns_pretty_json() -> None:
-    payload = [{"key": "OPS-1", "summary": "Broken deploy"}]
+    payload = [{"key": "DEMO-1", "summary": "Example issue summary"}]
 
     rendered = render_output(payload, output="json")
 
-    assert '"key": "OPS-1"' in rendered
+    assert '"key": "DEMO-1"' in rendered
     assert rendered.startswith("[")
 
 
@@ -40,11 +40,11 @@ def test_is_raw_output_detects_raw_variants() -> None:
 
 
 def test_render_output_markdown_dispatches_to_markdown_renderer() -> None:
-    payload = {"key": "OPS-1", "summary": "Broken deploy"}
+    payload = {"key": "DEMO-1", "summary": "Example issue summary"}
 
     rendered = render_output(payload, output="markdown")
 
-    assert rendered.startswith("# OPS-1 - Broken deploy")
+    assert rendered.startswith("# DEMO-1 - Example issue summary")
 
 
 def test_render_output_markdown_returns_empty_string_for_empty_lists() -> None:

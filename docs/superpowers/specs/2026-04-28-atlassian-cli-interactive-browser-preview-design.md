@@ -63,7 +63,7 @@ The line should be compact, stable, and width-bounded. It should never expand in
 For Bitbucket pull requests, the default list line should be:
 
 ```text
-24990  OPEN  huangpeilin  [FEAT] CSD-77462 add configurable mic test
+24990  OPEN  Example Author  [FEAT] DEMO-1234 example preview change
 ```
 
 The order of information should be:
@@ -100,14 +100,14 @@ Example shape:
 
 ```text
 State: OPEN
-Author: huangpeilin
-Reviewers: Alice, Bob, Carol, +21 more
-From: jira/CSD-77462/release/4.5
-To: release/4.5
+Author: Example Author
+Reviewers: reviewer-one, reviewer-two, reviewer-three, +21 more
+From: feature/DEMO-1234/example-change
+To: main
 Updated: 2026-04-27 13:19:55
 
 Description:
-Add configurable recording device test playback across C++, Android, and Objective-C...
+Example description for preview rendering...
 ```
 
 ### Footer region
@@ -153,7 +153,7 @@ For `bitbucket pr list`, list lines should include:
 Suggested formatting:
 
 ```text
-24990  OPEN  huangpeilin  [FEAT] CSD-77462 add configurable mic test
+24990  OPEN  Example Author  [FEAT] DEMO-1234 example preview change
 ```
 
 ### Preview content

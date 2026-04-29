@@ -8,17 +8,17 @@ The supported config shape becomes:
 
 ```toml
 [headers]
-# accessToken = "$(agora-oauth token)"
+# accessToken = "$(example-oauth token)"
 
 [jira]
 deployment = "server"
 url = "https://jira.example.com"
 auth = "basic"
-username = "alice"
+username = "example-user"
 token = "secret"
 
 [jira.headers]
-accessToken = "$(agora-oauth token)"
+accessToken = "$(example-oauth token)"
 
 [confluence]
 deployment = "dc"

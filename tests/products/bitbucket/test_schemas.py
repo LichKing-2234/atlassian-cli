@@ -5,16 +5,16 @@ def test_bitbucket_pr_schema_handles_missing_author_and_reviewers() -> None:
     pr = BitbucketPullRequest.from_api_response(
         {
             "id": 42,
-            "title": "Ship output cleanup",
+            "title": "Example pull request",
             "state": "OPEN",
-            "fromRef": {"displayId": "feature/output"},
+            "fromRef": {"displayId": "feature/DEMO-1234/example-change"},
             "toRef": {"displayId": "main"},
         }
     )
 
     simplified = pr.to_simplified_dict()
 
-    assert simplified["from_ref"]["display_id"] == "feature/output"
+    assert simplified["from_ref"]["display_id"] == "feature/DEMO-1234/example-change"
     assert "author" not in simplified
 
 
@@ -22,20 +22,20 @@ def test_bitbucket_pr_schema_exposes_summary_oriented_list_payload() -> None:
     pr = BitbucketPullRequest.from_api_response(
         {
             "id": 42,
-            "title": "Ship output cleanup",
+            "title": "Example pull request",
             "description": "Long body that should stay out of list output",
             "state": "OPEN",
             "open": True,
             "closed": False,
             "createdDate": 1704067200000,
             "updatedDate": 1704153600000,
-            "author": {"user": {"displayName": "Alice", "name": "alice@example.com"}},
-            "reviewers": [{"user": {"displayName": "Bob", "name": "bob@example.com"}}],
+            "author": {"user": {"displayName": "Example Author", "name": "example-user-id"}},
+            "reviewers": [{"user": {"displayName": "reviewer-one", "name": "reviewer-one-id"}}],
             "participants": [{"user": {"displayName": "Code Owners"}}],
             "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
             "fromRef": {
-                "displayId": "feature/output",
-                "id": "refs/heads/feature/output",
+                "displayId": "feature/DEMO-1234/example-change",
+                "id": "refs/heads/feature/DEMO-1234/example-change",
                 "latestCommit": "abc123",
             },
             "toRef": {
@@ -50,11 +50,13 @@ def test_bitbucket_pr_schema_exposes_summary_oriented_list_payload() -> None:
 
     assert summarized == {
         "id": 42,
-        "title": "Ship output cleanup",
+        "title": "Example pull request",
         "state": "OPEN",
-        "author": {"display_name": "Alice", "name": "alice@example.com"},
-        "reviewers": [{"approved": False, "display_name": "Bob", "name": "bob@example.com"}],
-        "from_ref": {"display_id": "feature/output"},
+        "author": {"display_name": "Example Author", "name": "example-user-id"},
+        "reviewers": [
+            {"approved": False, "display_name": "reviewer-one", "name": "reviewer-one-id"}
+        ],
+        "from_ref": {"display_id": "feature/DEMO-1234/example-change"},
         "to_ref": {"display_id": "main"},
         "updated_date": "2024-01-02 00:00:00",
     }

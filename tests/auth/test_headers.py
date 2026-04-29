@@ -10,13 +10,13 @@ def test_parse_cli_headers_accepts_repeated_name_value_pairs() -> None:
     headers = parse_cli_headers(
         [
             "Authorization: Bearer flag-token",
-            "X-Request-Source: agora-oauth",
+            "X-Request-Source: example-oauth",
         ]
     )
 
     assert headers == {
         "Authorization": "Bearer flag-token",
-        "X-Request-Source": "agora-oauth",
+        "X-Request-Source": "example-oauth",
     }
 
 
@@ -28,7 +28,7 @@ def test_parse_cli_headers_rejects_missing_colon() -> None:
 def test_resolve_auth_preserves_injected_headers() -> None:
     auth = resolve_auth(
         auth=AuthMode.BASIC,
-        username="alice",
+        username="example-user",
         password=None,
         token="legacy-token",
         headers={"Authorization": "Bearer oauth-token"},

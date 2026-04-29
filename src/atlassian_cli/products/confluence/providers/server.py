@@ -88,7 +88,14 @@ class ConfluenceServerProvider:
         return self.client.get_space(space_key)
 
     def list_comments(self, page_id: str) -> list[dict]:
-        return self.client.get_page_comments(page_id)
+        response = self.client.get_page_comments(page_id)
+        if isinstance(response, dict):
+            results = response.get("results")
+            if isinstance(results, list):
+                return [item for item in results if isinstance(item, dict)]
+        if isinstance(response, list):
+            return [item for item in response if isinstance(item, dict)]
+        return []
 
     def add_comment(self, page_id: str, body: str) -> dict:
         return self.client.add_comment(page_id, body)
@@ -99,9 +106,10 @@ class ConfluenceServerProvider:
         if session is None or not base_url:
             raise RuntimeError("replying to comments is unavailable without an HTTP session")
         response = session.post(
-            f"{base_url}/rest/api/content/{comment_id}/child/comment",
+            f"{base_url}/rest/api/content/",
             json={
                 "type": "comment",
+                "container": {"id": comment_id, "type": "comment", "status": "current"},
                 "body": {"storage": {"value": body, "representation": "storage"}},
             },
         )
@@ -112,7 +120,56 @@ class ConfluenceServerProvider:
         return self.client.get_attachments_from_content(page_id)
 
     def upload_attachment(self, page_id: str, file_path: str) -> dict:
-        return self.client.attach_file(file_path, page_id=page_id)
+        response = self.client.attach_file(file_path, page_id=page_id)
+        if isinstance(response, dict):
+            results = response.get("results")
+            if isinstance(results, list) and results and isinstance(results[0], dict):
+                return results[0]
+        return response
 
     def download_attachment(self, attachment_id: str, destination: str) -> dict:
-        return {"attachment_id": attachment_id, "destination": destination}
+        from pathlib import Path
+
+        attachment = self.client.get(
+            f"rest/api/content/{attachment_id}",
+            params={"expand": "version"},
+        )
+        title = str(attachment.get("title") or attachment_id)
+        links = attachment.get("_links") if isinstance(attachment.get("_links"), dict) else {}
+        download_link = links.get("download")
+        if not isinstance(download_link, str) or not download_link:
+            raise RuntimeError(f"attachment download url missing for {attachment_id}")
+
+        target = Path(destination)
+        if target.exists() and target.is_dir():
+            target = target / title
+        elif destination.endswith("/") or destination.endswith("\\"):
+            target.mkdir(parents=True, exist_ok=True)
+            target = target / title
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+
+        session = getattr(self.client, "_session", None)
+        base_url = getattr(self.client, "url", None)
+        bytes_written = 0
+        if session is not None and isinstance(base_url, str) and base_url:
+            download_url = self.client.url_joiner(base_url, download_link)
+            response = session.get(download_url, stream=True)
+            response.raise_for_status()
+            with target.open("wb") as handle:
+                for chunk in response.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    handle.write(chunk)
+                    bytes_written += len(chunk)
+        else:
+            payload = self.client.get(download_link, not_json_response=True)
+            content = bytes(payload)
+            target.write_bytes(content)
+            bytes_written = len(content)
+        return {
+            "attachment_id": str(attachment_id),
+            "title": title,
+            "path": str(target),
+            "bytes_written": bytes_written,
+        }

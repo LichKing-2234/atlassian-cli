@@ -434,7 +434,7 @@ def test_load_profiles_reads_named_profiles(tmp_path: Path) -> None:
         deployment = "server"
         url = "https://jira.example.com"
         auth = "basic"
-        username = "alice"
+        username = "example-user"
         token = "secret"
         """.strip()
     )
@@ -584,16 +584,16 @@ from atlassian_cli.output.renderers import render_output
 
 
 def test_render_output_json_returns_pretty_json() -> None:
-    payload = [{"key": "OPS-1", "summary": "Broken deploy"}]
+    payload = [{"key": "DEMO-1", "summary": "Example issue summary"}]
 
     rendered = render_output(payload, output="json")
 
-    assert '"key": "OPS-1"' in rendered
+    assert '"key": "DEMO-1"' in rendered
     assert rendered.startswith("[")
 
 
 def test_render_output_table_includes_columns() -> None:
-    payload = [{"key": "OPS-1", "summary": "Broken deploy"}]
+    payload = [{"key": "DEMO-1", "summary": "Example issue summary"}]
 
     rendered = render_output(payload, output="table")
 
@@ -707,7 +707,7 @@ def test_build_provider_returns_jira_server_provider() -> None:
         deployment=Deployment.SERVER,
         url="https://jira.example.com",
         output="table",
-        auth=ResolvedAuth(mode=AuthMode.BASIC, username="alice", token="secret"),
+        auth=ResolvedAuth(mode=AuthMode.BASIC, username="example-user", token="secret"),
     )
 
     provider = build_provider(context)
@@ -722,7 +722,7 @@ def test_build_provider_rejects_cloud() -> None:
         deployment=Deployment.CLOUD,
         url="https://example.atlassian.net",
         output="table",
-        auth=ResolvedAuth(mode=AuthMode.BASIC, username="alice", token="secret"),
+        auth=ResolvedAuth(mode=AuthMode.BASIC, username="example-user", token="secret"),
     )
 
     with pytest.raises(UnsupportedError):
@@ -748,7 +748,7 @@ def test_root_callback_loads_profile_from_config(tmp_path: Path, monkeypatch) ->
         deployment = "server"
         url = "https://jira.example.com"
         auth = "basic"
-        username = "alice"
+        username = "example-user"
         token = "secret"
         """.strip()
     )
@@ -775,7 +775,7 @@ def test_root_callback_loads_profile_from_config(tmp_path: Path, monkeypatch) ->
             "jira",
             "issue",
             "get",
-            "OPS-1",
+            "DEMO-1",
             "--output",
             "json",
         ],
@@ -1015,10 +1015,10 @@ class FakeIssueProvider:
         return {
             "key": issue_key,
             "fields": {
-                "summary": "Broken deploy",
+                "summary": "Example issue summary",
                 "status": {"name": "Open"},
-                "assignee": {"displayName": "Alice"},
-                "reporter": {"displayName": "Bob"},
+                "assignee": {"displayName": "Example Author"},
+                "reporter": {"displayName": "reviewer-one"},
                 "priority": {"name": "High"},
                 "updated": "2026-04-19T09:00:00.000+0000",
             },
@@ -1028,11 +1028,11 @@ class FakeIssueProvider:
 def test_issue_service_normalizes_issue_payload() -> None:
     service = IssueService(provider=FakeIssueProvider())
 
-    result = service.get("OPS-1")
+    result = service.get("DEMO-1")
 
-    assert result["key"] == "OPS-1"
+    assert result["key"] == "DEMO-1"
     assert result["status"] == "Open"
-    assert result["assignee"] == "Alice"
+    assert result["assignee"] == "Example Author"
 ```
 
 ```python
@@ -1052,14 +1052,14 @@ def test_jira_issue_get_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"get": lambda self, issue_key: {"key": issue_key, "summary": "Broken deploy"}},
+            {"get": lambda self, issue_key: {"key": issue_key, "summary": "Example issue summary"}},
         )(),
     )
 
-    result = runner.invoke(app, ["jira", "issue", "get", "OPS-1", "--output", "json"])
+    result = runner.invoke(app, ["jira", "issue", "get", "DEMO-1", "--output", "json"])
 
     assert result.exit_code == 0
-    assert '"key": "OPS-1"' in result.stdout
+    assert '"key": "DEMO-1"' in result.stdout
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1380,8 +1380,8 @@ class FakePageProvider:
     def get_page(self, page_id: str) -> dict:
         return {
             "id": page_id,
-            "title": "Runbook",
-            "space": {"key": "OPS"},
+            "title": "Example Page",
+            "space": {"key": "DEMO"},
             "version": {"number": 7},
         }
 
@@ -1392,8 +1392,8 @@ def test_page_service_normalizes_page_payload() -> None:
     result = service.get("1234")
 
     assert result["id"] == "1234"
-    assert result["title"] == "Runbook"
-    assert result["space_key"] == "OPS"
+    assert result["title"] == "Example Page"
+    assert result["space_key"] == "DEMO"
 ```
 
 ```python
@@ -1413,7 +1413,7 @@ def test_confluence_page_get_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"get": lambda self, page_id: {"id": page_id, "title": "Runbook"}},
+            {"get": lambda self, page_id: {"id": page_id, "title": "Example Page"}},
         )(),
     )
 
@@ -1732,7 +1732,7 @@ class FakeRepoProvider:
         return {
             "project": {"key": project_key},
             "slug": repo_slug,
-            "name": "infra",
+            "name": "example-repo",
             "state": "AVAILABLE",
         }
 
@@ -1740,10 +1740,10 @@ class FakeRepoProvider:
 def test_repo_service_normalizes_repo_payload() -> None:
     service = RepoService(provider=FakeRepoProvider())
 
-    result = service.get("OPS", "infra")
+    result = service.get("DEMO", "example-repo")
 
-    assert result["project_key"] == "OPS"
-    assert result["slug"] == "infra"
+    assert result["project_key"] == "DEMO"
+    assert result["slug"] == "example-repo"
     assert result["state"] == "AVAILABLE"
 ```
 
@@ -1768,10 +1768,10 @@ def test_bitbucket_repo_get_outputs_json(monkeypatch) -> None:
         )(),
     )
 
-    result = runner.invoke(app, ["bitbucket", "repo", "get", "OPS", "infra", "--output", "json"])
+    result = runner.invoke(app, ["bitbucket", "repo", "get", "DEMO", "example-repo", "--output", "json"])
 
     assert result.exit_code == 0
-    assert '"slug": "infra"' in result.stdout
+    assert '"slug": "example-repo"' in result.stdout
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -2181,9 +2181,9 @@ app.add_typer(bitbucket_app, name="bitbucket")
 
 ## Examples
 
-- `atlassian jira issue get OPS-1 --profile prod-jira --output json`
+- `atlassian jira issue get DEMO-1 --profile prod-jira --output json`
 - `atlassian confluence page get 1234 --profile wiki`
-- `atlassian bitbucket repo get OPS infra --profile code`
+- `atlassian bitbucket repo get DEMO example-repo --profile code`
 
 ## Smoke testing
 

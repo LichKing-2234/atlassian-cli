@@ -14,7 +14,11 @@ def test_jira_project_list_outputs_results_envelope(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"list": lambda self: {"results": [{"id": "1", "key": "OPS", "name": "Operations"}]}},
+            {
+                "list": lambda self: {
+                    "results": [{"id": "1", "key": "DEMO", "name": "Demo Project"}]
+                }
+            },
         )(),
     )
 

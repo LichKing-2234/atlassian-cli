@@ -2,13 +2,13 @@
 
 ## Summary
 
-Add TOML-backed header configuration, with optional shell-style command substitution inside configured header values. This lets users keep header generation in external tools such as `agora-oauth` while configuring the CLI entirely from `~/.config/atlassian-cli/config.toml`.
+Add TOML-backed header configuration, with optional shell-style command substitution inside configured header values. This lets users keep header generation in external tools such as `example-oauth` while configuring the CLI entirely from `~/.config/atlassian-cli/config.toml`.
 
 The supported target syntax is:
 
 ```toml
 [headers]
-accessToken = "$(agora-oauth token)"
+accessToken = "$(example-oauth token)"
 
 [profiles.code]
 product = "bitbucket"
@@ -17,7 +17,7 @@ url = "https://bitbucket.example.com"
 auth = "pat"
 
 [profiles.code.headers]
-accessToken = "$(agora-oauth token --profile code)"
+accessToken = "$(example-oauth token --profile code)"
 ```
 
 At runtime, the CLI resolves the configured header map into request headers and merges it with repeated `--header` flags.
@@ -66,8 +66,8 @@ Any config-backed header value may contain literal text plus one or more `$(...)
 
 Examples:
 
-- `accessToken = "$(agora-oauth token)"`
-- `Authorization = "Bearer $(agora-oauth token --audience bitbucket)"`
+- `accessToken = "$(example-oauth token)"`
+- `Authorization = "Bearer $(example-oauth token --audience bitbucket)"`
 
 ### Scope
 
@@ -150,7 +150,7 @@ Add tests for:
 - top-level config headers supplying request headers
 - profile config headers overriding top-level config headers
 - repeated `--header` overriding both top-level and profile config headers
-- successful substitution for `accessToken = "$(agora-oauth token)"`
+- successful substitution for `accessToken = "$(example-oauth token)"`
 - multiple substitutions in one configured header value
 - malformed substitution syntax
 - empty command body
@@ -164,6 +164,6 @@ Add tests for:
 Update `README.md` with:
 
 - the new `[headers]` and `[profiles.<name>.headers]` syntax
-- a concrete `agora-oauth` example
+- a concrete `example-oauth` example
 - precedence notes explaining that repeated `--header` still wins over config-backed values
 - a short warning that config-based command substitution executes local shell commands

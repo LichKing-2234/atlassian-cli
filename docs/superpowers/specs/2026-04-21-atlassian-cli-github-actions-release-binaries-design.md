@@ -7,7 +7,7 @@ Add GitHub Actions support for two distinct flows:
 - a gating workflow that runs on pull requests and on pushes to `main` and `release/*`
 - a release workflow that builds and publishes installable CLI binaries to GitHub Releases
 
-The implementation should follow the structure used in `LichKing-2234/ai-efficiency`: separate `ci.yml` and `release.yml` workflows, stable release asset names, and a repository-owned install script that downloads the matching release binary and verifies checksums before installing it locally.
+The implementation should follow the structure used in `example-org/example-repo`: separate `ci.yml` and `release.yml` workflows, stable release asset names, and a repository-owned install script that downloads the matching release binary and verifies checksums before installing it locally.
 
 Because this repository is a Python CLI rather than a Go project, the release binaries will be produced with PyInstaller instead of GoReleaser. The first supported release targets are:
 

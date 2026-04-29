@@ -5,8 +5,8 @@ class FakeRepoProvider:
     def list_repos(self, project_key: str | None, start: int, limit: int) -> list[dict]:
         return [
             {
-                "project": {"key": project_key or "OPS", "name": "Operations"},
-                "slug": "infra",
+                "project": {"key": project_key or "DEMO", "name": "Demo Project"},
+                "slug": "example-repo",
                 "name": "Infra",
                 "state": "AVAILABLE",
             }
@@ -14,9 +14,9 @@ class FakeRepoProvider:
 
     def get_repo(self, project_key: str, repo_slug: str) -> dict:
         return {
-            "project": {"key": project_key, "name": "Operations"},
+            "project": {"key": project_key, "name": "Demo Project"},
             "slug": repo_slug,
-            "name": "infra",
+            "name": "example-repo",
             "state": "AVAILABLE",
             "links": {"clone": []},
         }
@@ -25,12 +25,12 @@ class FakeRepoProvider:
 def test_repo_service_normalizes_repo_payload() -> None:
     service = RepoService(provider=FakeRepoProvider())
 
-    result = service.get("OPS", "infra")
+    result = service.get("DEMO", "example-repo")
 
     assert result == {
-        "project": {"key": "OPS", "name": "Operations"},
-        "slug": "infra",
-        "name": "infra",
+        "project": {"key": "DEMO", "name": "Demo Project"},
+        "slug": "example-repo",
+        "name": "example-repo",
         "state": "AVAILABLE",
         "links": {"clone": []},
     }
@@ -39,7 +39,7 @@ def test_repo_service_normalizes_repo_payload() -> None:
 def test_repo_service_exposes_raw_repo_payload() -> None:
     service = RepoService(provider=FakeRepoProvider())
 
-    result = service.get_raw("OPS", "infra")
+    result = service.get_raw("DEMO", "example-repo")
 
     assert "links" in result
 
@@ -47,17 +47,42 @@ def test_repo_service_exposes_raw_repo_payload() -> None:
 def test_repo_service_list_returns_results_envelope() -> None:
     service = RepoService(provider=FakeRepoProvider())
 
-    result = service.list("OPS", start=0, limit=25)
+    result = service.list("DEMO", start=0, limit=25)
 
     assert result == {
         "results": [
             {
-                "slug": "infra",
+                "slug": "example-repo",
                 "name": "Infra",
                 "state": "AVAILABLE",
-                "project": {"key": "OPS", "name": "Operations"},
+                "project": {"key": "DEMO", "name": "Demo Project"},
             }
         ],
         "start_at": 0,
         "max_results": 25,
+    }
+
+
+def test_repo_service_create_normalizes_repo_payload() -> None:
+    class CreateRepoProvider(FakeRepoProvider):
+        def create_repo(self, project_key: str, name: str, scm_id: str) -> dict:
+            assert project_key == "~example_user"
+            assert name == "atlassian-cli-e2e-temp"
+            assert scm_id == "git"
+            return {
+                "slug": "atlassian-cli-e2e-temp",
+                "name": "atlassian-cli-e2e-temp",
+                "state": "AVAILABLE",
+                "project": {"key": "~example_user", "name": "example_user"},
+            }
+
+    service = RepoService(provider=CreateRepoProvider())
+
+    result = service.create("~example_user", "atlassian-cli-e2e-temp", "git")
+
+    assert result == {
+        "slug": "atlassian-cli-e2e-temp",
+        "name": "atlassian-cli-e2e-temp",
+        "state": "AVAILABLE",
+        "project": {"key": "~example_user", "name": "example_user"},
     }
