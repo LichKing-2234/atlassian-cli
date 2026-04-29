@@ -27,11 +27,40 @@ class JiraServerProvider:
         if session is not None:
             patch_session_headers(session, headers or {})
 
-    def get_issue(self, issue_key: str) -> dict:
-        return self.client.issue(issue_key)
+    def get_issue(
+        self,
+        issue_key: str,
+        *,
+        fields: str | list[str] | None = None,
+        expand: str | None = None,
+        comment_limit: int = 10,
+        properties: list[str] | None = None,
+        update_history: bool = True,
+    ) -> dict:
+        del comment_limit, properties, update_history
+        return self.client.issue(issue_key, fields=fields or "*all", expand=expand)
 
-    def search_issues(self, jql: str, start: int, limit: int) -> dict:
-        return self.client.jql(jql, start=start, limit=limit)
+    def search_issues(
+        self,
+        jql: str,
+        *,
+        fields: str | list[str] | None = None,
+        expand: str | None = None,
+        start_at: int = 0,
+        limit: int = 25,
+        projects_filter: list[str] | None = None,
+    ) -> dict:
+        scoped_jql = jql
+        if projects_filter:
+            project_clause = ", ".join(projects_filter)
+            scoped_jql = f"project in ({project_clause}) AND ({jql})"
+        return self.client.jql(
+            scoped_jql,
+            fields=fields or "*all",
+            start=start_at,
+            limit=limit,
+            expand=expand,
+        )
 
     def create_issue(self, fields: dict) -> dict:
         return self.client.issue_create(fields=fields)
@@ -48,6 +77,34 @@ class JiraServerProvider:
     def update_issue(self, issue_key: str, fields: dict) -> dict:
         self.client.issue_update(issue_key, fields=fields)
         return {"key": issue_key, "updated": True}
+
+    def get_create_meta(self, project_key: str, issue_type: str) -> dict:
+        meta = self.client.issue_createmeta(project_key, expand="projects.issuetypes.fields")
+        projects = meta.get("projects", []) if isinstance(meta, dict) else []
+        issue_types = projects[0].get("issuetypes", []) if projects else []
+        selected = next(
+            (
+                item
+                for item in issue_types
+                if item.get("name") == issue_type or str(item.get("id")) == issue_type
+            ),
+            None,
+        )
+        if selected is None:
+            return {"required": [], "allowed_values": {}}
+        fields = selected.get("fields", {})
+        return {
+            "required": [
+                field_id
+                for field_id, info in fields.items()
+                if isinstance(info, dict) and info.get("required")
+            ],
+            "allowed_values": {
+                field_id: info.get("allowedValues", [])
+                for field_id, info in fields.items()
+                if isinstance(info, dict) and info.get("allowedValues")
+            },
+        }
 
     def delete_issue(self, issue_key: str) -> None:
         self.client.delete_issue(issue_key)
