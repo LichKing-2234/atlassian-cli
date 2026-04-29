@@ -7,7 +7,7 @@ class FakeSpaceProvider:
             "results": [
                 {
                     "id": 1,
-                    "key": "OPS",
+                    "key": "PROJ",
                     "name": "Operations",
                     "type": "global",
                     "status": "current",
@@ -30,7 +30,7 @@ def test_space_service_normalizes_space_payload() -> None:
         "results": [
             {
                 "id": "1",
-                "key": "OPS",
+                "key": "PROJ",
                 "name": "Operations",
                 "type": "global",
                 "status": "current",
@@ -44,7 +44,7 @@ def test_space_service_normalizes_space_payload() -> None:
 def test_space_service_exposes_raw_space_payload() -> None:
     service = SpaceService(provider=FakeSpaceProvider())
 
-    result = service.get_raw("OPS")
+    result = service.get_raw("PROJ")
 
     assert result["status"] == "current"
     assert result["type"] == "global"

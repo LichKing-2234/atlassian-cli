@@ -12,7 +12,7 @@ def test_confluence_page_from_api_response_builds_rich_resource() -> None:
             "title": "Runbook",
             "type": "page",
             "status": "current",
-            "space": {"id": 7, "key": "OPS", "name": "Operations"},
+            "space": {"id": 7, "key": "PROJ", "name": "Operations"},
             "version": {"number": 3, "by": {"displayName": "Alice"}},
             "history": {"createdDate": "2026-04-20T10:00:00.000Z"},
         },
@@ -22,19 +22,19 @@ def test_confluence_page_from_api_response_builds_rich_resource() -> None:
 
     simplified = page.to_simplified_dict()
 
-    assert simplified["space"]["key"] == "OPS"
+    assert simplified["space"]["key"] == "PROJ"
     assert simplified["version"] == 3
     assert "url" in simplified
 
 
 def test_confluence_space_from_api_response_keeps_status_and_type() -> None:
     space = ConfluenceSpace.from_api_response(
-        {"id": 9, "key": "OPS", "name": "Operations", "type": "global", "status": "current"}
+        {"id": 9, "key": "PROJ", "name": "Operations", "type": "global", "status": "current"}
     )
 
     assert space.to_simplified_dict() == {
         "id": "9",
-        "key": "OPS",
+        "key": "PROJ",
         "name": "Operations",
         "type": "global",
         "status": "current",

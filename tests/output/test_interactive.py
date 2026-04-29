@@ -49,7 +49,7 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
         title="Demo",
         page_size=1,
         fetch_page=lambda start, limit: CollectionPage(
-            items=[{"id": 1, "title": "OPS-1"}],
+            items=[{"id": 1, "title": "PROJ-1"}],
             start=start,
             limit=limit,
             total=1,
@@ -143,7 +143,7 @@ def test_render_state_in_detail_mode_has_detail_header_and_back_hint() -> None:
         title="Demo",
         page_size=1,
         fetch_page=lambda start, limit: CollectionPage(
-            items=[{"id": 1, "title": "OPS-1"}],
+            items=[{"id": 1, "title": "PROJ-1"}],
             start=start,
             limit=limit,
             total=1,

@@ -720,7 +720,7 @@ from atlassian_cli.output.markdown import render_markdown_list_item, render_mark
 
 def test_render_markdown_list_item_returns_single_scan_line() -> None:
     item = {
-        "key": "OPS-1",
+        "key": "PROJ-1",
         "summary": "Broken deploy",
         "status": {"name": "Open"},
         "assignee": {"display_name": "Alice"},
@@ -728,12 +728,12 @@ def test_render_markdown_list_item_returns_single_scan_line() -> None:
 
     rendered = render_markdown_list_item(item)
 
-    assert rendered == "OPS-1  Open  Alice  Broken deploy"
+    assert rendered == "PROJ-1  Open  Alice  Broken deploy"
 
 
 def test_render_markdown_preview_limits_description_excerpt() -> None:
     item = {
-        "key": "OPS-1",
+        "key": "PROJ-1",
         "summary": "Broken deploy",
         "status": {"name": "Open"},
         "assignee": {"display_name": "Alice"},
@@ -850,7 +850,7 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "OPS", "infra"],
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "PROJ", "infra"],
     )
 
     assert result.exit_code == 0
@@ -867,7 +867,7 @@ def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monk
     from atlassian_cli.products.jira.commands import issue as issue_module
 
     sample_issue = {
-        "key": "OPS-1",
+        "key": "PROJ-1",
         "summary": "Broken deploy",
         "status": {"name": "Open"},
         "assignee": {"display_name": "Alice"},
@@ -897,11 +897,11 @@ def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monk
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = OPS"],
+        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = PROJ"],
     )
 
     assert result.exit_code == 0
-    assert captured["item"] == "OPS-1  Open  Alice  Broken deploy"
+    assert captured["item"] == "PROJ-1  Open  Alice  Broken deploy"
     assert "Status: Open" in captured["preview"]
     assert "Assignee: Alice" in captured["preview"]
 ```

@@ -70,7 +70,7 @@ def test_jira_field_options_outputs_json(monkeypatch) -> None:
             "options",
             "customfield_10001",
             "--project",
-            "OPS",
+            "PROJ",
             "--issue-type",
             "Bug",
             "--output",

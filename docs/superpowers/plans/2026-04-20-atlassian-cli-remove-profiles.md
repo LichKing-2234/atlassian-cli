@@ -387,7 +387,7 @@ def test_root_callback_uses_jira_product_config_without_profile(tmp_path: Path, 
 
     result = runner.invoke(
         app,
-        ["--config-file", str(config_file), "jira", "issue", "get", "OPS-1", "--output", "json"],
+        ["--config-file", str(config_file), "jira", "issue", "get", "PROJ-1", "--output", "json"],
     )
 
     assert result.exit_code == 0
@@ -450,7 +450,7 @@ def test_root_callback_reports_created_template_for_missing_product_config(monke
 
     result = runner.invoke(
         app,
-        ["--config-file", str(generated), "jira", "issue", "get", "OPS-1"],
+        ["--config-file", str(generated), "jira", "issue", "get", "PROJ-1"],
     )
 
     assert result.exit_code == 2
@@ -603,9 +603,9 @@ Expected: output still contains `--profile` or old profile phrasing
 ````md
 ## Examples
 
-- `atlassian jira issue get OPS-1 --output json`
+- `atlassian jira issue get PROJ-1 --output json`
 - `atlassian confluence page get 1234 --output json`
-- `atlassian bitbucket repo get OPS infra --output json`
+- `atlassian bitbucket repo get PROJ infra --output json`
 
 ## Header injection
 
@@ -613,7 +613,7 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list SDK example-repo --output json`
+- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list PROJ example-repo --output json`
 
 Config file example:
 
@@ -630,7 +630,7 @@ auth = "pat"
 accessToken = "$(example-oauth token)"
 ```
 
-- `atlassian bitbucket pr list SDK example-repo --output json`
+- `atlassian bitbucket pr list PROJ example-repo --output json`
 
 Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
 The default `~/.config/atlassian-cli/config.toml` file is auto-created as a template on first use.

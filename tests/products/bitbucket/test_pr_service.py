@@ -75,7 +75,7 @@ class FakePullRequestProvider:
 def test_pull_request_service_normalizes_payload() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.get("AI", "example-skills", 42)
+    result = service.get("PROJ", "example-skills", 42)
 
     assert result == {
         "id": 42,
@@ -96,7 +96,7 @@ def test_pull_request_service_normalizes_payload() -> None:
 def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.list("AI", "example-skills", "OPEN")
+    result = service.list("PROJ", "example-skills", "OPEN")
 
     assert result == {
         "results": [
@@ -124,7 +124,7 @@ def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> No
 def test_pull_request_service_list_accepts_start_and_limit() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.list("AI", "example-skills", "OPEN", start=25, limit=10)
+    result = service.list("PROJ", "example-skills", "OPEN", start=25, limit=10)
 
     assert result["results"][0]["id"] == 42
     assert result["start_at"] == 25
@@ -134,7 +134,7 @@ def test_pull_request_service_list_accepts_start_and_limit() -> None:
 def test_pull_request_service_list_page_returns_collection_page() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    page = service.list_page("AI", "example-skills", "OPEN", start=25, limit=10)
+    page = service.list_page("PROJ", "example-skills", "OPEN", start=25, limit=10)
 
     assert isinstance(page, CollectionPage)
     assert page.start == 25
@@ -146,7 +146,7 @@ def test_pull_request_service_list_page_returns_collection_page() -> None:
 def test_pull_request_service_exposes_raw_payload() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.get_raw("AI", "example-skills", 42)
+    result = service.get_raw("PROJ", "example-skills", 42)
 
     assert "version" in result
 
@@ -155,9 +155,9 @@ def test_pull_request_service_merge_prefetches_title_and_version() -> None:
     provider = FakePullRequestProvider()
     service = PullRequestService(provider=provider)
 
-    result = service.merge("OPS", "infra", 42)
+    result = service.merge("PROJ", "infra", 42)
 
     assert result["state"] == "MERGED"
     assert provider.merge_calls == [
-        ("OPS", "infra", 42, "Merge pull request #42: Ship output cleanup", 7)
+        ("PROJ", "infra", 42, "Merge pull request #42: Ship output cleanup", 7)
     ]

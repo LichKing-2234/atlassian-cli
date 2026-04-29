@@ -78,7 +78,7 @@ def test_nested_command_help_lists_markdown_output_mode() -> None:
 def test_cli_rejects_removed_table_output_mode() -> None:
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "get", "OPS-1", "--output", "table"],
+        ["--url", "https://jira.example.com", "jira", "issue", "get", "PROJ-1", "--output", "table"],
     )
 
     assert result.exit_code != 0

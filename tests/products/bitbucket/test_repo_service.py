@@ -5,7 +5,7 @@ class FakeRepoProvider:
     def list_repos(self, project_key: str | None, start: int, limit: int) -> list[dict]:
         return [
             {
-                "project": {"key": project_key or "OPS", "name": "Operations"},
+                "project": {"key": project_key or "PROJ", "name": "Operations"},
                 "slug": "infra",
                 "name": "Infra",
                 "state": "AVAILABLE",
@@ -25,10 +25,10 @@ class FakeRepoProvider:
 def test_repo_service_normalizes_repo_payload() -> None:
     service = RepoService(provider=FakeRepoProvider())
 
-    result = service.get("OPS", "infra")
+    result = service.get("PROJ", "infra")
 
     assert result == {
-        "project": {"key": "OPS", "name": "Operations"},
+        "project": {"key": "PROJ", "name": "Operations"},
         "slug": "infra",
         "name": "infra",
         "state": "AVAILABLE",
@@ -39,7 +39,7 @@ def test_repo_service_normalizes_repo_payload() -> None:
 def test_repo_service_exposes_raw_repo_payload() -> None:
     service = RepoService(provider=FakeRepoProvider())
 
-    result = service.get_raw("OPS", "infra")
+    result = service.get_raw("PROJ", "infra")
 
     assert "links" in result
 
@@ -47,7 +47,7 @@ def test_repo_service_exposes_raw_repo_payload() -> None:
 def test_repo_service_list_returns_results_envelope() -> None:
     service = RepoService(provider=FakeRepoProvider())
 
-    result = service.list("OPS", start=0, limit=25)
+    result = service.list("PROJ", start=0, limit=25)
 
     assert result == {
         "results": [
@@ -55,7 +55,7 @@ def test_repo_service_list_returns_results_envelope() -> None:
                 "slug": "infra",
                 "name": "Infra",
                 "state": "AVAILABLE",
-                "project": {"key": "OPS", "name": "Operations"},
+                "project": {"key": "PROJ", "name": "Operations"},
             }
         ],
         "start_at": 0,

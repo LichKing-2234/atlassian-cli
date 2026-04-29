@@ -229,7 +229,7 @@ def test_jira_provider_search_issues_returns_full_search_payload(monkeypatch) ->
                 "total": 2,
                 "startAt": start,
                 "maxResults": limit,
-                "issues": [{"key": "OPS-1"}, {"key": "OPS-2"}],
+                "issues": [{"key": "PROJ-1"}, {"key": "PROJ-2"}],
             }
 
     monkeypatch.setattr("atlassian_cli.products.jira.providers.server.Jira", FakeJira)
@@ -246,10 +246,10 @@ def test_jira_provider_search_issues_returns_full_search_payload(monkeypatch) ->
         headers={},
     )
 
-    result = provider.search_issues("project = OPS", start=0, limit=2)
+    result = provider.search_issues("project = PROJ", start=0, limit=2)
 
     assert result["total"] == 2
-    assert [item["key"] for item in result["issues"]] == ["OPS-1", "OPS-2"]
+    assert [item["key"] for item in result["issues"]] == ["PROJ-1", "PROJ-2"]
 
 
 def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch) -> None:
@@ -259,7 +259,7 @@ def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch)
 
         def get_all_spaces(self, start: int, limit: int) -> dict:
             return {
-                "results": [{"id": 1, "key": "OPS", "name": "Operations"}],
+                "results": [{"id": 1, "key": "PROJ", "name": "Operations"}],
                 "start": start,
                 "limit": limit,
             }
@@ -284,4 +284,4 @@ def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch)
     result = provider.list_spaces(start=0, limit=25)
 
     assert result["start"] == 0
-    assert result["results"][0]["key"] == "OPS"
+    assert result["results"][0]["key"] == "PROJ"

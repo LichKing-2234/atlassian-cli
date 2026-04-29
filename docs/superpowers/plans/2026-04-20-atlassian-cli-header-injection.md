@@ -564,12 +564,12 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.example.com --header 'Authorization: Bearer ...' bitbucket pr list SDK example-repo --output json`
+- `atlassian --url https://bitbucket.example.com --header 'Authorization: Bearer ...' bitbucket pr list PROJ example-repo --output json`
 
 Environment variable example:
 
 - `export ATLASSIAN_HEADER='Authorization: Bearer ...'`
-- `atlassian --url https://bitbucket.example.com bitbucket pr list SDK example-repo --output json`
+- `atlassian --url https://bitbucket.example.com bitbucket pr list PROJ example-repo --output json`
 ```
 
 - [ ] **Step 4: Run verification commands**

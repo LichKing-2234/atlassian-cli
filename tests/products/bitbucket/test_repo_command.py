@@ -31,7 +31,7 @@ def test_bitbucket_repo_get_outputs_json(monkeypatch) -> None:
             "bitbucket",
             "repo",
             "get",
-            "OPS",
+            "PROJ",
             "infra",
             "--output",
             "json",

@@ -7,7 +7,7 @@ from atlassian_cli.output.markdown import (
 
 def test_render_markdown_formats_single_resource_detail() -> None:
     payload = {
-        "key": "OPS-1",
+        "key": "PROJ-1",
         "summary": "Broken deploy",
         "status": {"name": "Open"},
         "description": "Investigate the release pipeline",
@@ -15,7 +15,7 @@ def test_render_markdown_formats_single_resource_detail() -> None:
 
     rendered = render_markdown(payload)
 
-    assert rendered.startswith("# OPS-1 - Broken deploy")
+    assert rendered.startswith("# PROJ-1 - Broken deploy")
     assert "- Status: Open" in rendered
     assert "## Description" in rendered
     assert "Investigate the release pipeline" in rendered
@@ -44,7 +44,7 @@ def test_render_markdown_formats_results_envelope_as_numbered_summary() -> None:
 
 def test_render_markdown_list_item_returns_single_scan_line() -> None:
     item = {
-        "key": "OPS-1",
+        "key": "PROJ-1",
         "summary": "Broken deploy",
         "status": {"name": "Open"},
         "assignee": {"display_name": "Alice"},
@@ -52,12 +52,12 @@ def test_render_markdown_list_item_returns_single_scan_line() -> None:
 
     rendered = render_markdown_list_item(item)
 
-    assert rendered == "OPS-1  Open  Alice  Broken deploy"
+    assert rendered == "PROJ-1  Open  Alice  Broken deploy"
 
 
 def test_render_markdown_preview_limits_description_excerpt() -> None:
     item = {
-        "key": "OPS-1",
+        "key": "PROJ-1",
         "summary": "Broken deploy",
         "status": {"name": "Open"},
         "assignee": {"display_name": "Alice"},

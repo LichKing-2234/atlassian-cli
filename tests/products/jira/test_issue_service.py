@@ -21,7 +21,7 @@ class FakeIssueProvider:
         }
 
     def search_issues(self, jql: str, start: int, limit: int) -> dict:
-        assert jql == "project = OPS"
+        assert jql == "project = PROJ"
         assert start == 0
         assert limit == 2
         return {
@@ -30,7 +30,7 @@ class FakeIssueProvider:
             "maxResults": limit,
             "issues": [
                 {
-                    "key": "OPS-1",
+                    "key": "PROJ-1",
                     "fields": {
                         "summary": "Broken deploy",
                         "status": {"name": "Open"},
@@ -41,7 +41,7 @@ class FakeIssueProvider:
                     },
                 },
                 {
-                    "key": "OPS-2",
+                    "key": "PROJ-2",
                     "fields": {
                         "summary": "Fix flaky test",
                         "status": {"name": "In Progress"},
@@ -58,9 +58,9 @@ class FakeIssueProvider:
 def test_issue_service_normalizes_issue_payload() -> None:
     service = IssueService(provider=FakeIssueProvider())
 
-    result = service.get("OPS-1")
+    result = service.get("PROJ-1")
 
-    assert result["key"] == "OPS-1"
+    assert result["key"] == "PROJ-1"
     assert result["status"] == {"name": "Open"}
     assert result["assignee"] == {"display_name": "Alice", "name": "Alice"}
     assert result["reporter"] == {"display_name": "Bob", "name": "Bob"}
@@ -70,7 +70,7 @@ def test_issue_service_exposes_raw_issue_payload() -> None:
     provider = FakeIssueProvider()
     service = IssueService(provider=provider)
 
-    result = service.get_raw("OPS-1")
+    result = service.get_raw("PROJ-1")
 
     assert result["fields"]["summary"] == "Broken deploy"
     assert result["fields"]["status"]["name"] == "Open"
@@ -80,12 +80,12 @@ def test_issue_service_search_normalizes_without_refetching_each_issue() -> None
     provider = FakeIssueProvider()
     service = IssueService(provider=provider)
 
-    result = service.search("project = OPS", start=0, limit=2)
+    result = service.search("project = PROJ", start=0, limit=2)
 
     assert result["total"] == 2
     assert result["start_at"] == 0
     assert result["max_results"] == 2
-    assert [item["key"] for item in result["issues"]] == ["OPS-1", "OPS-2"]
+    assert [item["key"] for item in result["issues"]] == ["PROJ-1", "PROJ-2"]
     assert [item["status"]["name"] for item in result["issues"]] == ["Open", "In Progress"]
     assert provider.get_issue_calls == 0
 
@@ -93,23 +93,23 @@ def test_issue_service_search_normalizes_without_refetching_each_issue() -> None
 def test_issue_service_search_page_returns_collection_page() -> None:
     service = IssueService(provider=FakeIssueProvider())
 
-    page = service.search_page("project = OPS", start=0, limit=2)
+    page = service.search_page("project = PROJ", start=0, limit=2)
 
     assert isinstance(page, CollectionPage)
     assert page.start == 0
     assert page.limit == 2
     assert page.total == 2
-    assert [item["key"] for item in page.items] == ["OPS-1", "OPS-2"]
+    assert [item["key"] for item in page.items] == ["PROJ-1", "PROJ-2"]
 
 
 def test_issue_service_delete_returns_success_payload() -> None:
     class FakeDeleteProvider:
         def delete_issue(self, issue_key: str) -> None:
-            assert issue_key == "OPS-1"
+            assert issue_key == "PROJ-1"
 
     service = IssueService(provider=FakeDeleteProvider())
 
-    assert service.delete("OPS-1") == {"key": "OPS-1", "deleted": True}
+    assert service.delete("PROJ-1") == {"key": "PROJ-1", "deleted": True}
 
 
 def test_issue_service_batch_create_normalizes_created_issues() -> None:
@@ -117,26 +117,26 @@ def test_issue_service_batch_create_normalizes_created_issues() -> None:
         def create_issues(self, issues: list[dict]) -> list[dict]:
             assert issues == [
                 {
-                    "project": {"key": "OPS"},
+                    "project": {"key": "PROJ"},
                     "issuetype": {"name": "Task"},
                     "summary": "First issue",
                 }
             ]
-            return [{"key": "OPS-1"}]
+            return [{"key": "PROJ-1"}]
 
     service = IssueService(provider=FakeBatchProvider())
 
     result = service.batch_create(
         [
             {
-                "project": {"key": "OPS"},
+                "project": {"key": "PROJ"},
                 "issuetype": {"name": "Task"},
                 "summary": "First issue",
             }
         ]
     )
 
-    assert result == {"issues": [{"key": "OPS-1"}]}
+    assert result == {"issues": [{"key": "PROJ-1"}]}
 
 
 def test_issue_service_batch_create_preserves_unexpected_payload_shapes() -> None:

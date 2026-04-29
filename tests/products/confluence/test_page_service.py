@@ -11,13 +11,13 @@ class FakePageProvider:
             "title": "Runbook",
             "type": "page",
             "status": "current",
-            "space": {"key": "OPS", "name": "Operations"},
+            "space": {"key": "PROJ", "name": "Operations"},
             "version": {"number": 7},
             "body": {"view": {"value": "<p>huge html</p>"}},
         }
 
     def get_page_by_title(self, space_key: str, title: str) -> dict | None:
-        assert space_key == "OPS"
+        assert space_key == "PROJ"
         assert title == "Runbook"
         return self.get_page("1234")
 
@@ -33,19 +33,19 @@ class FakePageProvider:
                     "id": "child-1",
                     "title": "Child One",
                     "type": "page",
-                    "space": {"key": "OPS", "name": "Operations"},
+                    "space": {"key": "PROJ", "name": "Operations"},
                     "version": {"number": 1},
                 }
             ]
         return []
 
     def get_space_homepage(self, space_key: str) -> dict:
-        assert space_key == "OPS"
+        assert space_key == "PROJ"
         return {
             "id": "root",
             "title": "Root Page",
             "type": "page",
-            "space": {"key": "OPS", "name": "Operations"},
+            "space": {"key": "PROJ", "name": "Operations"},
             "version": {"number": 1},
         }
 
@@ -64,7 +64,7 @@ class FakePageProvider:
             "id": page_id,
             "title": "Runbook",
             "type": "page",
-            "space": {"key": "OPS", "name": "Operations"},
+            "space": {"key": "PROJ", "name": "Operations"},
             "version": {"number": 8},
         }
 
@@ -74,7 +74,7 @@ class FakePageProvider:
             "id": page_id,
             "title": "Runbook",
             "type": "page",
-            "space": {"key": "OPS", "name": "Operations"},
+            "space": {"key": "PROJ", "name": "Operations"},
             "version": {"number": version},
             "body": {"storage": {"value": body}},
         }
@@ -90,7 +90,7 @@ def test_page_service_normalizes_page_payload() -> None:
         "title": "Runbook",
         "type": "page",
         "status": "current",
-        "space": {"key": "OPS", "name": "Operations"},
+        "space": {"key": "PROJ", "name": "Operations"},
         "version": 7,
         "url": "https://confluence.example.com/pages/viewpage.action?pageId=1234",
     }
@@ -107,7 +107,7 @@ def test_page_service_exposes_raw_page_payload() -> None:
 def test_page_service_get_by_title_normalizes_page_payload() -> None:
     service = PageService(provider=FakePageProvider())
 
-    result = service.get_by_title("OPS", "Runbook")
+    result = service.get_by_title("PROJ", "Runbook")
 
     assert result["id"] == "1234"
     assert result["title"] == "Runbook"
@@ -120,7 +120,7 @@ def test_page_service_get_by_title_returns_none_when_missing() -> None:
 
     service = PageService(provider=MissingPageProvider())
 
-    result = service.get_by_title("OPS", "Missing")
+    result = service.get_by_title("PROJ", "Missing")
 
     assert result is None
 
@@ -144,7 +144,7 @@ def test_page_service_children_normalizes_results() -> None:
 def test_page_service_tree_flattens_hierarchy() -> None:
     service = PageService(provider=FakePageProvider())
 
-    result = service.tree("OPS")
+    result = service.tree("PROJ")
 
     assert result["results"][0]["id"] == "root"
     assert result["results"][0]["depth"] == 0

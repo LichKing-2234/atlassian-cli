@@ -584,16 +584,16 @@ from atlassian_cli.output.renderers import render_output
 
 
 def test_render_output_json_returns_pretty_json() -> None:
-    payload = [{"key": "OPS-1", "summary": "Broken deploy"}]
+    payload = [{"key": "PROJ-1", "summary": "Broken deploy"}]
 
     rendered = render_output(payload, output="json")
 
-    assert '"key": "OPS-1"' in rendered
+    assert '"key": "PROJ-1"' in rendered
     assert rendered.startswith("[")
 
 
 def test_render_output_table_includes_columns() -> None:
-    payload = [{"key": "OPS-1", "summary": "Broken deploy"}]
+    payload = [{"key": "PROJ-1", "summary": "Broken deploy"}]
 
     rendered = render_output(payload, output="table")
 
@@ -775,7 +775,7 @@ def test_root_callback_loads_profile_from_config(tmp_path: Path, monkeypatch) ->
             "jira",
             "issue",
             "get",
-            "OPS-1",
+            "PROJ-1",
             "--output",
             "json",
         ],
@@ -1028,9 +1028,9 @@ class FakeIssueProvider:
 def test_issue_service_normalizes_issue_payload() -> None:
     service = IssueService(provider=FakeIssueProvider())
 
-    result = service.get("OPS-1")
+    result = service.get("PROJ-1")
 
-    assert result["key"] == "OPS-1"
+    assert result["key"] == "PROJ-1"
     assert result["status"] == "Open"
     assert result["assignee"] == "Alice"
 ```
@@ -1056,10 +1056,10 @@ def test_jira_issue_get_outputs_json(monkeypatch) -> None:
         )(),
     )
 
-    result = runner.invoke(app, ["jira", "issue", "get", "OPS-1", "--output", "json"])
+    result = runner.invoke(app, ["jira", "issue", "get", "PROJ-1", "--output", "json"])
 
     assert result.exit_code == 0
-    assert '"key": "OPS-1"' in result.stdout
+    assert '"key": "PROJ-1"' in result.stdout
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -1381,7 +1381,7 @@ class FakePageProvider:
         return {
             "id": page_id,
             "title": "Runbook",
-            "space": {"key": "OPS"},
+            "space": {"key": "PROJ"},
             "version": {"number": 7},
         }
 
@@ -1393,7 +1393,7 @@ def test_page_service_normalizes_page_payload() -> None:
 
     assert result["id"] == "1234"
     assert result["title"] == "Runbook"
-    assert result["space_key"] == "OPS"
+    assert result["space_key"] == "PROJ"
 ```
 
 ```python
@@ -1740,9 +1740,9 @@ class FakeRepoProvider:
 def test_repo_service_normalizes_repo_payload() -> None:
     service = RepoService(provider=FakeRepoProvider())
 
-    result = service.get("OPS", "infra")
+    result = service.get("PROJ", "infra")
 
-    assert result["project_key"] == "OPS"
+    assert result["project_key"] == "PROJ"
     assert result["slug"] == "infra"
     assert result["state"] == "AVAILABLE"
 ```
@@ -1768,7 +1768,7 @@ def test_bitbucket_repo_get_outputs_json(monkeypatch) -> None:
         )(),
     )
 
-    result = runner.invoke(app, ["bitbucket", "repo", "get", "OPS", "infra", "--output", "json"])
+    result = runner.invoke(app, ["bitbucket", "repo", "get", "PROJ", "infra", "--output", "json"])
 
     assert result.exit_code == 0
     assert '"slug": "infra"' in result.stdout
@@ -2181,9 +2181,9 @@ app.add_typer(bitbucket_app, name="bitbucket")
 
 ## Examples
 
-- `atlassian jira issue get OPS-1 --profile prod-jira --output json`
+- `atlassian jira issue get PROJ-1 --profile prod-jira --output json`
 - `atlassian confluence page get 1234 --profile wiki`
-- `atlassian bitbucket repo get OPS infra --profile code`
+- `atlassian bitbucket repo get PROJ infra --profile code`
 
 ## Smoke testing
 

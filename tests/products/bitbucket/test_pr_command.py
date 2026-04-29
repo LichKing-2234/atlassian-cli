@@ -31,7 +31,7 @@ def test_bitbucket_pr_list_outputs_results_envelope(monkeypatch) -> None:
             "bitbucket",
             "pr",
             "list",
-            "OPS",
+            "PROJ",
             "infra",
             "--output",
             "json",
@@ -74,7 +74,7 @@ def test_bitbucket_pr_list_json_keeps_full_payload(monkeypatch) -> None:
             "bitbucket",
             "pr",
             "list",
-            "OPS",
+            "PROJ",
             "infra",
             "--output",
             "json",
@@ -118,7 +118,7 @@ def test_bitbucket_pr_list_markdown_non_tty_uses_summary_payload(monkeypatch) ->
             "bitbucket",
             "pr",
             "list",
-            "OPS",
+            "PROJ",
             "infra",
             "--output",
             "markdown",
@@ -169,7 +169,7 @@ def test_bitbucket_pr_list_uses_interactive_browser_for_markdown_tty(monkeypatch
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "OPS", "infra"],
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "PROJ", "infra"],
     )
 
     assert result.exit_code == 0
@@ -220,7 +220,7 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "OPS", "infra"],
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "PROJ", "infra"],
     )
 
     assert result.exit_code == 0
@@ -277,7 +277,7 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "OPS", "infra"],
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "PROJ", "infra"],
     )
 
     assert result.exit_code == 0
@@ -330,7 +330,7 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_runtime_fails
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "OPS", "infra"],
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "PROJ", "infra"],
     )
 
     assert result.exit_code == 0
