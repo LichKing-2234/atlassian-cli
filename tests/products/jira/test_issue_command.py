@@ -339,6 +339,171 @@ def test_jira_issue_delete_outputs_json(monkeypatch) -> None:
     assert '"deleted": true' in result.stdout
 
 
+def test_jira_issue_get_passes_fields_expand_and_comment_limit(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured: dict[str, object] = {}
+
+    class FakeService:
+        def get(self, issue_key, **kwargs):
+            captured["issue_key"] = issue_key
+            captured["kwargs"] = kwargs
+            return {"key": issue_key, "summary": "Example issue summary"}
+
+    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "get",
+            "DEMO-1",
+            "--fields",
+            "summary,status",
+            "--expand",
+            "renderedFields",
+            "--comment-limit",
+            "5",
+            "--properties",
+            "triage,ops",
+            "--update-history",
+            "false",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["kwargs"] == {
+        "fields": ["summary", "status"],
+        "expand": "renderedFields",
+        "comment_limit": 5,
+        "properties": ["triage", "ops"],
+        "update_history": False,
+    }
+
+
+def test_jira_issue_create_accepts_additional_fields(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured: dict[str, object] = {}
+
+    class FakeService:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return {"message": "Issue created successfully", "issue": {"key": "DEMO-2"}}
+
+    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "create",
+            "--project-key",
+            "DEMO",
+            "--issue-type",
+            "Task",
+            "--summary",
+            "Example issue summary",
+            "--assignee",
+            "example-user",
+            "--description",
+            "Investigate rollout health",
+            "--components",
+            "API,CLI",
+            "--additional-fields",
+            '{"customfield_10001":{"id":"11"}}',
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["components"] == ["API", "CLI"]
+    assert captured["additional_fields"] == {"customfield_10001": {"id": "11"}}
+
+
+def test_jira_issue_update_accepts_fields_attachments_and_additional_fields(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured: dict[str, object] = {}
+
+    class FakeService:
+        def update(self, issue_key, **kwargs):
+            captured["issue_key"] = issue_key
+            captured["kwargs"] = kwargs
+            return {"message": "Issue updated successfully", "issue": {"key": issue_key}}
+
+    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "update",
+            "DEMO-1",
+            "--fields",
+            '{"summary":"Updated summary"}',
+            "--additional-fields",
+            '{"labels":["ops"]}',
+            "--components",
+            "API",
+            "--attachments",
+            '["release.txt"]',
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["kwargs"]["fields"] == {"summary": "Updated summary"}
+    assert captured["kwargs"]["attachments"] == ["release.txt"]
+
+
+def test_jira_issue_batch_create_accepts_inline_json_and_validate_only(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured: dict[str, object] = {}
+
+    class FakeService:
+        def batch_create(self, issues, *, validate_only: bool):
+            captured["issues"] = issues
+            captured["validate_only"] = validate_only
+            return {"message": "Issues validated successfully", "issues": [{"key": "DEMO-1"}]}
+
+    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "batch-create",
+            "--issues",
+            '[{"project_key":"DEMO","summary":"Example issue summary","issue_type":"Task"}]',
+            "--validate-only",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["validate_only"] is True
+    assert captured["issues"][0]["project_key"] == "DEMO"
+
+
 def test_jira_issue_batch_create_reads_json_file(monkeypatch, tmp_path) -> None:
     from atlassian_cli.products.jira.commands import issue as issue_module
 
