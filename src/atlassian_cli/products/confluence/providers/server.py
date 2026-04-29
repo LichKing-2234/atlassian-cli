@@ -88,7 +88,14 @@ class ConfluenceServerProvider:
         return self.client.get_space(space_key)
 
     def list_comments(self, page_id: str) -> list[dict]:
-        return self.client.get_page_comments(page_id)
+        response = self.client.get_page_comments(page_id)
+        if isinstance(response, dict):
+            results = response.get("results")
+            if isinstance(results, list):
+                return [item for item in results if isinstance(item, dict)]
+        if isinstance(response, list):
+            return [item for item in response if isinstance(item, dict)]
+        return []
 
     def add_comment(self, page_id: str, body: str) -> dict:
         return self.client.add_comment(page_id, body)
@@ -99,9 +106,10 @@ class ConfluenceServerProvider:
         if session is None or not base_url:
             raise RuntimeError("replying to comments is unavailable without an HTTP session")
         response = session.post(
-            f"{base_url}/rest/api/content/{comment_id}/child/comment",
+            f"{base_url}/rest/api/content/",
             json={
                 "type": "comment",
+                "container": {"id": comment_id, "type": "comment", "status": "current"},
                 "body": {"storage": {"value": body, "representation": "storage"}},
             },
         )
@@ -112,7 +120,12 @@ class ConfluenceServerProvider:
         return self.client.get_attachments_from_content(page_id)
 
     def upload_attachment(self, page_id: str, file_path: str) -> dict:
-        return self.client.attach_file(file_path, page_id=page_id)
+        response = self.client.attach_file(file_path, page_id=page_id)
+        if isinstance(response, dict):
+            results = response.get("results")
+            if isinstance(results, list) and results and isinstance(results[0], dict):
+                return results[0]
+        return response
 
     def download_attachment(self, attachment_id: str, destination: str) -> dict:
         from pathlib import Path
