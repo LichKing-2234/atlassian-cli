@@ -18,6 +18,7 @@ from tests.e2e.support.runner import run_cli
 def test_load_live_env_uses_defaults(monkeypatch, tmp_path) -> None:
     config_file = tmp_path / "config.toml"
     config_file.write_text("")
+    monkeypatch.setattr("tests.e2e.support.env.DOTENV_FILE", tmp_path / ".env")
     monkeypatch.setenv("ATLASSIAN_E2E", "1")
     monkeypatch.setenv("ATLASSIAN_CONFIG_FILE", str(config_file))
     monkeypatch.delenv("ATLASSIAN_E2E_JIRA_PROJECT", raising=False)
@@ -43,8 +44,8 @@ def test_load_live_env_uses_defaults(monkeypatch, tmp_path) -> None:
 def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
     config_file = tmp_path / "config.toml"
     config_file.write_text("")
-    repo_dotenv = Path(".env")
-    original = repo_dotenv.read_text() if repo_dotenv.exists() else None
+    repo_dotenv = tmp_path / ".env"
+    monkeypatch.setattr("tests.e2e.support.env.DOTENV_FILE", repo_dotenv)
     repo_dotenv.write_text(
         "\n".join(
             [
@@ -72,13 +73,7 @@ def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
     monkeypatch.delenv("ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE", raising=False)
     monkeypatch.delenv("ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO", raising=False)
 
-    try:
-        env = load_live_env()
-    finally:
-        if original is None:
-            repo_dotenv.unlink(missing_ok=True)
-        else:
-            repo_dotenv.write_text(original)
+    env = load_live_env()
 
     assert env == LiveEnv(
         config_file=config_file,
@@ -96,8 +91,8 @@ def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
 def test_load_live_env_prefers_process_env_over_repo_dotenv(monkeypatch, tmp_path) -> None:
     config_file = tmp_path / "config.toml"
     config_file.write_text("")
-    repo_dotenv = Path(".env")
-    original = repo_dotenv.read_text() if repo_dotenv.exists() else None
+    repo_dotenv = tmp_path / ".env"
+    monkeypatch.setattr("tests.e2e.support.env.DOTENV_FILE", repo_dotenv)
     repo_dotenv.write_text(
         "\n".join(
             [
@@ -112,13 +107,7 @@ def test_load_live_env_prefers_process_env_over_repo_dotenv(monkeypatch, tmp_pat
     monkeypatch.setenv("ATLASSIAN_E2E_JIRA_PROJECT", "DEMO")
     monkeypatch.setenv("ATLASSIAN_E2E_CONFLUENCE_SPACE", "~example-user")
 
-    try:
-        env = load_live_env()
-    finally:
-        if original is None:
-            repo_dotenv.unlink(missing_ok=True)
-        else:
-            repo_dotenv.write_text(original)
+    env = load_live_env()
 
     assert env.jira_project == "DEMO"
     assert env.confluence_space == "~example-user"
