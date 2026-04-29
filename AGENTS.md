@@ -11,3 +11,10 @@
 - The same rule applies to PR titles and PR descriptions because they are public-facing project artifacts.
 - Keep real values only when they are required to remain functional for public use, for example the repository's actual GitHub install URL in `README.md`.
 - Before finishing changes that touch README, docs, tests, examples, or sample payloads, scan for real-looking identifiers and normalize them to the approved placeholder set.
+
+## Quality Gates
+
+- If you change CLI behavior, command output, command wiring, or examples, update the matching tests and user-facing documentation in the same change.
+- If you add, remove, or rename CLI subcommands, update `tests/e2e/coverage_manifest.py` and the relevant live e2e coverage.
+- Before claiming completion, run repository verification with the project virtualenv: `python -m pytest -q` and `ruff check README.md pyproject.toml src tests docs`.
+- If you are working from a git worktree, use the shared repository virtualenv when the worktree does not have its own `.venv`.

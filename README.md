@@ -6,29 +6,9 @@ CLI for Atlassian Server and Data Center products.
 
 `python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'`
 
-## GitHub Actions
-
-The repository ships two GitHub Actions workflows:
-
-- `CI`: runs on every pull request and on pushes to `main` and `release/*`
-- `Release`: runs on tags matching `v*` and can also be started manually with `workflow_dispatch`
-
-`CI` is intended to back branch protection for `main` and `release/*`.
-
-## Release Binaries
-
-Tagged releases publish standalone CLI bundles for:
-
-- `linux/amd64`
-- `darwin/arm64`
-
-Each release uploads:
-
-- `atlassian-cli_<version>_linux_amd64.tar.gz`
-- `atlassian-cli_<version>_darwin_arm64.tar.gz`
-- `checksums.txt`
-
 ## Install From GitHub Release
+
+Tagged releases publish standalone bundles for `linux/amd64` and `darwin/arm64`, plus `checksums.txt`.
 
 Install the latest binary release:
 
@@ -120,7 +100,7 @@ Keybindings:
 
 `j/k move  n/p page  / filter  r refresh  enter detail  b/esc back  q quit`
 
-## Default Toolset Alignment
+## Scope
 
 The CLI now covers the `mcp-atlassian` `TOOLSETS=default` Jira and Confluence command groups for Server/Data Center:
 
@@ -129,45 +109,6 @@ The CLI now covers the `mcp-atlassian` `TOOLSETS=default` Jira and Confluence co
 
 One default MCP capability remains explicitly unsupported in CLI v1: Jira batch changelog fetch. That workflow depends on Cloud support, and the current CLI still rejects `--deployment cloud`.
 
-## Smoke testing
+## Contributing
 
-Set `ATLASSIAN_SMOKE=1` and product-specific env vars before running `.venv/bin/python -m pytest tests/integration/test_smoke.py -v`.
-
-## Local e2e testing
-
-The repository includes a local-only live e2e suite that covers every CLI subcommand with at least one real command chain.
-
-Live test modules:
-
-- `tests/e2e/test_jira_live.py`
-- `tests/e2e/test_confluence_live.py`
-- `tests/e2e/test_bitbucket_live.py`
-- `tests/e2e/test_coverage_manifest.py`
-
-The suite shells out through `python -m atlassian_cli.main`, reuses your normal CLI config, and performs real writes against the configured Atlassian instances.
-
-Environment:
-
-- `ATLASSIAN_E2E=1`
-- `ATLASSIAN_CONFIG_FILE=/path/to/config.toml` (optional)
-- `ATLASSIAN_E2E_JIRA_PROJECT=TEST`
-- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~example-user'`
-- `ATLASSIAN_E2E_BITBUCKET_PROJECT='~example_user'`
-- `ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=EXAMPLE`
-- `ATLASSIAN_E2E_BITBUCKET_REPO=example-e2e-repo`
-
-Recommended run:
-
-```bash
-ATLASSIAN_E2E=1 \
-ATLASSIAN_E2E_CONFLUENCE_SPACE='~example-user' \
-ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=EXAMPLE \
-.venv/bin/python -m pytest \
-  tests/e2e/test_coverage_manifest.py \
-  tests/e2e/test_jira_live.py \
-  tests/e2e/test_confluence_live.py \
-  tests/e2e/test_bitbucket_live.py \
-  -m e2e -v
-```
-
-The live suite performs real writes and best-effort cleanup for Jira issues, Confluence pages/comments/attachments, Bitbucket repositories, branches, and pull requests. If cleanup fails, the tests should print residue identifiers for manual removal.
+Contributor workflows, including local setup, smoke tests, live e2e execution, CI/release notes, and maintenance checklists, are documented in [CONTRIBUTING.md](CONTRIBUTING.md).
