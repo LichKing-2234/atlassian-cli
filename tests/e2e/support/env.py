@@ -21,9 +21,9 @@ def load_live_env() -> LiveEnv:
     config_file = Path(os.getenv("ATLASSIAN_CONFIG_FILE", str(DEFAULT_CONFIG_FILE))).expanduser()
     return LiveEnv(
         config_file=config_file,
-        jira_project=os.getenv("ATLASSIAN_E2E_JIRA_PROJECT", "TEST"),
+        jira_project=os.getenv("ATLASSIAN_E2E_JIRA_PROJECT", "DEMO"),
         confluence_space=os.getenv("ATLASSIAN_E2E_CONFLUENCE_SPACE", "~example-user"),
-        bitbucket_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_PROJECT", "~example_user"),
-        bitbucket_create_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT", "EXAMPLE"),
-        bitbucket_repo=os.getenv("ATLASSIAN_E2E_BITBUCKET_REPO", "example-e2e-repo"),
+        bitbucket_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_PROJECT", "DEMO"),
+        bitbucket_create_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT", "DEMO"),
+        bitbucket_repo=os.getenv("ATLASSIAN_E2E_BITBUCKET_REPO", "example-repo"),
     )

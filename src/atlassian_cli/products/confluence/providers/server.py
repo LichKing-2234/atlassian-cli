@@ -149,12 +149,27 @@ class ConfluenceServerProvider:
         else:
             target.parent.mkdir(parents=True, exist_ok=True)
 
-        payload = self.client.get(download_link, not_json_response=True)
-        content = bytes(payload)
-        target.write_bytes(content)
+        session = getattr(self.client, "_session", None)
+        base_url = getattr(self.client, "url", None)
+        bytes_written = 0
+        if session is not None and isinstance(base_url, str) and base_url:
+            download_url = self.client.url_joiner(base_url, download_link)
+            response = session.get(download_url, stream=True)
+            response.raise_for_status()
+            with target.open("wb") as handle:
+                for chunk in response.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    handle.write(chunk)
+                    bytes_written += len(chunk)
+        else:
+            payload = self.client.get(download_link, not_json_response=True)
+            content = bytes(payload)
+            target.write_bytes(content)
+            bytes_written = len(content)
         return {
             "attachment_id": str(attachment_id),
             "title": title,
             "path": str(target),
-            "bytes_written": len(content),
+            "bytes_written": bytes_written,
         }

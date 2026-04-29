@@ -136,3 +136,14 @@ def test_create_repo_forwards_project_key_and_name_to_sdk() -> None:
         False,
         True,
     )
+
+
+def test_create_repo_rejects_non_git_scm_id() -> None:
+    provider = build_provider_with_client(object())
+
+    try:
+        provider.create_repo(project_key="DEMO", name="example-repo", scm_id="hg")
+    except ValueError as exc:
+        assert "Only 'git' is supported" in str(exc)
+    else:
+        raise AssertionError("expected ValueError for unsupported scm_id")

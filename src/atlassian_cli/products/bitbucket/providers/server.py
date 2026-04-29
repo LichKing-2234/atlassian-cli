@@ -54,7 +54,10 @@ class BitbucketServerProvider:
         return self.client.get_repo(project_key, repo_slug)
 
     def create_repo(self, *, project_key: str, name: str, scm_id: str) -> dict:
-        del scm_id
+        if scm_id != "git":
+            raise ValueError(
+                f"Unsupported scm_id for Bitbucket Server: {scm_id!r}. Only 'git' is supported."
+            )
         return self.client.create_repo(project_key, name)
 
     def list_branches(

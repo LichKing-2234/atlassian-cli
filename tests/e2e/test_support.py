@@ -23,11 +23,11 @@ def test_load_live_env_uses_defaults(monkeypatch, tmp_path) -> None:
 
     assert env == LiveEnv(
         config_file=config_file,
-        jira_project="TEST",
+        jira_project="DEMO",
         confluence_space="~example-user",
-        bitbucket_project="~example_user",
-        bitbucket_create_project="EXAMPLE",
-        bitbucket_repo="example-e2e-repo",
+        bitbucket_project="DEMO",
+        bitbucket_create_project="DEMO",
+        bitbucket_repo="example-repo",
     )
 
 
@@ -59,11 +59,11 @@ def test_run_cli_includes_config_file(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(subprocess, "run", fake_run)
     live_env = LiveEnv(
         config_file=tmp_path / "config.toml",
-        jira_project="TEST",
+        jira_project="DEMO",
         confluence_space="~example-user",
-        bitbucket_project="~example_user",
-        bitbucket_create_project="EXAMPLE",
-        bitbucket_repo="example-e2e-repo",
+        bitbucket_project="DEMO",
+        bitbucket_create_project="DEMO",
+        bitbucket_repo="example-repo",
     )
 
     run_cli(live_env, "jira", "project", "list", "--output", "json")

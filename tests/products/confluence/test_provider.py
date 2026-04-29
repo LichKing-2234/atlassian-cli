@@ -29,7 +29,28 @@ def test_search_pages_escapes_query_before_building_cql() -> None:
 def test_download_attachment_writes_file_to_destination(tmp_path) -> None:
     calls: list[tuple[str, object]] = []
 
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_content(self, chunk_size: int):
+            assert chunk_size == 64 * 1024
+            yield b"release=42\n"
+            yield b"status=ok\n"
+
+    class FakeSession:
+        def get(self, url: str, *, stream: bool):
+            calls.append((url, stream))
+            return FakeResponse()
+
     class FakeClient:
+        url = "https://confluence.example.com/wiki"
+        _session = FakeSession()
+
+        @staticmethod
+        def url_joiner(url: str, path: str) -> str:
+            return "/".join(str(part).strip("/") for part in [url, path] if part is not None)
+
         def get(self, path: str, params=None, not_json_response: bool = False):
             calls.append((path, params if params is not None else not_json_response))
             if path == "rest/api/content/55":
@@ -38,9 +59,7 @@ def test_download_attachment_writes_file_to_destination(tmp_path) -> None:
                     "title": "deploy.log",
                     "_links": {"download": "/download/attachments/55/deploy.log"},
                 }
-            assert path == "/download/attachments/55/deploy.log"
-            assert not_json_response is True
-            return b"release=42\nstatus=ok\n"
+            raise AssertionError("download should stream from the HTTP session")
 
     provider = build_provider_with_client(FakeClient())
 
@@ -55,6 +74,10 @@ def test_download_attachment_writes_file_to_destination(tmp_path) -> None:
         "bytes_written": 21,
     }
     assert calls[0] == ("rest/api/content/55", {"expand": "version"})
+    assert calls[1] == (
+        "https://confluence.example.com/wiki/download/attachments/55/deploy.log",
+        True,
+    )
 
 
 def test_upload_attachment_returns_first_result_item(tmp_path) -> None:
