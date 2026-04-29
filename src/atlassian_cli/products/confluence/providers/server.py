@@ -26,21 +26,48 @@ class ConfluenceServerProvider:
         if session is not None:
             patch_session_headers(session, headers or {})
 
-    def get_page(self, page_id: str) -> dict:
-        return self.client.get_page_by_id(page_id, expand="space,version")
+    def get_page(
+        self,
+        page_id: str,
+        *,
+        include_metadata: bool = True,
+        convert_to_markdown: bool = True,
+    ) -> dict:
+        del convert_to_markdown
+        expand = "space,version,body.storage" if include_metadata else "body.storage"
+        return self.client.get_page_by_id(page_id, expand=expand)
 
-    def get_page_by_title(self, space_key: str, title: str) -> dict | None:
-        return self.client.get_page_by_title(space_key, title, expand="space,version")
+    def get_page_by_title(
+        self,
+        space_key: str,
+        title: str,
+        *,
+        include_metadata: bool = True,
+        convert_to_markdown: bool = True,
+    ) -> dict | None:
+        del convert_to_markdown
+        expand = "space,version,body.storage" if include_metadata else "body.storage"
+        return self.client.get_page_by_title(space_key, title, expand=expand)
 
     @staticmethod
     def _quote_cql_string(value: str) -> str:
         escaped = value.replace("\\", "\\\\").replace('"', '\\"')
         return f'"{escaped}"'
 
-    def search_pages(self, query: str, limit: int) -> list[dict]:
-        raw = self.client.cql(
-            f"text ~ {self._quote_cql_string(query)}", limit=limit, expand="space,version"
-        )
+    def search_pages(
+        self,
+        query: str,
+        *,
+        limit: int,
+        spaces_filter: list[str] | None = None,
+    ) -> list[dict]:
+        cql = query
+        if query and not any(token in query for token in ("=", "~", " AND ", " OR ", ">", "<")):
+            cql = f"siteSearch ~ {self._quote_cql_string(query)}"
+        if spaces_filter:
+            quoted_spaces = ", ".join(self._quote_cql_string(item) for item in spaces_filter)
+            cql = f"space in ({quoted_spaces}) AND ({cql})"
+        raw = self.client.cql(cql, limit=limit, expand="space,version,body.storage")
         results = raw.get("results", [])
         return [item.get("content", item) for item in results if isinstance(item, dict)]
 
@@ -66,16 +93,63 @@ class ConfluenceServerProvider:
         self.client.move_page(space_key, page_id, target_id=target_id, position=position)
         return self.get_page(page_id)
 
-    def get_page_version(self, page_id: str, version: int) -> dict:
+    def get_page_version(
+        self,
+        page_id: str,
+        version: int,
+        *,
+        convert_to_markdown: bool = True,
+    ) -> dict:
+        del convert_to_markdown
         return self.client.get_page_by_id(
             page_id, expand="space,version,body.storage", version=version
         )
 
-    def create_page(self, *, space_key: str, title: str, body: str) -> dict:
-        return self.client.create_page(space=space_key, title=title, body=body)
+    def create_page(
+        self,
+        *,
+        space_key: str,
+        title: str,
+        body: str,
+        parent_id: str | None = None,
+        content_format: str = "markdown",
+        enable_heading_anchors: bool = False,
+        emoji: str | None = None,
+    ) -> dict:
+        del enable_heading_anchors, emoji
+        representation = "storage" if content_format == "markdown" else content_format
+        return self.client.create_page(
+            space=space_key,
+            title=title,
+            body=body,
+            parent_id=parent_id,
+            representation=representation,
+        )
 
-    def update_page(self, *, page_id: str, title: str, body: str) -> dict:
-        return self.client.update_page(page_id=page_id, title=title, body=body)
+    def update_page(
+        self,
+        *,
+        page_id: str,
+        title: str,
+        body: str,
+        parent_id: str | None = None,
+        content_format: str = "markdown",
+        is_minor_edit: bool = False,
+        version_comment: str | None = None,
+        enable_heading_anchors: bool = False,
+        emoji: str | None = None,
+    ) -> dict:
+        del enable_heading_anchors, emoji
+        representation = "storage" if content_format == "markdown" else content_format
+        return self.client.update_page(
+            page_id=page_id,
+            title=title,
+            body=body,
+            parent_id=parent_id,
+            representation=representation,
+            minor_edit=is_minor_edit,
+            version_comment=version_comment,
+        )
 
     def delete_page(self, page_id: str) -> dict:
         self.client.remove_page(page_id)
