@@ -57,7 +57,7 @@ def test_jira_project_and_metadata_live(live_env) -> None:
             selected_issue_type = issue_type_meta
             break
     if option_field_id is None or selected_issue_type is None:
-        pytest.skip("no Jira field with allowedValues was discoverable for EEP Task")
+        pytest.skip("no Jira field with allowedValues was discoverable for TEST Task")
 
     option_result = run_json(
         live_env,
@@ -263,7 +263,7 @@ def test_jira_issue_changelog_batch_rejected_live(live_env) -> None:
         "issue",
         "changelog-batch",
         "--issue",
-        "EEP-1",
+        "TEST-1",
         expected="Cloud support is not available in v1",
     )
     assert "Cloud support is not available in v1" in output

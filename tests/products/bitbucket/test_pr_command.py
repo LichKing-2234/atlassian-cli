@@ -182,15 +182,15 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
     sample_item = {
         "id": 24990,
         "state": "OPEN",
-        "author": {"display_name": "huangpeilin"},
-        "title": "[FEAT] CSD-77462 add configurable mic test",
+        "author": {"display_name": "example-author"},
+        "title": "[FEAT] ENG-12345 add configurable mic test",
         "reviewers": [
             {"display_name": "Alice"},
             {"display_name": "Bob"},
             {"display_name": "Carol"},
             {"display_name": "Dave"},
         ],
-        "from_ref": {"display_id": "jira/CSD-77462/release/4.5"},
+        "from_ref": {"display_id": "jira/ENG-12345/release/4.5"},
         "to_ref": {"display_id": "release/4.5"},
         "updated_date": "2026-04-27T13:19:55+00:00",
         "description": "Line one\nLine two\nLine three\nLine four",
@@ -225,10 +225,10 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
 
     assert result.exit_code == 0
     assert (
-        captured["item"] == "24990  OPEN  huangpeilin  [FEAT] CSD-77462 add configurable mic test"
+        captured["item"] == "24990  OPEN  example-author  [FEAT] ENG-12345 add configurable mic test"
     )
     assert "Reviewers: Alice, Bob, Carol, +1 more" in captured["preview"]
-    assert captured["detail"].startswith("# 24990 - [FEAT] CSD-77462 add configurable mic test")
+    assert captured["detail"].startswith("# 24990 - [FEAT] ENG-12345 add configurable mic test")
 
 
 def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(

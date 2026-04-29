@@ -735,7 +735,7 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list SDK rte_sdk --output json`
+- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list SDK example-repo --output json`
 
 Config file example:
 
@@ -752,7 +752,7 @@ auth = "pat"
 accessToken = "$(example-oauth token)"
 ```
 
-- `atlassian bitbucket pr list SDK rte_sdk --output json`
+- `atlassian bitbucket pr list SDK example-repo --output json`
 
 The default `~/.config/atlassian-cli/config.toml` file is auto-created as a template on first use.
 `--profile` remains available for legacy `[profiles.<name>]` compatibility, but top-level `[jira]`, `[confluence]`, and `[bitbucket]` are the primary config shape.

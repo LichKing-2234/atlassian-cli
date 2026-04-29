@@ -123,7 +123,7 @@ Example simplified `json`:
 
 ```json
 {
-  "key": "CSD-74834",
+  "key": "ENG-10001",
   "summary": "【自然选择】flutter和unity混合打包对jar包移除需求",
   "status": { "name": "已解决" },
   "assignee": { "display_name": "example-user" },

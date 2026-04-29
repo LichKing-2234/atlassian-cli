@@ -24,17 +24,17 @@ def test_create_issues_falls_back_to_single_create_on_server_error() -> None:
             cast_calls = calls["issue_create"]
             assert isinstance(cast_calls, list)
             cast_calls.append(fields)
-            return {"key": f"EEP-{len(cast_calls)}"}
+            return {"key": f"TEST-{len(cast_calls)}"}
 
     issues = [
-        {"project": {"key": "EEP"}, "issuetype": {"name": "Task"}, "summary": "one"},
-        {"project": {"key": "EEP"}, "issuetype": {"name": "Task"}, "summary": "two"},
+        {"project": {"key": "TEST"}, "issuetype": {"name": "Task"}, "summary": "one"},
+        {"project": {"key": "TEST"}, "issuetype": {"name": "Task"}, "summary": "two"},
     ]
     provider = build_provider_with_client(FakeClient())
 
     result = provider.create_issues(issues)
 
-    assert result == [{"key": "EEP-1"}, {"key": "EEP-2"}]
+    assert result == [{"key": "TEST-1"}, {"key": "TEST-2"}]
     assert calls["create_issues"] == issues
     assert calls["issue_create"] == issues
 
@@ -68,10 +68,10 @@ def test_get_field_options_filters_issue_type_by_name() -> None:
 
     provider = build_provider_with_client(FakeClient())
 
-    result = provider.get_field_options("priority", "EEP", "任务")
+    result = provider.get_field_options("priority", "TEST", "任务")
 
     assert result == [
         {"id": "1", "name": "Highest"},
         {"id": "2", "name": "High"},
     ]
-    assert calls["args"] == ("EEP", "projects.issuetypes.fields")
+    assert calls["args"] == ("TEST", "projects.issuetypes.fields")

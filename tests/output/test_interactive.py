@@ -322,14 +322,14 @@ def build_preview_source() -> InteractiveCollectionSource:
         {
             "id": 24990,
             "state": "OPEN",
-            "author": "huangpeilin",
-            "title": "[FEAT] CSD-77462 add configurable mic test playback across desktop, mobile, and web",
+            "author": "example-author",
+            "title": "[FEAT] ENG-12345 add configurable mic test playback across desktop, mobile, and web",
             "preview": "\n".join(
                 [
                     "State: OPEN",
-                    "Author: huangpeilin",
+                    "Author: example-author",
                     "Reviewers: Alice, Bob, Carol, +1 more",
-                    "From: jira/CSD-77462/release/4.5",
+                    "From: jira/ENG-12345/release/4.5",
                     "To: release/4.5",
                     "Updated: 2026-04-27 13:19:55",
                     "",
@@ -384,13 +384,13 @@ def test_collection_browser_state_updates_preview_when_selection_changes() -> No
     state = CollectionBrowserState(build_preview_source())
     state.load_initial()
 
-    assert "Author: huangpeilin" in _render_state(state)
+    assert "Author: example-author" in _render_state(state)
 
     state.move(1)
 
     rendered = _render_state(state)
     assert "Author: alice" in rendered
-    assert "Author: huangpeilin" not in rendered
+    assert "Author: example-author" not in rendered
 
 
 def test_render_state_clips_to_terminal_height_and_keeps_preview_visible() -> None:

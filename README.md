@@ -53,8 +53,8 @@ You can also download a tarball from the GitHub Release page and run `atlassian/
 - `atlassian jira issue get OPS-1`
 - `atlassian confluence page get 1234`
 - `atlassian bitbucket repo get OPS infra`
-- `atlassian bitbucket pr list SDK rte_sdk`
-- `atlassian bitbucket pr list SDK rte_sdk --output json`
+- `atlassian bitbucket pr list SDK example-repo`
+- `atlassian bitbucket pr list SDK example-repo --output json`
 
 ## Header injection
 
@@ -62,7 +62,7 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list SDK rte_sdk`
+- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list SDK example-repo`
 
 Config file example:
 
@@ -79,7 +79,7 @@ auth = "pat"
 accessToken = "$(example-oauth token)"
 ```
 
-- `atlassian bitbucket pr list SDK rte_sdk`
+- `atlassian bitbucket pr list SDK example-repo`
 
 Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
 The default `~/.config/atlassian-cli/config.toml` file is auto-created as a template on first use.

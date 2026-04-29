@@ -819,7 +819,7 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list SDK rte_sdk --output json`
+- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list SDK example-repo --output json`
 
 Config file example:
 
@@ -837,7 +837,7 @@ auth = "pat"
 X-Request-Source = "example-oauth"
 ```
 
-- `atlassian --profile code bitbucket pr list SDK rte_sdk --output json`
+- `atlassian --profile code bitbucket pr list SDK example-repo --output json`
 
 Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
 ````

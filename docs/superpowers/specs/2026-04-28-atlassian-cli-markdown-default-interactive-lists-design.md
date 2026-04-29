@@ -139,11 +139,11 @@ Collection markdown should:
 Example shape:
 
 ```md
-1. PR #24996 - [FIX] CSD-78047: add che.audio.select_mic_orientation for iOS
+1. PR #24996 - [FIX] ENG-23456: add che.audio.select_mic_orientation for iOS
    - State: OPEN
    - Author: 钟环
    - Reviewers: SDK, haolianfu, shenxuebo, +3 more
-   - From: jira/CSD-78047/release/4.6
+   - From: jira/ENG-23456/release/4.6
    - To: release/4.6
    - Updated: 2026-04-27 14:19:03
 ```
@@ -164,11 +164,11 @@ Example shape:
 
 ```md
 # PR #24996
-[FIX] CSD-78047: add che.audio.select_mic_orientation for iOS
+[FIX] ENG-23456: add che.audio.select_mic_orientation for iOS
 
 - State: OPEN
 - Author: 钟环
-- From: jira/CSD-78047/release/4.6
+- From: jira/ENG-23456/release/4.6
 - To: release/4.6
 - Updated: 2026-04-27 14:19:03
 
