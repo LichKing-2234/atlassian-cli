@@ -91,14 +91,14 @@ The current CLI surface to cover is:
 The live suite will use these operator-provided resources:
 
 - Jira project: `TEST`
-- Confluence space: `~user@example.com`
+- Confluence space: `~example-user`
 - Bitbucket project key: `~example_user`
 - Bitbucket seed repository: `example-e2e-repo`
 - Bitbucket repo-create project key: `EXAMPLE`
 
 The suite will assume:
 
-- Confluence writes are allowed in `~user@example.com`
+- Confluence writes are allowed in `~example-user`
 - Jira issue creation and transition are allowed in `TEST`
 - Bitbucket repository creation is allowed under `~example_user`
 - Bitbucket PR creation and merge are allowed in `example-e2e-repo`
@@ -166,7 +166,7 @@ Optional config override:
 Resource defaults:
 
 - `ATLASSIAN_E2E_JIRA_PROJECT=TEST`
-- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~user@example.com'`
+- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~example-user'`
 - `ATLASSIAN_E2E_BITBUCKET_PROJECT='~example_user'`
 - `ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=EXAMPLE`
 - `ATLASSIAN_E2E_BITBUCKET_REPO=example-e2e-repo`
@@ -307,7 +307,7 @@ Jira live coverage should center on temporary issues in `TEST`.
 
 ### Confluence
 
-Confluence live coverage should center on temporary pages in `~user@example.com`.
+Confluence live coverage should center on temporary pages in `~example-user`.
 
 - one primary page for `create/get/update/history/diff/delete`
 - one child page and one target page for `children/move`

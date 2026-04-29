@@ -31,7 +31,7 @@ The current table renderer converts every cell with `str(value)`.
 That creates poor terminal output for normalized resource shapes that intentionally contain small nested objects and lists. Common examples include:
 
 - `{"name": "In Progress"}`
-- `{"display_name": "Example Author", "email": "example-user@example.com"}`
+- `{"display_name": "Example Author", "email": "example-user-id"}`
 - `["prod", "sev1", "backend"]`
 
 These values are technically correct but hard to scan in a fixed-width terminal. They also increase wrapping because the output includes braces, quotes, key names, and Python-specific formatting that do not add much value in a human-oriented table view.

@@ -465,7 +465,7 @@ def test_load_live_env_uses_defaults(monkeypatch, tmp_path) -> None:
     assert env == LiveEnv(
         config_file=config_file,
         jira_project="TEST",
-        confluence_space="~user@example.com",
+        confluence_space="~example-user",
         bitbucket_project="~example_user",
         bitbucket_create_project="EXAMPLE",
         bitbucket_repo="example-e2e-repo",
@@ -501,7 +501,7 @@ def test_run_cli_includes_config_file(monkeypatch, tmp_path) -> None:
     live_env = LiveEnv(
         config_file=tmp_path / "config.toml",
         jira_project="TEST",
-        confluence_space="~user@example.com",
+        confluence_space="~example-user",
         bitbucket_project="~example_user",
         bitbucket_create_project="EXAMPLE",
         bitbucket_repo="example-e2e-repo",
@@ -576,7 +576,7 @@ def load_live_env() -> LiveEnv:
     return LiveEnv(
         config_file=config_file,
         jira_project=os.getenv("ATLASSIAN_E2E_JIRA_PROJECT", "TEST"),
-        confluence_space=os.getenv("ATLASSIAN_E2E_CONFLUENCE_SPACE", "~user@example.com"),
+        confluence_space=os.getenv("ATLASSIAN_E2E_CONFLUENCE_SPACE", "~example-user"),
         bitbucket_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_PROJECT", "~example_user"),
         bitbucket_create_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT", "EXAMPLE"),
         bitbucket_repo=os.getenv("ATLASSIAN_E2E_BITBUCKET_REPO", "example-e2e-repo"),
@@ -1892,7 +1892,7 @@ Environment:
 - `ATLASSIAN_E2E=1`
 - `ATLASSIAN_CONFIG_FILE=/path/to/config.toml` (optional)
 - `ATLASSIAN_E2E_JIRA_PROJECT=TEST`
-- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~user@example.com'`
+- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~example-user'`
 - `ATLASSIAN_E2E_BITBUCKET_PROJECT='~example_user'`
 - `ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=EXAMPLE`
 - `ATLASSIAN_E2E_BITBUCKET_REPO=example-e2e-repo`

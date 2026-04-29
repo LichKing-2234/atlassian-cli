@@ -151,7 +151,7 @@ Environment:
 - `ATLASSIAN_E2E=1`
 - `ATLASSIAN_CONFIG_FILE=/path/to/config.toml` (optional)
 - `ATLASSIAN_E2E_JIRA_PROJECT=TEST`
-- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~user@example.com'`
+- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~example-user'`
 - `ATLASSIAN_E2E_BITBUCKET_PROJECT='~example_user'`
 - `ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=EXAMPLE`
 - `ATLASSIAN_E2E_BITBUCKET_REPO=example-e2e-repo`
@@ -160,7 +160,7 @@ Recommended run:
 
 ```bash
 ATLASSIAN_E2E=1 \
-ATLASSIAN_E2E_CONFLUENCE_SPACE='~user@example.com' \
+ATLASSIAN_E2E_CONFLUENCE_SPACE='~example-user' \
 ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=EXAMPLE \
 .venv/bin/python -m pytest \
   tests/e2e/test_coverage_manifest.py \

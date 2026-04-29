@@ -24,7 +24,7 @@ def test_load_live_env_uses_defaults(monkeypatch, tmp_path) -> None:
     assert env == LiveEnv(
         config_file=config_file,
         jira_project="TEST",
-        confluence_space="~user@example.com",
+        confluence_space="~example-user",
         bitbucket_project="~example_user",
         bitbucket_create_project="EXAMPLE",
         bitbucket_repo="example-e2e-repo",
@@ -60,7 +60,7 @@ def test_run_cli_includes_config_file(monkeypatch, tmp_path) -> None:
     live_env = LiveEnv(
         config_file=tmp_path / "config.toml",
         jira_project="TEST",
-        confluence_space="~user@example.com",
+        confluence_space="~example-user",
         bitbucket_project="~example_user",
         bitbucket_create_project="EXAMPLE",
         bitbucket_repo="example-e2e-repo",
