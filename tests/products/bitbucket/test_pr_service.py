@@ -75,7 +75,7 @@ class FakePullRequestProvider:
 def test_pull_request_service_normalizes_payload() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.get("AI", "agora-skills", 42)
+    result = service.get("AI", "example-skills", 42)
 
     assert result == {
         "id": 42,
@@ -96,7 +96,7 @@ def test_pull_request_service_normalizes_payload() -> None:
 def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.list("AI", "agora-skills", "OPEN")
+    result = service.list("AI", "example-skills", "OPEN")
 
     assert result == {
         "results": [
@@ -124,7 +124,7 @@ def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> No
 def test_pull_request_service_list_accepts_start_and_limit() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.list("AI", "agora-skills", "OPEN", start=25, limit=10)
+    result = service.list("AI", "example-skills", "OPEN", start=25, limit=10)
 
     assert result["results"][0]["id"] == 42
     assert result["start_at"] == 25
@@ -134,7 +134,7 @@ def test_pull_request_service_list_accepts_start_and_limit() -> None:
 def test_pull_request_service_list_page_returns_collection_page() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    page = service.list_page("AI", "agora-skills", "OPEN", start=25, limit=10)
+    page = service.list_page("AI", "example-skills", "OPEN", start=25, limit=10)
 
     assert isinstance(page, CollectionPage)
     assert page.start == 25
@@ -146,7 +146,7 @@ def test_pull_request_service_list_page_returns_collection_page() -> None:
 def test_pull_request_service_exposes_raw_payload() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.get_raw("AI", "agora-skills", 42)
+    result = service.get_raw("AI", "example-skills", 42)
 
     assert "version" in result
 

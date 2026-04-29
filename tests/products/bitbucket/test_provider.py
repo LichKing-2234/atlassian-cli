@@ -124,14 +124,14 @@ def test_create_repo_forwards_project_key_and_name_to_sdk() -> None:
     provider = build_provider_with_client(FakeClient())
 
     result = provider.create_repo(
-        project_key="~luxuhui_agora.io",
+        project_key="~example_user",
         name="atlassian-cli-e2e-temp",
         scm_id="git",
     )
 
     assert result["slug"] == "atlassian-cli-e2e-temp"
     assert calls["args"] == (
-        "~luxuhui_agora.io",
+        "~example_user",
         "atlassian-cli-e2e-temp",
         False,
         True,

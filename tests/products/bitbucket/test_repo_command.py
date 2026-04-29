@@ -70,7 +70,7 @@ def test_bitbucket_repo_create_outputs_json(monkeypatch) -> None:
             "repo",
             "create",
             "--project",
-            "~luxuhui_agora.io",
+            "~example_user",
             "--name",
             "atlassian-cli-e2e-temp",
             "--output",

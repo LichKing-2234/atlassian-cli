@@ -90,17 +90,18 @@ The current CLI surface to cover is:
 
 The live suite will use these operator-provided resources:
 
-- Jira project: `EEP`
-- Confluence space: `ADC`
-- Bitbucket project key: `~luxuhui_agora.io`
-- Bitbucket seed repository: `atlassian-cli-e2e-test`
+- Jira project: `TEST`
+- Confluence space: `~user@example.com`
+- Bitbucket project key: `~example_user`
+- Bitbucket seed repository: `example-e2e-repo`
+- Bitbucket repo-create project key: `EXAMPLE`
 
 The suite will assume:
 
-- Confluence writes are allowed in `ADC`
-- Jira issue creation and transition are allowed in `EEP`
-- Bitbucket repository creation is allowed under `~luxuhui_agora.io`
-- Bitbucket PR creation and merge are allowed in `atlassian-cli-e2e-test`
+- Confluence writes are allowed in `~user@example.com`
+- Jira issue creation and transition are allowed in `TEST`
+- Bitbucket repository creation is allowed under `~example_user`
+- Bitbucket PR creation and merge are allowed in `example-e2e-repo`
 - test setup may use regular `git clone`, `git commit`, and `git push` for Bitbucket PR preparation
 
 ## Test Architecture
@@ -164,10 +165,11 @@ Optional config override:
 
 Resource defaults:
 
-- `ATLASSIAN_E2E_JIRA_PROJECT=EEP`
-- `ATLASSIAN_E2E_CONFLUENCE_SPACE=ADC`
-- `ATLASSIAN_E2E_BITBUCKET_PROJECT='~luxuhui_agora.io'`
-- `ATLASSIAN_E2E_BITBUCKET_REPO=atlassian-cli-e2e-test`
+- `ATLASSIAN_E2E_JIRA_PROJECT=TEST`
+- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~user@example.com'`
+- `ATLASSIAN_E2E_BITBUCKET_PROJECT='~example_user'`
+- `ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=EXAMPLE`
+- `ATLASSIAN_E2E_BITBUCKET_REPO=example-e2e-repo`
 
 The helper layer should centralize these values in a typed environment object so tests do not repeatedly parse raw environment strings.
 
@@ -284,7 +286,7 @@ The suite should prefer small scenario tests that each cover multiple related su
 
 ### Jira
 
-Jira live coverage should center on temporary issues in `EEP`.
+Jira live coverage should center on temporary issues in `TEST`.
 
 - `issue create` creates a temporary issue
 - `issue update` modifies summary and description
@@ -298,14 +300,14 @@ Jira live coverage should center on temporary issues in `EEP`.
 `field options` must not hard-code a field id. The test should:
 
 1. run `field search`
-2. pick a field that exposes allowed values in `issue_createmeta` for `EEP` and a known issue type such as `Task`
+2. pick a field that exposes allowed values in `issue_createmeta` for `TEST` and a known issue type such as `Task`
 3. assert the returned options list shape
 
 `user get` should resolve a username discovered from `user search` rather than baking a person-specific identifier into the repository.
 
 ### Confluence
 
-Confluence live coverage should center on temporary pages in `ADC`.
+Confluence live coverage should center on temporary pages in `~user@example.com`.
 
 - one primary page for `create/get/update/history/diff/delete`
 - one child page and one target page for `children/move`
@@ -324,7 +326,7 @@ Bitbucket live coverage needs both a fixed repository and temporary repositories
 
 Fixed repository:
 
-- project key: `~luxuhui_agora.io`
+- project key: `~example_user`
 - repo slug: `atlassian-cli-e2e-test`
 
 Temporary repo:

@@ -105,14 +105,14 @@ def test_create_repo_forwards_project_key_and_name_to_sdk() -> None:
     provider = build_provider_with_client(FakeClient())
 
     result = provider.create_repo(
-        project_key="~luxuhui_agora.io",
+        project_key="~example_user",
         name="atlassian-cli-e2e-temp",
         scm_id="git",
     )
 
     assert result["slug"] == "atlassian-cli-e2e-temp"
     assert calls["args"] == (
-        "~luxuhui_agora.io",
+        "~example_user",
         "atlassian-cli-e2e-temp",
         False,
         True,
@@ -125,25 +125,25 @@ Append this service test to `tests/products/bitbucket/test_repo_service.py`:
 def test_repo_service_create_normalizes_repo_payload() -> None:
     class CreateRepoProvider(FakeRepoProvider):
         def create_repo(self, project_key: str, name: str, scm_id: str) -> dict:
-            assert project_key == "~luxuhui_agora.io"
+            assert project_key == "~example_user"
             assert name == "atlassian-cli-e2e-temp"
             assert scm_id == "git"
             return {
                 "slug": "atlassian-cli-e2e-temp",
                 "name": "atlassian-cli-e2e-temp",
                 "state": "AVAILABLE",
-                "project": {"key": "~luxuhui_agora.io", "name": "luxuhui_agora.io"},
+                "project": {"key": "~example_user", "name": "example_user"},
             }
 
     service = RepoService(provider=CreateRepoProvider())
 
-    result = service.create("~luxuhui_agora.io", "atlassian-cli-e2e-temp", "git")
+    result = service.create("~example_user", "atlassian-cli-e2e-temp", "git")
 
     assert result == {
         "slug": "atlassian-cli-e2e-temp",
         "name": "atlassian-cli-e2e-temp",
         "state": "AVAILABLE",
-        "project": {"key": "~luxuhui_agora.io", "name": "luxuhui_agora.io"},
+        "project": {"key": "~example_user", "name": "example_user"},
     }
 ```
 
@@ -178,7 +178,7 @@ def test_bitbucket_repo_create_outputs_json(monkeypatch) -> None:
             "repo",
             "create",
             "--project",
-            "~luxuhui_agora.io",
+            "~example_user",
             "--name",
             "atlassian-cli-e2e-temp",
             "--output",
@@ -464,10 +464,11 @@ def test_load_live_env_uses_defaults(monkeypatch, tmp_path) -> None:
 
     assert env == LiveEnv(
         config_file=config_file,
-        jira_project="EEP",
-        confluence_space="ADC",
-        bitbucket_project="~luxuhui_agora.io",
-        bitbucket_repo="atlassian-cli-e2e-test",
+        jira_project="TEST",
+        confluence_space="~user@example.com",
+        bitbucket_project="~example_user",
+        bitbucket_create_project="EXAMPLE",
+        bitbucket_repo="example-e2e-repo",
     )
 
 
@@ -499,10 +500,11 @@ def test_run_cli_includes_config_file(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(subprocess, "run", fake_run)
     live_env = LiveEnv(
         config_file=tmp_path / "config.toml",
-        jira_project="EEP",
-        confluence_space="ADC",
-        bitbucket_project="~luxuhui_agora.io",
-        bitbucket_repo="atlassian-cli-e2e-test",
+        jira_project="TEST",
+        confluence_space="~user@example.com",
+        bitbucket_project="~example_user",
+        bitbucket_create_project="EXAMPLE",
+        bitbucket_repo="example-e2e-repo",
     )
 
     run_cli(live_env, "jira", "project", "list", "--output", "json")
@@ -573,10 +575,11 @@ def load_live_env() -> LiveEnv:
     config_file = Path(os.getenv("ATLASSIAN_CONFIG_FILE", str(DEFAULT_CONFIG_FILE))).expanduser()
     return LiveEnv(
         config_file=config_file,
-        jira_project=os.getenv("ATLASSIAN_E2E_JIRA_PROJECT", "EEP"),
-        confluence_space=os.getenv("ATLASSIAN_E2E_CONFLUENCE_SPACE", "ADC"),
-        bitbucket_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_PROJECT", "~luxuhui_agora.io"),
-        bitbucket_repo=os.getenv("ATLASSIAN_E2E_BITBUCKET_REPO", "atlassian-cli-e2e-test"),
+        jira_project=os.getenv("ATLASSIAN_E2E_JIRA_PROJECT", "TEST"),
+        confluence_space=os.getenv("ATLASSIAN_E2E_CONFLUENCE_SPACE", "~user@example.com"),
+        bitbucket_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_PROJECT", "~example_user"),
+        bitbucket_create_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT", "EXAMPLE"),
+        bitbucket_repo=os.getenv("ATLASSIAN_E2E_BITBUCKET_REPO", "example-e2e-repo"),
     )
 ```
 
@@ -978,7 +981,7 @@ def test_jira_project_and_metadata_live(live_env) -> None:
             break
 
     if option_field is None or option_result is None:
-        pytest.skip("no Jira field with allowedValues was discoverable for EEP Task")
+        pytest.skip("no Jira field with allowedValues was discoverable for TEST Task")
 
     assert option_result["results"]
 
@@ -1170,7 +1173,7 @@ def test_jira_issue_changelog_batch_rejected_live(live_env) -> None:
         "issue",
         "changelog-batch",
         "--issue",
-        "EEP-1",
+        "TEST-1",
         expected="Cloud support is not available in v1",
     )
     assert "Cloud support is not available in v1" in output
@@ -1888,10 +1891,11 @@ Environment:
 
 - `ATLASSIAN_E2E=1`
 - `ATLASSIAN_CONFIG_FILE=/path/to/config.toml` (optional)
-- `ATLASSIAN_E2E_JIRA_PROJECT=EEP`
-- `ATLASSIAN_E2E_CONFLUENCE_SPACE=ADC`
-- `ATLASSIAN_E2E_BITBUCKET_PROJECT='~luxuhui_agora.io'`
-- `ATLASSIAN_E2E_BITBUCKET_REPO=atlassian-cli-e2e-test`
+- `ATLASSIAN_E2E_JIRA_PROJECT=TEST`
+- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~user@example.com'`
+- `ATLASSIAN_E2E_BITBUCKET_PROJECT='~example_user'`
+- `ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=EXAMPLE`
+- `ATLASSIAN_E2E_BITBUCKET_REPO=example-e2e-repo`
 
 Recommended runs:
 

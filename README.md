@@ -62,21 +62,21 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.agoralab.co --header 'accessToken: ...' bitbucket pr list SDK rte_sdk`
+- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list SDK rte_sdk`
 
 Config file example:
 
 ```toml
 [headers]
-X-Request-Source = "agora-oauth"
+X-Request-Source = "example-oauth"
 
 [bitbucket]
 deployment = "dc"
-url = "https://bitbucket.agoralab.co"
+url = "https://bitbucket.example.com"
 auth = "pat"
 
 [bitbucket.headers]
-accessToken = "$(agora-oauth token)"
+accessToken = "$(example-oauth token)"
 ```
 
 - `atlassian bitbucket pr list SDK rte_sdk`
@@ -150,18 +150,18 @@ Environment:
 
 - `ATLASSIAN_E2E=1`
 - `ATLASSIAN_CONFIG_FILE=/path/to/config.toml` (optional)
-- `ATLASSIAN_E2E_JIRA_PROJECT=EEP`
-- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~luxuhui@agora.io'`
-- `ATLASSIAN_E2E_BITBUCKET_PROJECT='~luxuhui_agora.io'`
-- `ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=ADUC`
-- `ATLASSIAN_E2E_BITBUCKET_REPO=atlassian-cli-e2e-test`
+- `ATLASSIAN_E2E_JIRA_PROJECT=TEST`
+- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~user@example.com'`
+- `ATLASSIAN_E2E_BITBUCKET_PROJECT='~example_user'`
+- `ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=EXAMPLE`
+- `ATLASSIAN_E2E_BITBUCKET_REPO=example-e2e-repo`
 
 Recommended run:
 
 ```bash
 ATLASSIAN_E2E=1 \
-ATLASSIAN_E2E_CONFLUENCE_SPACE='~luxuhui@agora.io' \
-ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=ADUC \
+ATLASSIAN_E2E_CONFLUENCE_SPACE='~user@example.com' \
+ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=EXAMPLE \
 .venv/bin/python -m pytest \
   tests/e2e/test_coverage_manifest.py \
   tests/e2e/test_jira_live.py \

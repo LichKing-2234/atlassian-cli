@@ -39,7 +39,7 @@ def test_load_config_reads_top_level_product_sections(tmp_path: Path) -> None:
         token = "secret"
 
         [jira.headers]
-        accessToken = "$(agora-oauth token)"
+        accessToken = "$(example-oauth token)"
 
         [bitbucket]
         deployment = "dc"
@@ -54,7 +54,7 @@ def test_load_config_reads_top_level_product_sections(tmp_path: Path) -> None:
     assert config.headers == {"X-Request-Source": "config-default"}
     assert config.product_config(Product.JIRA).url == "https://jira.example.com"
     assert config.product_config(Product.JIRA).headers == {
-        "accessToken": "$(agora-oauth token)",
+        "accessToken": "$(example-oauth token)",
     }
     assert config.product_config(Product.BITBUCKET).auth is AuthMode.PAT
 

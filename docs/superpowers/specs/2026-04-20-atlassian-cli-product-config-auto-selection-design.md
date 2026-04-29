@@ -8,7 +8,7 @@ The new primary config shape is:
 
 ```toml
 [headers]
-# accessToken = "$(agora-oauth token)"
+# accessToken = "$(example-oauth token)"
 
 [jira]
 deployment = "server"
@@ -18,7 +18,7 @@ username = "alice"
 token = "secret"
 
 [jira.headers]
-accessToken = "$(agora-oauth token)"
+accessToken = "$(example-oauth token)"
 
 [confluence]
 deployment = "dc"

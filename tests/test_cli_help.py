@@ -40,7 +40,7 @@ def test_nested_command_help_does_not_resolve_runtime_config(tmp_path, monkeypat
         token = "repo-token"
 
         [bitbucket.headers]
-        accessToken = "$(agora-oauth token)"
+        accessToken = "$(example-oauth token)"
         """.strip()
     )
     commands: list[str] = []

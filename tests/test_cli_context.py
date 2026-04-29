@@ -132,7 +132,7 @@ def test_root_callback_uses_bitbucket_product_headers_without_profile(
         token = "repo-token"
 
         [bitbucket.headers]
-        accessToken = "$(agora-oauth token)"
+        accessToken = "$(example-oauth token)"
         """.strip()
     )
 
@@ -193,7 +193,7 @@ def test_root_callback_flag_headers_override_config_headers(
         token = "repo-token"
 
         [bitbucket.headers]
-        accessToken = "$(agora-oauth token)"
+        accessToken = "$(example-oauth token)"
         """.strip()
     )
 

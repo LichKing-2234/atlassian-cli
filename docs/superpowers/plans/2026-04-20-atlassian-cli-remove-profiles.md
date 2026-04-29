@@ -82,7 +82,7 @@ from pathlib import Path
 
 
 DEFAULT_CONFIG_TEMPLATE = """[headers]
-# accessToken = "$(agora-oauth token)"
+# accessToken = "$(example-oauth token)"
 
 [jira]
 # deployment = "server"
@@ -92,7 +92,7 @@ DEFAULT_CONFIG_TEMPLATE = """[headers]
 # token = "secret"
 
 [jira.headers]
-# accessToken = "$(agora-oauth token)"
+# accessToken = "$(example-oauth token)"
 
 [confluence]
 # deployment = "dc"
@@ -101,7 +101,7 @@ DEFAULT_CONFIG_TEMPLATE = """[headers]
 # token = "secret"
 
 [confluence.headers]
-# accessToken = "$(agora-oauth token)"
+# accessToken = "$(example-oauth token)"
 
 [bitbucket]
 # deployment = "dc"
@@ -110,7 +110,7 @@ DEFAULT_CONFIG_TEMPLATE = """[headers]
 # token = "secret"
 
 [bitbucket.headers]
-# accessToken = "$(agora-oauth token)"
+# accessToken = "$(example-oauth token)"
 """
 
 
@@ -169,7 +169,7 @@ def test_load_config_reads_top_level_product_sections(tmp_path: Path) -> None:
         token = "secret"
 
         [jira.headers]
-        accessToken = "$(agora-oauth token)"
+        accessToken = "$(example-oauth token)"
 
         [bitbucket]
         deployment = "dc"
@@ -184,7 +184,7 @@ def test_load_config_reads_top_level_product_sections(tmp_path: Path) -> None:
     assert config.headers == {"X-Request-Source": "config-default"}
     assert config.product_config(Product.JIRA).url == "https://jira.example.com"
     assert config.product_config(Product.JIRA).headers == {
-        "accessToken": "$(agora-oauth token)",
+        "accessToken": "$(example-oauth token)",
     }
     assert config.product_config(Product.BITBUCKET).auth is AuthMode.PAT
 
@@ -408,7 +408,7 @@ def test_root_callback_uses_bitbucket_product_headers_without_profile(tmp_path: 
         token = "repo-token"
 
         [bitbucket.headers]
-        accessToken = "$(agora-oauth token)"
+        accessToken = "$(example-oauth token)"
         """.strip()
     )
 
@@ -613,21 +613,21 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.agoralab.co --header 'accessToken: ...' bitbucket pr list SDK rte_sdk --output json`
+- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list SDK rte_sdk --output json`
 
 Config file example:
 
 ```toml
 [headers]
-X-Request-Source = "agora-oauth"
+X-Request-Source = "example-oauth"
 
 [bitbucket]
 deployment = "dc"
-url = "https://bitbucket.agoralab.co"
+url = "https://bitbucket.example.com"
 auth = "pat"
 
 [bitbucket.headers]
-accessToken = "$(agora-oauth token)"
+accessToken = "$(example-oauth token)"
 ```
 
 - `atlassian bitbucket pr list SDK rte_sdk --output json`

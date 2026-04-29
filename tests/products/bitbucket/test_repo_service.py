@@ -66,23 +66,23 @@ def test_repo_service_list_returns_results_envelope() -> None:
 def test_repo_service_create_normalizes_repo_payload() -> None:
     class CreateRepoProvider(FakeRepoProvider):
         def create_repo(self, project_key: str, name: str, scm_id: str) -> dict:
-            assert project_key == "~luxuhui_agora.io"
+            assert project_key == "~example_user"
             assert name == "atlassian-cli-e2e-temp"
             assert scm_id == "git"
             return {
                 "slug": "atlassian-cli-e2e-temp",
                 "name": "atlassian-cli-e2e-temp",
                 "state": "AVAILABLE",
-                "project": {"key": "~luxuhui_agora.io", "name": "luxuhui_agora.io"},
+                "project": {"key": "~example_user", "name": "example_user"},
             }
 
     service = RepoService(provider=CreateRepoProvider())
 
-    result = service.create("~luxuhui_agora.io", "atlassian-cli-e2e-temp", "git")
+    result = service.create("~example_user", "atlassian-cli-e2e-temp", "git")
 
     assert result == {
         "slug": "atlassian-cli-e2e-temp",
         "name": "atlassian-cli-e2e-temp",
         "state": "AVAILABLE",
-        "project": {"key": "~luxuhui_agora.io", "name": "luxuhui_agora.io"},
+        "project": {"key": "~example_user", "name": "example_user"},
     }

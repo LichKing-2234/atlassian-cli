@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add top-level and profile-scoped config-backed HTTP headers, including `$(...)` command substitution in header values, so users can source values from tools such as `agora-oauth` directly from `config.toml`.
+**Goal:** Add top-level and profile-scoped config-backed HTTP headers, including `$(...)` command substitution in header values, so users can source values from tools such as `example-oauth` directly from `config.toml`.
 
 **Architecture:** Extend config loading to understand `[headers]` and `[profiles.<name>.headers]`, then resolve those header maps at runtime with command substitution before merging them with repeated `--header` flags. Keep header parsing for CLI flags in `auth/headers.py` and move config-header command evaluation into a focused config helper.
 
@@ -80,7 +80,7 @@ def test_load_config_reads_top_level_and_profile_headers(tmp_path: Path) -> None
         token = "legacy-token"
 
         [profiles.prod_bitbucket.headers]
-        accessToken = "$(agora-oauth token --profile prod_bitbucket)"
+        accessToken = "$(example-oauth token --profile prod_bitbucket)"
         """.strip()
     )
 
@@ -90,7 +90,7 @@ def test_load_config_reads_top_level_and_profile_headers(tmp_path: Path) -> None
         "X-Request-Source": "config-default",
     }
     assert config.profiles["prod_bitbucket"].headers == {
-        "accessToken": "$(agora-oauth token --profile prod_bitbucket)",
+        "accessToken": "$(example-oauth token --profile prod_bitbucket)",
     }
 
 
@@ -238,10 +238,10 @@ from atlassian_cli.core.errors import ConfigError
 
 def test_substitute_header_commands_replaces_command_output() -> None:
     resolved = substitute_header_commands(
-        value="Bearer $(agora-oauth token)",
+        value="Bearer $(example-oauth token)",
         source="[headers]",
         header_name="Authorization",
-        runner=lambda command: "oauth-token" if command == "agora-oauth token" else "",
+        runner=lambda command: "oauth-token" if command == "example-oauth token" else "",
     )
 
     assert resolved == "Bearer oauth-token"
@@ -250,10 +250,10 @@ def test_substitute_header_commands_replaces_command_output() -> None:
 def test_substitute_header_commands_supports_multiple_substitutions() -> None:
     outputs = {
         "whoami": "alice",
-        "agora-oauth token": "oauth-token",
+        "example-oauth token": "oauth-token",
     }
     resolved = substitute_header_commands(
-        value="User $(whoami) Token $(agora-oauth token)",
+        value="User $(whoami) Token $(example-oauth token)",
         source="[profiles.code.headers]",
         header_name="X-Debug",
         runner=lambda command: outputs[command],
@@ -265,7 +265,7 @@ def test_substitute_header_commands_supports_multiple_substitutions() -> None:
 def test_substitute_header_commands_rejects_malformed_syntax() -> None:
     with pytest.raises(ConfigError, match="Malformed"):
         substitute_header_commands(
-            value="$(agora-oauth token",
+            value="$(example-oauth token",
             source="[headers]",
             header_name="accessToken",
             runner=lambda command: "ignored",
@@ -295,7 +295,7 @@ def test_substitute_header_commands_rejects_nested_commands() -> None:
 def test_substitute_header_commands_rejects_empty_output() -> None:
     with pytest.raises(ConfigError, match="empty output"):
         substitute_header_commands(
-            value="$(agora-oauth token)",
+            value="$(example-oauth token)",
             source="[headers]",
             header_name="accessToken",
             runner=lambda command: "   ",
@@ -305,7 +305,7 @@ def test_substitute_header_commands_rejects_empty_output() -> None:
 def test_substitute_header_commands_rejects_multiline_output() -> None:
     with pytest.raises(ConfigError, match="single line"):
         substitute_header_commands(
-            value="$(agora-oauth token)",
+            value="$(example-oauth token)",
             source="[headers]",
             header_name="accessToken",
             runner=lambda command: "line-one\\nline-two",
@@ -325,7 +325,7 @@ def test_run_header_command_raises_for_non_zero_exit(monkeypatch: pytest.MonkeyP
     )
 
     with pytest.raises(ConfigError, match="exit code 7"):
-        run_header_command("agora-oauth token")
+        run_header_command("example-oauth token")
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -421,7 +421,7 @@ def test_profile_headers_override_top_level_headers() -> None:
         auth=AuthMode.PAT,
         token="legacy-token",
         headers={
-            "accessToken": "$(agora-oauth token --profile prod-bitbucket)",
+            "accessToken": "$(example-oauth token --profile prod-bitbucket)",
             "X-Request-Source": "profile-default",
         },
     )
@@ -452,7 +452,7 @@ def test_flag_headers_override_config_headers() -> None:
         url="https://bitbucket.example.com",
         auth=AuthMode.PAT,
         token="legacy-token",
-        headers={"accessToken": "$(agora-oauth token)"},
+        headers={"accessToken": "$(example-oauth token)"},
     )
 
     context = resolve_runtime_context(
@@ -620,7 +620,7 @@ def test_root_callback_reads_top_level_and_profile_headers_from_config(
         token = "legacy-token"
 
         [profiles.prod_bitbucket.headers]
-        accessToken = "$(agora-oauth token)"
+        accessToken = "$(example-oauth token)"
         """.strip()
     )
 
@@ -681,7 +681,7 @@ def test_root_callback_flag_headers_override_config_headers(tmp_path: Path, monk
         token = "legacy-token"
 
         [profiles.prod_bitbucket.headers]
-        accessToken = "$(agora-oauth token)"
+        accessToken = "$(example-oauth token)"
         """.strip()
     )
 
@@ -807,7 +807,7 @@ git commit -m "feat: wire config-backed headers into cli context"
 
 - [ ] **Step 1: Write the failing doc check**
 
-Run: `rg -n "\[headers\]|profiles\\..*headers|agora-oauth token|ATLASSIAN_HEADER" README.md`
+Run: `rg -n "\[headers\]|profiles\\..*headers|example-oauth token|ATLASSIAN_HEADER" README.md`
 Expected: output shows `ATLASSIAN_HEADER` examples and no config-backed `[headers]` examples
 
 - [ ] **Step 2: Write the documentation update**
@@ -819,22 +819,22 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.agoralab.co --header 'accessToken: ...' bitbucket pr list SDK rte_sdk --output json`
+- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list SDK rte_sdk --output json`
 
 Config file example:
 
 ```toml
 [headers]
-accessToken = "$(agora-oauth token)"
+accessToken = "$(example-oauth token)"
 
 [profiles.code]
 product = "bitbucket"
 deployment = "dc"
-url = "https://bitbucket.agoralab.co"
+url = "https://bitbucket.example.com"
 auth = "pat"
 
 [profiles.code.headers]
-X-Request-Source = "agora-oauth"
+X-Request-Source = "example-oauth"
 ```
 
 - `atlassian --profile code bitbucket pr list SDK rte_sdk --output json`
@@ -844,8 +844,8 @@ Config-backed header values may execute local shell commands through `$(...)`. T
 
 - [ ] **Step 3: Run the doc check again**
 
-Run: `rg -n "\[headers\]|profiles\\..*headers|agora-oauth token|ATLASSIAN_HEADER" README.md`
-Expected: matches for `[headers]`, profile header examples, and `agora-oauth token`, with no `ATLASSIAN_HEADER` matches
+Run: `rg -n "\[headers\]|profiles\\..*headers|example-oauth token|ATLASSIAN_HEADER" README.md`
+Expected: matches for `[headers]`, profile header examples, and `example-oauth token`, with no `ATLASSIAN_HEADER` matches
 
 - [ ] **Step 4: Run the combined verification**
 

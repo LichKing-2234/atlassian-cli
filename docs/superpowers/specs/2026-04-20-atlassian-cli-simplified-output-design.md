@@ -126,8 +126,8 @@ Example simplified `json`:
   "key": "CSD-74834",
   "summary": "【自然选择】flutter和unity混合打包对jar包移除需求",
   "status": { "name": "已解决" },
-  "assignee": { "display_name": "luxuhui" },
-  "reporter": { "display_name": "liuying02@agora.io" },
+  "assignee": { "display_name": "example-user" },
+  "reporter": { "display_name": "user@example.com" },
   "priority": { "name": "Highest" },
   "updated": "2025-10-11T06:39:12.513+0000"
 }

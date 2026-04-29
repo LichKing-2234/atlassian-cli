@@ -917,7 +917,7 @@ def test_pull_request_service_list_accepts_start_and_limit() -> None:
     provider = FakePullRequestProvider()
     service = PullRequestService(provider=provider)
 
-    result = service.list("AI", "agora-skills", "OPEN", start=25, limit=10)
+    result = service.list("AI", "example-skills", "OPEN", start=25, limit=10)
 
     assert result["results"][0]["id"] == 42
 ```

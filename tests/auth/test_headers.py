@@ -10,13 +10,13 @@ def test_parse_cli_headers_accepts_repeated_name_value_pairs() -> None:
     headers = parse_cli_headers(
         [
             "Authorization: Bearer flag-token",
-            "X-Request-Source: agora-oauth",
+            "X-Request-Source: example-oauth",
         ]
     )
 
     assert headers == {
         "Authorization": "Bearer flag-token",
-        "X-Request-Source": "agora-oauth",
+        "X-Request-Source": "example-oauth",
     }
 
 
