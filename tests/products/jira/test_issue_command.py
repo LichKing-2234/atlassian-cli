@@ -350,7 +350,9 @@ def test_jira_issue_get_passes_fields_expand_and_comment_limit(monkeypatch) -> N
             captured["kwargs"] = kwargs
             return {"key": issue_key, "summary": "Example issue summary"}
 
-    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService())
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
 
     result = runner.invoke(
         app,
@@ -396,7 +398,9 @@ def test_jira_issue_create_accepts_additional_fields(monkeypatch) -> None:
             captured.update(kwargs)
             return {"message": "Issue created successfully", "issue": {"key": "DEMO-2"}}
 
-    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService())
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
 
     result = runner.invoke(
         app,
@@ -441,7 +445,9 @@ def test_jira_issue_update_accepts_fields_attachments_and_additional_fields(monk
             captured["kwargs"] = kwargs
             return {"message": "Issue updated successfully", "issue": {"key": issue_key}}
 
-    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService())
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
 
     result = runner.invoke(
         app,
@@ -481,7 +487,9 @@ def test_jira_issue_batch_create_accepts_inline_json_and_validate_only(monkeypat
             captured["validate_only"] = validate_only
             return {"message": "Issues validated successfully", "issues": [{"key": "DEMO-1"}]}
 
-    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService())
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
 
     result = runner.invoke(
         app,

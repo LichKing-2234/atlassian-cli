@@ -20,8 +20,8 @@ class ConfluenceProvider(Protocol):
     def search_pages(
         self,
         query: str,
-        *,
         limit: int,
+        *,
         spaces_filter: list[str] | None = None,
     ) -> list[dict]: ...
     def get_page_children(self, page_id: str) -> list[dict]: ...

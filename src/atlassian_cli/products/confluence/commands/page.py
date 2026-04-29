@@ -1,4 +1,5 @@
 import typer
+from click.core import ParameterSource
 
 from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
@@ -32,34 +33,58 @@ def get_page(
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
+    include_metadata_is_default = (
+        ctx.get_parameter_source("include_metadata") is ParameterSource.DEFAULT
+    )
+    convert_to_markdown_is_default = (
+        ctx.get_parameter_source("convert_to_markdown") is ParameterSource.DEFAULT
+    )
+    use_default_read = (
+        include_metadata
+        and convert_to_markdown
+        and include_metadata_is_default
+        and convert_to_markdown_is_default
+    )
     if page_id is not None:
         payload = (
-            service.get_raw(
-                page_id,
-                include_metadata=include_metadata,
-                convert_to_markdown=convert_to_markdown,
-            )
-            if is_raw_output(output)
-            else service.get(
-                page_id,
-                include_metadata=include_metadata,
-                convert_to_markdown=convert_to_markdown,
+            (service.get_raw(page_id) if is_raw_output(output) else service.get(page_id))
+            if use_default_read
+            else (
+                service.get_raw(
+                    page_id,
+                    include_metadata=include_metadata,
+                    convert_to_markdown=convert_to_markdown,
+                )
+                if is_raw_output(output)
+                else service.get(
+                    page_id,
+                    include_metadata=include_metadata,
+                    convert_to_markdown=convert_to_markdown,
+                )
             )
         )
     elif title and space_key:
         payload = (
-            service.get_by_title_raw(
-                space_key,
-                title,
-                include_metadata=include_metadata,
-                convert_to_markdown=convert_to_markdown,
+            (
+                service.get_by_title_raw(space_key, title)
+                if is_raw_output(output)
+                else service.get_by_title(space_key, title)
             )
-            if is_raw_output(output)
-            else service.get_by_title(
-                space_key,
-                title,
-                include_metadata=include_metadata,
-                convert_to_markdown=convert_to_markdown,
+            if use_default_read
+            else (
+                service.get_by_title_raw(
+                    space_key,
+                    title,
+                    include_metadata=include_metadata,
+                    convert_to_markdown=convert_to_markdown,
+                )
+                if is_raw_output(output)
+                else service.get_by_title(
+                    space_key,
+                    title,
+                    include_metadata=include_metadata,
+                    convert_to_markdown=convert_to_markdown,
+                )
             )
         )
         if payload is None:

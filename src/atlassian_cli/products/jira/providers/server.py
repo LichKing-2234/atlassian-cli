@@ -43,21 +43,25 @@ class JiraServerProvider:
     def search_issues(
         self,
         jql: str,
+        start: int = 0,
+        limit: int = 25,
         *,
         fields: str | list[str] | None = None,
         expand: str | None = None,
-        start_at: int = 0,
-        limit: int = 25,
+        start_at: int | None = None,
         projects_filter: list[str] | None = None,
     ) -> dict:
         scoped_jql = jql
         if projects_filter:
             project_clause = ", ".join(projects_filter)
             scoped_jql = f"project in ({project_clause}) AND ({jql})"
+        resolved_start = start if start_at is None else start_at
+        if fields is None and expand is None:
+            return self.client.jql(scoped_jql, start=resolved_start, limit=limit)
         return self.client.jql(
             scoped_jql,
             fields=fields or "*all",
-            start=start_at,
+            start=resolved_start,
             limit=limit,
             expand=expand,
         )

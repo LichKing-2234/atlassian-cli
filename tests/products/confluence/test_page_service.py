@@ -47,9 +47,7 @@ class FakePageProvider:
         limit: int,
         spaces_filter=None,
     ) -> list[dict]:
-        self.search_calls.append(
-            {"query": query, "limit": limit, "spaces_filter": spaces_filter}
-        )
+        self.search_calls.append({"query": query, "limit": limit, "spaces_filter": spaces_filter})
         return [self.get_page("1234")]
 
     def get_page_children(self, page_id: str) -> list[dict]:

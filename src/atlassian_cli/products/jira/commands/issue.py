@@ -64,7 +64,9 @@ def _parse_attachments(value: str | None) -> list[str]:
     except json.JSONDecodeError:
         return [item.strip() for item in value.split(",") if item.strip()]
     if not isinstance(parsed, list):
-        raise typer.BadParameter("--attachments must be a JSON array or CSV", param_hint="--attachments")
+        raise typer.BadParameter(
+            "--attachments must be a JSON array or CSV", param_hint="--attachments"
+        )
     return [str(item) for item in parsed]
 
 
@@ -156,7 +158,9 @@ def search_issues(
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
-    use_default_search = fields == DEFAULT_ISSUE_FIELDS and expand is None and projects_filter is None
+    use_default_search = (
+        fields == DEFAULT_ISSUE_FIELDS and expand is None and projects_filter is None
+    )
     if is_raw_output(output):
         payload = (
             service.search_raw(jql=jql, start=start, limit=limit)

@@ -2,13 +2,13 @@ import subprocess
 import sys
 
 from atlassian_cli.config.models import Product
+from tests.e2e.support.cleanup import CleanupRegistry
+from tests.e2e.support.context import build_live_context
 from tests.e2e.support.discovery import (
     build_jira_create_payload,
     resolve_bitbucket_repo_target,
     resolve_confluence_write_target,
 )
-from tests.e2e.support.cleanup import CleanupRegistry
-from tests.e2e.support.context import build_live_context
 from tests.e2e.support.env import LiveEnv, load_live_env
 from tests.e2e.support.names import unique_name
 from tests.e2e.support.runner import run_cli

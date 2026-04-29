@@ -57,17 +57,17 @@ class ConfluenceServerProvider:
     def search_pages(
         self,
         query: str,
-        *,
         limit: int,
+        *,
         spaces_filter: list[str] | None = None,
     ) -> list[dict]:
         cql = query
         if query and not any(token in query for token in ("=", "~", " AND ", " OR ", ">", "<")):
-            cql = f"siteSearch ~ {self._quote_cql_string(query)}"
+            cql = f"text ~ {self._quote_cql_string(query)}"
         if spaces_filter:
             quoted_spaces = ", ".join(self._quote_cql_string(item) for item in spaces_filter)
             cql = f"space in ({quoted_spaces}) AND ({cql})"
-        raw = self.client.cql(cql, limit=limit, expand="space,version,body.storage")
+        raw = self.client.cql(cql, limit=limit, expand="space,version")
         results = raw.get("results", [])
         return [item.get("content", item) for item in results if isinstance(item, dict)]
 

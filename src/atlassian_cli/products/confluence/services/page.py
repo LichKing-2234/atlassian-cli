@@ -102,7 +102,9 @@ class PageService:
             ]
         }
 
-    def search_raw(self, query: str, *, limit: int, spaces_filter: list[str] | None = None) -> list[dict]:
+    def search_raw(
+        self, query: str, *, limit: int, spaces_filter: list[str] | None = None
+    ) -> list[dict]:
         return self.provider.search_pages(query, limit=limit, spaces_filter=spaces_filter)
 
     def children(self, page_id: str) -> dict:

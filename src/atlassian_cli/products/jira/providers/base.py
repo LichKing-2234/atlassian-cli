@@ -15,11 +15,12 @@ class JiraProvider(Protocol):
     def search_issues(
         self,
         jql: str,
+        start: int = 0,
+        limit: int = 25,
         *,
         fields: str | list[str] | None = None,
         expand: str | None = None,
-        start_at: int = 0,
-        limit: int = 25,
+        start_at: int | None = None,
         projects_filter: list[str] | None = None,
     ) -> dict: ...
     def create_issue(self, fields: dict) -> dict: ...
