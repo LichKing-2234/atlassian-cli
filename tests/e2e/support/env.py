@@ -11,6 +11,7 @@ class LiveEnv:
     jira_project: str
     confluence_space: str
     bitbucket_project: str
+    bitbucket_create_project: str
     bitbucket_repo: str
 
 
@@ -23,5 +24,6 @@ def load_live_env() -> LiveEnv:
         jira_project=os.getenv("ATLASSIAN_E2E_JIRA_PROJECT", "EEP"),
         confluence_space=os.getenv("ATLASSIAN_E2E_CONFLUENCE_SPACE", "ADC"),
         bitbucket_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_PROJECT", "~luxuhui_agora.io"),
+        bitbucket_create_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT", "ADUC"),
         bitbucket_repo=os.getenv("ATLASSIAN_E2E_BITBUCKET_REPO", "atlassian-cli-e2e-test"),
     )

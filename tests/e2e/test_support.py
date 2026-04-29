@@ -26,6 +26,7 @@ def test_load_live_env_uses_defaults(monkeypatch, tmp_path) -> None:
         jira_project="EEP",
         confluence_space="ADC",
         bitbucket_project="~luxuhui_agora.io",
+        bitbucket_create_project="ADUC",
         bitbucket_repo="atlassian-cli-e2e-test",
     )
 
@@ -61,6 +62,7 @@ def test_run_cli_includes_config_file(monkeypatch, tmp_path) -> None:
         jira_project="EEP",
         confluence_space="ADC",
         bitbucket_project="~luxuhui_agora.io",
+        bitbucket_create_project="ADUC",
         bitbucket_repo="atlassian-cli-e2e-test",
     )
 
