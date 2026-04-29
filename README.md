@@ -107,6 +107,13 @@ The CLI now covers the `mcp-atlassian` `TOOLSETS=default` Jira and Confluence co
 - Jira issues, fields, comments, and transitions
 - Confluence pages and comments
 
+Normalized json and yaml output now follows MCP-style resource envelopes more closely. This is a breaking change for scripts that consumed older normalized output.
+
+Raw modes with unchanged behavior:
+
+- `raw-json`
+- `raw-yaml`
+
 One default MCP capability remains explicitly unsupported in CLI v1: Jira batch changelog fetch. That workflow depends on Cloud support, and the current CLI still rejects `--deployment cloud`.
 
 ## Contributing
