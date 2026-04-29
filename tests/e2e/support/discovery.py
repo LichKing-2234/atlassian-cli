@@ -10,6 +10,7 @@ def build_jira_create_payload(
     summary: str,
     issue_type: str,
     env_overrides: dict[str, str],
+    reporter_name: str | None = None,
 ) -> dict:
     meta = provider.client.issue_createmeta(project_key, expand="projects.issuetypes.fields")
     projects = meta.get("projects", []) if isinstance(meta, dict) else []
@@ -27,6 +28,9 @@ def build_jira_create_payload(
             continue
         if field_id in env_overrides:
             payload[field_id] = json.loads(env_overrides[field_id])
+            continue
+        if field_id == "reporter" and reporter_name:
+            payload[field_id] = {"name": reporter_name}
             continue
         allowed = info.get("allowedValues") or []
         if allowed:

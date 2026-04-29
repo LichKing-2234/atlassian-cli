@@ -6,6 +6,7 @@ from atlassian_cli.config.models import Product
 from tests.e2e.support import (
     CleanupRegistry,
     build_jira_create_payload,
+    build_live_context,
     build_live_provider,
     run_failure,
     run_json,
@@ -98,6 +99,7 @@ def test_jira_issue_round_trip_live(live_env) -> None:
     summary = unique_name("jira-e2e")
     issue_key = None
     try:
+        jira_context = build_live_context(Product.JIRA, live_env)
         provider = build_live_provider(Product.JIRA, live_env)
         issue_type = live_env.jira_issue_type or "Task"
         payload = build_jira_create_payload(
@@ -106,6 +108,7 @@ def test_jira_issue_round_trip_live(live_env) -> None:
             summary=summary,
             issue_type=issue_type,
             env_overrides={},
+            reporter_name=jira_context.auth.username,
         )
         payload["description"] = "created by live e2e"
         created = run_json(
@@ -235,6 +238,7 @@ def test_jira_issue_round_trip_live(live_env) -> None:
 
 def test_jira_issue_batch_create_live(live_env, tmp_path) -> None:
     registry = CleanupRegistry()
+    jira_context = build_live_context(Product.JIRA, live_env)
     provider = build_live_provider(Product.JIRA, live_env)
     issue_type = live_env.jira_issue_type or "Task"
     payload = [
@@ -244,6 +248,7 @@ def test_jira_issue_batch_create_live(live_env, tmp_path) -> None:
             summary=unique_name("jira-batch-one"),
             issue_type=issue_type,
             env_overrides={},
+            reporter_name=jira_context.auth.username,
         ),
         build_jira_create_payload(
             provider,
@@ -251,6 +256,7 @@ def test_jira_issue_batch_create_live(live_env, tmp_path) -> None:
             summary=unique_name("jira-batch-two"),
             issue_type=issue_type,
             env_overrides={},
+            reporter_name=jira_context.auth.username,
         ),
     ]
     try:

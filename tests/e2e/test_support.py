@@ -211,6 +211,7 @@ class FakeJiraProvider:
                                         "required": True,
                                         "allowedValues": [{"id": "11", "value": "Linux"}],
                                     },
+                                    "reporter": {"required": True},
                                 },
                             }
                         ]
@@ -229,10 +230,12 @@ def test_build_jira_create_payload_uses_allowed_value_defaults() -> None:
         summary="Example issue summary",
         issue_type="Task",
         env_overrides={},
+        reporter_name="example-user",
     )
 
     assert payload["project"]["key"] == "DEMO"
     assert payload["customfield_10001"] == {"id": "11"}
+    assert payload["reporter"] == {"name": "example-user"}
 
 
 def test_resolve_confluence_write_target_prefers_explicit_parent(tmp_path) -> None:
