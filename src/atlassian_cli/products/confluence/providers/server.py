@@ -115,4 +115,33 @@ class ConfluenceServerProvider:
         return self.client.attach_file(file_path, page_id=page_id)
 
     def download_attachment(self, attachment_id: str, destination: str) -> dict:
-        return {"attachment_id": attachment_id, "destination": destination}
+        from pathlib import Path
+
+        attachment = self.client.get(
+            f"rest/api/content/{attachment_id}",
+            params={"expand": "version"},
+        )
+        title = str(attachment.get("title") or attachment_id)
+        links = attachment.get("_links") if isinstance(attachment.get("_links"), dict) else {}
+        download_link = links.get("download")
+        if not isinstance(download_link, str) or not download_link:
+            raise RuntimeError(f"attachment download url missing for {attachment_id}")
+
+        target = Path(destination)
+        if target.exists() and target.is_dir():
+            target = target / title
+        elif destination.endswith("/") or destination.endswith("\\"):
+            target.mkdir(parents=True, exist_ok=True)
+            target = target / title
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+
+        payload = self.client.get(download_link, not_json_response=True)
+        content = bytes(payload)
+        target.write_bytes(content)
+        return {
+            "attachment_id": str(attachment_id),
+            "title": title,
+            "path": str(target),
+            "bytes_written": len(content),
+        }
