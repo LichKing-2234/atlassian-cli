@@ -54,7 +54,8 @@ class BitbucketServerProvider:
         return self.client.get_repo(project_key, repo_slug)
 
     def create_repo(self, *, project_key: str, name: str, scm_id: str) -> dict:
-        return self.client.create_repo(project_key=project_key, name=name, scm_id=scm_id)
+        del scm_id
+        return self.client.create_repo(project_key, name)
 
     def list_branches(
         self, project_key: str, repo_slug: str, filter_text: str | None

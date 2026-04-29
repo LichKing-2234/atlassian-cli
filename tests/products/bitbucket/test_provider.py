@@ -101,3 +101,38 @@ def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() ->
         "Merge pull request #42: Ship output cleanup",
         7,
     )
+
+
+def test_create_repo_forwards_project_key_and_name_to_sdk() -> None:
+    calls = {}
+
+    class FakeClient:
+        def create_repo(
+            self,
+            project_key: str,
+            repository_slug: str,
+            forkable: bool = False,
+            is_private: bool = True,
+        ):
+            calls["args"] = (project_key, repository_slug, forkable, is_private)
+            return {
+                "slug": "atlassian-cli-e2e-temp",
+                "name": repository_slug,
+                "project": {"key": project_key},
+            }
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.create_repo(
+        project_key="~luxuhui_agora.io",
+        name="atlassian-cli-e2e-temp",
+        scm_id="git",
+    )
+
+    assert result["slug"] == "atlassian-cli-e2e-temp"
+    assert calls["args"] == (
+        "~luxuhui_agora.io",
+        "atlassian-cli-e2e-temp",
+        False,
+        True,
+    )
