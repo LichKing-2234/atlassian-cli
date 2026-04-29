@@ -1,7 +1,13 @@
 import pytest
 
 from atlassian_cli.config.models import Product
-from tests.e2e.support import CleanupRegistry, GitSandbox, build_live_provider, run_json, unique_name
+from tests.e2e.support import (
+    CleanupRegistry,
+    GitSandbox,
+    build_live_provider,
+    run_json,
+    unique_name,
+)
 
 pytestmark = pytest.mark.e2e
 

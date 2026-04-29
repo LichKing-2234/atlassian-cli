@@ -132,3 +132,42 @@ One default MCP capability remains explicitly unsupported in CLI v1: Jira batch 
 ## Smoke testing
 
 Set `ATLASSIAN_SMOKE=1` and product-specific env vars before running `.venv/bin/python -m pytest tests/integration/test_smoke.py -v`.
+
+## Local e2e testing
+
+The repository includes a local-only live e2e suite that covers every CLI subcommand with at least one real command chain.
+
+Live test modules:
+
+- `tests/e2e/test_jira_live.py`
+- `tests/e2e/test_confluence_live.py`
+- `tests/e2e/test_bitbucket_live.py`
+- `tests/e2e/test_coverage_manifest.py`
+
+The suite shells out through `python -m atlassian_cli.main`, reuses your normal CLI config, and performs real writes against the configured Atlassian instances.
+
+Environment:
+
+- `ATLASSIAN_E2E=1`
+- `ATLASSIAN_CONFIG_FILE=/path/to/config.toml` (optional)
+- `ATLASSIAN_E2E_JIRA_PROJECT=EEP`
+- `ATLASSIAN_E2E_CONFLUENCE_SPACE='~luxuhui@agora.io'`
+- `ATLASSIAN_E2E_BITBUCKET_PROJECT='~luxuhui_agora.io'`
+- `ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=ADUC`
+- `ATLASSIAN_E2E_BITBUCKET_REPO=atlassian-cli-e2e-test`
+
+Recommended run:
+
+```bash
+ATLASSIAN_E2E=1 \
+ATLASSIAN_E2E_CONFLUENCE_SPACE='~luxuhui@agora.io' \
+ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=ADUC \
+.venv/bin/python -m pytest \
+  tests/e2e/test_coverage_manifest.py \
+  tests/e2e/test_jira_live.py \
+  tests/e2e/test_confluence_live.py \
+  tests/e2e/test_bitbucket_live.py \
+  -m e2e -v
+```
+
+The live suite performs real writes and best-effort cleanup for Jira issues, Confluence pages/comments/attachments, Bitbucket repositories, branches, and pull requests. If cleanup fails, the tests should print residue identifiers for manual removal.
