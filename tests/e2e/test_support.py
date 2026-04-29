@@ -2,6 +2,11 @@ import subprocess
 import sys
 
 from atlassian_cli.config.models import Product
+from tests.e2e.support.discovery import (
+    build_jira_create_payload,
+    resolve_bitbucket_repo_target,
+    resolve_confluence_write_target,
+)
 from tests.e2e.support.cleanup import CleanupRegistry
 from tests.e2e.support.context import build_live_context
 from tests.e2e.support.env import LiveEnv, load_live_env
@@ -28,6 +33,9 @@ def test_load_live_env_uses_defaults(monkeypatch, tmp_path) -> None:
         bitbucket_project="DEMO",
         bitbucket_create_project="DEMO",
         bitbucket_repo="example-repo",
+        jira_issue_type=None,
+        confluence_parent_page=None,
+        bitbucket_existing_repo=None,
     )
 
 
@@ -99,3 +107,76 @@ def test_build_live_context_reads_product_config(tmp_path, monkeypatch) -> None:
     assert context.product is Product.JIRA
     assert context.url == "https://jira.example.com"
     assert context.auth.username == "example-user"
+
+
+class FakeJiraProvider:
+    class Client:
+        def issue_createmeta(self, project_key, expand):
+            assert project_key == "DEMO"
+            assert expand == "projects.issuetypes.fields"
+            return {
+                "projects": [
+                    {
+                        "issuetypes": [
+                            {
+                                "name": "Task",
+                                "fields": {
+                                    "summary": {"required": True},
+                                    "customfield_10001": {
+                                        "required": True,
+                                        "allowedValues": [{"id": "11", "value": "Linux"}],
+                                    },
+                                },
+                            }
+                        ]
+                    }
+                ]
+            }
+
+    def __init__(self) -> None:
+        self.client = self.Client()
+
+
+def test_build_jira_create_payload_uses_allowed_value_defaults() -> None:
+    payload = build_jira_create_payload(
+        FakeJiraProvider(),
+        project_key="DEMO",
+        summary="Example issue summary",
+        issue_type="Task",
+        env_overrides={},
+    )
+
+    assert payload["project"]["key"] == "DEMO"
+    assert payload["customfield_10001"] == {"id": "11"}
+
+
+def test_resolve_confluence_write_target_prefers_explicit_parent(tmp_path) -> None:
+    env = LiveEnv(
+        config_file=tmp_path / "config.toml",
+        jira_project="DEMO",
+        confluence_space="~example-user",
+        bitbucket_project="DEMO",
+        bitbucket_create_project="DEMO",
+        bitbucket_repo="example-repo",
+        confluence_parent_page="1234",
+    )
+
+    target = resolve_confluence_write_target(env)
+
+    assert target == {"space_key": "~example-user", "parent_page_id": "1234"}
+
+
+def test_resolve_bitbucket_repo_target_uses_override_when_present(tmp_path) -> None:
+    env = LiveEnv(
+        config_file=tmp_path / "config.toml",
+        jira_project="DEMO",
+        confluence_space="~example-user",
+        bitbucket_project="DEMO",
+        bitbucket_create_project="DEMO",
+        bitbucket_repo="example-repo",
+        bitbucket_existing_repo="sandbox-repo",
+    )
+
+    target = resolve_bitbucket_repo_target(env)
+
+    assert target == {"project_key": "DEMO", "repo_slug": "sandbox-repo"}

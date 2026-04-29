@@ -13,6 +13,9 @@ class LiveEnv:
     bitbucket_project: str
     bitbucket_create_project: str
     bitbucket_repo: str
+    jira_issue_type: str | None = None
+    confluence_parent_page: str | None = None
+    bitbucket_existing_repo: str | None = None
 
 
 def load_live_env() -> LiveEnv:
@@ -26,4 +29,7 @@ def load_live_env() -> LiveEnv:
         bitbucket_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_PROJECT", "DEMO"),
         bitbucket_create_project=os.getenv("ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT", "DEMO"),
         bitbucket_repo=os.getenv("ATLASSIAN_E2E_BITBUCKET_REPO", "example-repo"),
+        jira_issue_type=os.getenv("ATLASSIAN_E2E_JIRA_ISSUE_TYPE"),
+        confluence_parent_page=os.getenv("ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE"),
+        bitbucket_existing_repo=os.getenv("ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO"),
     )

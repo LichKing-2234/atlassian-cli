@@ -3,7 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from tests.e2e.support import CleanupRegistry, run_json, unique_name
+from tests.e2e.support import (
+    CleanupRegistry,
+    resolve_confluence_write_target,
+    run_json,
+    unique_name,
+)
 
 pytestmark = pytest.mark.e2e
 
@@ -39,22 +44,24 @@ def test_confluence_space_and_search_live(live_env) -> None:
     registry = CleanupRegistry()
     page_id = None
     try:
+        target = resolve_confluence_write_target(live_env)
         title = unique_name("confluence-search")
         created = run_json(
             live_env,
             "confluence",
             "page",
             "create",
-            "--space",
-            live_env.confluence_space,
+            "--space-key",
+            str(target["space_key"]),
             "--title",
             title,
-            "--body",
+            "--content",
             "<p>search target</p>",
+            *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
             "--output",
             "json",
         )
-        page_id = created["id"]
+        page_id = created["page"]["id"]
         registry.add(f"confluence page delete {page_id}", lambda: _delete_page(live_env, page_id))
 
         search = None
@@ -93,22 +100,24 @@ def test_confluence_page_round_trip_live(live_env) -> None:
     registry = CleanupRegistry()
     page_id = None
     try:
+        target = resolve_confluence_write_target(live_env)
         title = unique_name("confluence-page")
         created = run_json(
             live_env,
             "confluence",
             "page",
             "create",
-            "--space",
-            live_env.confluence_space,
+            "--space-key",
+            str(target["space_key"]),
             "--title",
             title,
-            "--body",
+            "--content",
             "<p>version one</p>",
+            *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
             "--output",
             "json",
         )
-        page_id = created["id"]
+        page_id = created["page"]["id"]
         registry.add(f"confluence page delete {page_id}", lambda: _delete_page(live_env, page_id))
 
         fetched = run_json(
@@ -120,7 +129,7 @@ def test_confluence_page_round_trip_live(live_env) -> None:
             "--output",
             "json",
         )
-        assert fetched["id"] == page_id
+        assert fetched["metadata"]["id"] == page_id
 
         updated = run_json(
             live_env,
@@ -130,13 +139,13 @@ def test_confluence_page_round_trip_live(live_env) -> None:
             page_id,
             "--title",
             f"{title} updated",
-            "--body",
+            "--content",
             "<p>version two</p>",
             "--output",
             "json",
         )
-        assert updated["id"] == page_id
-        assert updated["version"] >= created["version"]
+        assert updated["page"]["id"] == page_id
+        assert updated["page"]["version"] >= created["page"]["version"]
 
         history = run_json(
             live_env,
@@ -145,11 +154,11 @@ def test_confluence_page_round_trip_live(live_env) -> None:
             "history",
             page_id,
             "--version",
-            str(updated["version"]),
+            str(updated["page"]["version"]),
             "--output",
             "json",
         )
-        assert history["id"] == page_id
+        assert history["metadata"]["id"] == page_id
 
         diff = run_json(
             live_env,
@@ -158,15 +167,15 @@ def test_confluence_page_round_trip_live(live_env) -> None:
             "diff",
             page_id,
             "--from-version",
-            str(created["version"]),
+            str(created["page"]["version"]),
             "--to-version",
-            str(updated["version"]),
+            str(updated["page"]["version"]),
             "--output",
             "json",
         )
         assert diff["page_id"] == page_id
-        assert diff["from_version"] == created["version"]
-        assert diff["to_version"] == updated["version"]
+        assert diff["from_version"] == created["page"]["version"]
+        assert diff["to_version"] == updated["page"]["version"]
         assert "version two" in diff["diff"] or "+<p>version two</p>" in diff["diff"]
     finally:
         registry.run()
@@ -177,21 +186,23 @@ def test_confluence_page_move_and_children_live(live_env) -> None:
     parent_id = None
     child_id = None
     try:
+        target = resolve_confluence_write_target(live_env)
         parent = run_json(
             live_env,
             "confluence",
             "page",
             "create",
-            "--space",
-            live_env.confluence_space,
+            "--space-key",
+            str(target["space_key"]),
             "--title",
             unique_name("confluence-parent"),
-            "--body",
+            "--content",
             "<p>parent</p>",
+            *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
             "--output",
             "json",
         )
-        parent_id = parent["id"]
+        parent_id = parent["page"]["id"]
         registry.add(
             f"confluence page delete {parent_id}", lambda: _delete_page(live_env, parent_id)
         )
@@ -201,16 +212,17 @@ def test_confluence_page_move_and_children_live(live_env) -> None:
             "confluence",
             "page",
             "create",
-            "--space",
-            live_env.confluence_space,
+            "--space-key",
+            str(target["space_key"]),
             "--title",
             unique_name("confluence-child"),
-            "--body",
+            "--content",
             "<p>child</p>",
+            *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
             "--output",
             "json",
         )
-        child_id = child["id"]
+        child_id = child["page"]["id"]
         registry.add(f"confluence page delete {child_id}", lambda: _delete_page(live_env, child_id))
 
         moved = run_json(
@@ -244,21 +256,23 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
     registry = CleanupRegistry()
     page_id = None
     try:
+        target = resolve_confluence_write_target(live_env)
         page = run_json(
             live_env,
             "confluence",
             "page",
             "create",
-            "--space",
-            live_env.confluence_space,
+            "--space-key",
+            str(target["space_key"]),
             "--title",
             unique_name("confluence-comment"),
-            "--body",
+            "--content",
             "<p>comment page</p>",
+            *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
             "--output",
             "json",
         )
-        page_id = page["id"]
+        page_id = page["page"]["id"]
         registry.add(f"confluence page delete {page_id}", lambda: _delete_page(live_env, page_id))
 
         comment = run_json(
@@ -306,21 +320,23 @@ def test_confluence_attachment_round_trip_live(live_env, tmp_path) -> None:
     registry = CleanupRegistry()
     page_id = None
     try:
+        target = resolve_confluence_write_target(live_env)
         page = run_json(
             live_env,
             "confluence",
             "page",
             "create",
-            "--space",
-            live_env.confluence_space,
+            "--space-key",
+            str(target["space_key"]),
             "--title",
             unique_name("confluence-attachment"),
-            "--body",
+            "--content",
             "<p>attachment page</p>",
+            *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
             "--output",
             "json",
         )
-        page_id = page["id"]
+        page_id = page["page"]["id"]
         registry.add(f"confluence page delete {page_id}", lambda: _delete_page(live_env, page_id))
 
         upload_file = tmp_path / "deploy.log"

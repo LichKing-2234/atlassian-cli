@@ -5,6 +5,7 @@ from tests.e2e.support import (
     CleanupRegistry,
     GitSandbox,
     build_live_provider,
+    resolve_bitbucket_repo_target,
     run_json,
     unique_name,
 )
@@ -18,6 +19,7 @@ def _delete_repo(live_env, repo_slug: str) -> None:
 
 
 def test_bitbucket_project_and_repo_queries_live(live_env) -> None:
+    target = resolve_bitbucket_repo_target(live_env)
     projects = run_json(live_env, "bitbucket", "project", "list", "--output", "json")
     assert projects["results"]
 
@@ -38,23 +40,23 @@ def test_bitbucket_project_and_repo_queries_live(live_env) -> None:
         "repo",
         "list",
         "--project",
-        live_env.bitbucket_project,
+        target["project_key"],
         "--output",
         "json",
     )
-    assert any(item["slug"] == live_env.bitbucket_repo for item in repos["results"])
+    assert any(item["slug"] == target["repo_slug"] for item in repos["results"])
 
     repo = run_json(
         live_env,
         "bitbucket",
         "repo",
         "get",
-        live_env.bitbucket_project,
-        live_env.bitbucket_repo,
+        target["project_key"],
+        target["repo_slug"],
         "--output",
         "json",
     )
-    assert repo["slug"] == live_env.bitbucket_repo
+    assert repo["slug"] == target["repo_slug"]
 
 
 def test_bitbucket_repo_create_live(live_env) -> None:
@@ -85,13 +87,14 @@ def test_bitbucket_repo_create_live(live_env) -> None:
 
 def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
     registry = CleanupRegistry()
+    target = resolve_bitbucket_repo_target(live_env)
     raw_repo = run_json(
         live_env,
         "bitbucket",
         "repo",
         "get",
-        live_env.bitbucket_project,
-        live_env.bitbucket_repo,
+        target["project_key"],
+        target["repo_slug"],
         "--output",
         "raw-json",
     )
@@ -141,8 +144,8 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
         "bitbucket",
         "branch",
         "list",
-        live_env.bitbucket_project,
-        live_env.bitbucket_repo,
+        target["project_key"],
+        target["repo_slug"],
         "--filter",
         branch_name,
         "--output",
@@ -155,8 +158,8 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
         "bitbucket",
         "pr",
         "create",
-        live_env.bitbucket_project,
-        live_env.bitbucket_repo,
+        target["project_key"],
+        target["repo_slug"],
         "--title",
         unique_name("e2e-pr"),
         "--description",
@@ -175,8 +178,8 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
         "bitbucket",
         "pr",
         "list",
-        live_env.bitbucket_project,
-        live_env.bitbucket_repo,
+        target["project_key"],
+        target["repo_slug"],
         "--state",
         "OPEN",
         "--output",
@@ -189,8 +192,8 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
         "bitbucket",
         "pr",
         "get",
-        live_env.bitbucket_project,
-        live_env.bitbucket_repo,
+        target["project_key"],
+        target["repo_slug"],
         str(pr_id),
         "--output",
         "json",
@@ -202,8 +205,8 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
         "bitbucket",
         "pr",
         "merge",
-        live_env.bitbucket_project,
-        live_env.bitbucket_repo,
+        target["project_key"],
+        target["repo_slug"],
         str(pr_id),
         "--output",
         "json",
