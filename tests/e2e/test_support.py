@@ -1,5 +1,6 @@
 import subprocess
 import sys
+from pathlib import Path
 
 from atlassian_cli.config.models import Product
 from tests.e2e.support.cleanup import CleanupRegistry
@@ -37,6 +38,90 @@ def test_load_live_env_uses_defaults(monkeypatch, tmp_path) -> None:
         confluence_parent_page=None,
         bitbucket_existing_repo=None,
     )
+
+
+def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("")
+    repo_dotenv = Path(".env")
+    original = repo_dotenv.read_text() if repo_dotenv.exists() else None
+    repo_dotenv.write_text(
+        "\n".join(
+            [
+                "ATLASSIAN_E2E=1",
+                f"ATLASSIAN_CONFIG_FILE={config_file}",
+                "ATLASSIAN_E2E_JIRA_PROJECT=DEMO-1234",
+                "ATLASSIAN_E2E_CONFLUENCE_SPACE=Example Page",
+                "ATLASSIAN_E2E_BITBUCKET_PROJECT=DEMO",
+                "ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=DEMO",
+                "ATLASSIAN_E2E_BITBUCKET_REPO=example-repo",
+                "ATLASSIAN_E2E_JIRA_ISSUE_TYPE=Internal Task",
+                "ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE=123456",
+                "ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO=example-repo",
+            ]
+        )
+    )
+    monkeypatch.delenv("ATLASSIAN_E2E", raising=False)
+    monkeypatch.delenv("ATLASSIAN_CONFIG_FILE", raising=False)
+    monkeypatch.delenv("ATLASSIAN_E2E_JIRA_PROJECT", raising=False)
+    monkeypatch.delenv("ATLASSIAN_E2E_CONFLUENCE_SPACE", raising=False)
+    monkeypatch.delenv("ATLASSIAN_E2E_BITBUCKET_PROJECT", raising=False)
+    monkeypatch.delenv("ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT", raising=False)
+    monkeypatch.delenv("ATLASSIAN_E2E_BITBUCKET_REPO", raising=False)
+    monkeypatch.delenv("ATLASSIAN_E2E_JIRA_ISSUE_TYPE", raising=False)
+    monkeypatch.delenv("ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE", raising=False)
+    monkeypatch.delenv("ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO", raising=False)
+
+    try:
+        env = load_live_env()
+    finally:
+        if original is None:
+            repo_dotenv.unlink(missing_ok=True)
+        else:
+            repo_dotenv.write_text(original)
+
+    assert env == LiveEnv(
+        config_file=config_file,
+        jira_project="DEMO-1234",
+        confluence_space="Example Page",
+        bitbucket_project="DEMO",
+        bitbucket_create_project="DEMO",
+        bitbucket_repo="example-repo",
+        jira_issue_type="Internal Task",
+        confluence_parent_page="123456",
+        bitbucket_existing_repo="example-repo",
+    )
+
+
+def test_load_live_env_prefers_process_env_over_repo_dotenv(monkeypatch, tmp_path) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("")
+    repo_dotenv = Path(".env")
+    original = repo_dotenv.read_text() if repo_dotenv.exists() else None
+    repo_dotenv.write_text(
+        "\n".join(
+            [
+                "ATLASSIAN_E2E=1",
+                "ATLASSIAN_E2E_JIRA_PROJECT=DEMO-1234",
+                "ATLASSIAN_E2E_CONFLUENCE_SPACE=Example Page",
+            ]
+        )
+    )
+    monkeypatch.setenv("ATLASSIAN_E2E", "1")
+    monkeypatch.setenv("ATLASSIAN_CONFIG_FILE", str(config_file))
+    monkeypatch.setenv("ATLASSIAN_E2E_JIRA_PROJECT", "DEMO")
+    monkeypatch.setenv("ATLASSIAN_E2E_CONFLUENCE_SPACE", "~example-user")
+
+    try:
+        env = load_live_env()
+    finally:
+        if original is None:
+            repo_dotenv.unlink(missing_ok=True)
+        else:
+            repo_dotenv.write_text(original)
+
+    assert env.jira_project == "DEMO"
+    assert env.confluence_space == "~example-user"
 
 
 def test_cleanup_registry_runs_in_reverse_order() -> None:

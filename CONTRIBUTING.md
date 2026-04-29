@@ -46,6 +46,8 @@ The suite shells out through `python -m atlassian_cli.main`, reuses your normal 
 
 Environment:
 
+- `.env` in the repository root is loaded automatically by `tests/e2e/support/env.py`
+- process environment variables still take precedence over `.env`
 - `ATLASSIAN_E2E=1`
 - `ATLASSIAN_CONFIG_FILE=/path/to/config.toml` (optional)
 - `ATLASSIAN_E2E_JIRA_PROJECT=DEMO`
@@ -60,16 +62,9 @@ Environment:
 Recommended run:
 
 ```bash
-ATLASSIAN_E2E=1 \
-ATLASSIAN_E2E_JIRA_PROJECT=DEMO \
-ATLASSIAN_E2E_JIRA_ISSUE_TYPE=Task \
-ATLASSIAN_E2E_CONFLUENCE_SPACE='~example-user' \
-ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE=123456 \
-ATLASSIAN_E2E_BITBUCKET_PROJECT=DEMO \
-ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=DEMO \
-ATLASSIAN_E2E_BITBUCKET_REPO=example-repo \
-ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO=example-repo \
-.venv/bin/python -m pytest \
+cp .env.example .env
+$EDITOR .env
+PYTHONPATH=src .venv/bin/python -m pytest \
   tests/e2e/test_coverage_manifest.py \
   tests/e2e/test_jira_live.py \
   tests/e2e/test_confluence_live.py \
