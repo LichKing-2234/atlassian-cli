@@ -363,7 +363,7 @@ def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch)
 
         def get_all_spaces(self, start: int, limit: int) -> dict:
             return {
-                "results": [{"id": 1, "key": "PROJ", "name": "Operations"}],
+                "results": [{"id": 1, "key": "PROJ", "name": "Demo Project"}],
                 "start": start,
                 "limit": limit,
             }
@@ -505,7 +505,7 @@ def test_jira_issue_from_api_response_builds_rich_resource() -> None:
             "key": "PROJ-1",
             "self": "https://jira.example.com/rest/api/2/issue/10001",
             "fields": {
-                "summary": "Broken deploy",
+                "summary": "Example issue summary",
                 "description": "Investigate release failure",
                 "status": {"name": "Open"},
                 "issuetype": {"name": "Bug"},
@@ -513,7 +513,7 @@ def test_jira_issue_from_api_response_builds_rich_resource() -> None:
                 "assignee": {"displayName": "Alice", "name": "alice"},
                 "reporter": {"displayName": "Bob", "name": "bob"},
                 "labels": ["release"],
-                "project": {"key": "PROJ", "name": "Operations"},
+                "project": {"key": "PROJ", "name": "Demo Project"},
                 "created": "2026-04-23T09:00:00.000+0000",
                 "updated": "2026-04-23T10:00:00.000+0000",
             },
@@ -842,7 +842,7 @@ class FakeIssueProvider:
         return {
             "id": 1,
             "key": issue_key,
-            "fields": {"summary": "Broken deploy", "status": {"name": "Open"}},
+            "fields": {"summary": "Example issue summary", "status": {"name": "Open"}},
         }
 
     def search_issues(self, jql: str, start: int, limit: int) -> dict:
@@ -851,15 +851,15 @@ class FakeIssueProvider:
             "startAt": start,
             "maxResults": limit,
             "issues": [
-                {"id": 1, "key": "PROJ-1", "fields": {"summary": "Broken deploy", "status": {"name": "Open"}}},
-                {"id": 2, "key": "PROJ-2", "fields": {"summary": "Fix flaky test", "status": {"name": "Done"}}},
+                {"id": 1, "key": "PROJ-1", "fields": {"summary": "Example issue summary", "status": {"name": "Open"}}},
+                {"id": 2, "key": "PROJ-2", "fields": {"summary": "Example follow-up", "status": {"name": "Done"}}},
             ],
         }
 
 
 class FakeProjectProvider:
     def list_projects(self) -> list[dict]:
-        return [{"id": 1, "key": "PROJ", "name": "Operations"}]
+        return [{"id": 1, "key": "PROJ", "name": "Demo Project"}]
 
 
 class FakeUserProvider:
@@ -881,7 +881,7 @@ def test_project_service_list_returns_results_envelope() -> None:
 
     result = service.list()
 
-    assert result == {"results": [{"id": "1", "key": "PROJ", "name": "Operations"}]}
+    assert result == {"results": [{"id": "1", "key": "PROJ", "name": "Demo Project"}]}
 
 
 def test_user_service_search_returns_results_envelope() -> None:
@@ -917,7 +917,7 @@ def test_jira_project_list_outputs_results_envelope(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"list": lambda self: {"results": [{"id": "1", "key": "PROJ", "name": "Operations"}]}},
+            {"list": lambda self: {"results": [{"id": "1", "key": "PROJ", "name": "Demo Project"}]}},
         )(),
     )
 
@@ -1094,10 +1094,10 @@ def test_confluence_page_from_api_response_builds_rich_resource() -> None:
     page = ConfluencePage.from_api_response(
         {
             "id": 1234,
-            "title": "Runbook",
+            "title": "Example Page",
             "type": "page",
             "status": "current",
-            "space": {"id": 7, "key": "PROJ", "name": "Operations"},
+            "space": {"id": 7, "key": "PROJ", "name": "Demo Project"},
             "version": {"number": 3, "by": {"displayName": "Alice"}},
             "history": {"createdDate": "2026-04-20T10:00:00.000Z"},
         },
@@ -1114,13 +1114,13 @@ def test_confluence_page_from_api_response_builds_rich_resource() -> None:
 
 def test_confluence_space_from_api_response_keeps_status_and_type() -> None:
     space = ConfluenceSpace.from_api_response(
-        {"id": 9, "key": "PROJ", "name": "Operations", "type": "global", "status": "current"}
+        {"id": 9, "key": "PROJ", "name": "Demo Project", "type": "global", "status": "current"}
     )
 
     assert space.to_simplified_dict() == {
         "id": "9",
         "key": "PROJ",
-        "name": "Operations",
+        "name": "Demo Project",
         "type": "global",
         "status": "current",
     }
@@ -1156,10 +1156,10 @@ class FakePageProvider:
     def get_page(self, page_id: str) -> dict:
         return {
             "id": page_id,
-            "title": "Runbook",
+            "title": "Example Page",
             "type": "page",
             "status": "current",
-            "space": {"id": 1, "key": "PROJ", "name": "Operations"},
+            "space": {"id": 1, "key": "PROJ", "name": "Demo Project"},
             "version": {"number": 7},
         }
 
@@ -1167,7 +1167,7 @@ class FakePageProvider:
 class FakeSpaceProvider:
     def list_spaces(self, start: int, limit: int) -> dict:
         return {
-            "results": [{"id": 1, "key": "PROJ", "name": "Operations", "type": "global", "status": "current"}],
+            "results": [{"id": 1, "key": "PROJ", "name": "Demo Project", "type": "global", "status": "current"}],
             "start": start,
             "limit": limit,
         }
@@ -1189,7 +1189,7 @@ def test_space_service_list_returns_results_envelope() -> None:
     result = service.list(start=0, limit=25)
 
     assert result == {
-        "results": [{"id": "1", "key": "PROJ", "name": "Operations", "type": "global", "status": "current"}],
+        "results": [{"id": "1", "key": "PROJ", "name": "Demo Project", "type": "global", "status": "current"}],
         "start_at": 0,
         "max_results": 25,
     }
@@ -1537,7 +1537,7 @@ class FakePullRequestProvider:
         return [
             {
                 "id": 42,
-                "title": "Ship output cleanup",
+                "title": "Example pull request",
                 "state": "OPEN",
                 "version": 7,
                 "fromRef": {"displayId": "feature/output"},
@@ -1560,7 +1560,7 @@ class FakePullRequestProvider:
         self.merge_calls.append((project_key, repo_slug, pr_id, merge_message, pr_version))
         return {
             "id": pr_id,
-            "title": "Ship output cleanup",
+            "title": "Example pull request",
             "state": "MERGED",
             "fromRef": {"displayId": "feature/output"},
             "toRef": {"displayId": "main"},
@@ -1571,7 +1571,7 @@ def test_bitbucket_pr_schema_handles_missing_author_and_reviewers() -> None:
     pr = BitbucketPullRequest.from_api_response(
         {
             "id": 42,
-            "title": "Ship output cleanup",
+            "title": "Example pull request",
             "state": "OPEN",
             "fromRef": {"displayId": "feature/output"},
             "toRef": {"displayId": "main"},
@@ -1592,7 +1592,7 @@ def test_pull_request_service_merge_prefetches_title_and_version() -> None:
 
     assert result["state"] == "MERGED"
     assert provider.merge_calls == [
-        ("PROJ", "infra", 42, "Merge pull request #42: Ship output cleanup", 7)
+        ("PROJ", "infra", 42, "Merge pull request #42: Example pull request", 7)
     ]
 
 
@@ -1603,7 +1603,7 @@ class FakeRepoProvider:
                 "slug": "infra",
                 "name": "Infra",
                 "state": "AVAILABLE",
-                "project": {"key": "PROJ", "name": "Operations"},
+                "project": {"key": "PROJ", "name": "Demo Project"},
             }
         ]
 
@@ -1619,7 +1619,7 @@ def test_repo_service_list_returns_results_envelope() -> None:
                 "slug": "infra",
                 "name": "Infra",
                 "state": "AVAILABLE",
-                "project": {"key": "PROJ", "name": "Operations"},
+                "project": {"key": "PROJ", "name": "Demo Project"},
             }
         ],
         "start_at": 0,
@@ -1642,7 +1642,7 @@ def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() ->
         "PROJ",
         "infra",
         42,
-        merge_message="Merge pull request #42: Ship output cleanup",
+        merge_message="Merge pull request #42: Example pull request",
         pr_version=7,
     )
 
@@ -1651,7 +1651,7 @@ def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() ->
         "PROJ",
         "infra",
         42,
-        "Merge pull request #42: Ship output cleanup",
+        "Merge pull request #42: Example pull request",
         7,
     )
 ```
@@ -1675,7 +1675,7 @@ def test_bitbucket_pr_list_outputs_results_envelope(monkeypatch) -> None:
             (),
             {
                 "list": lambda self, project_key, repo_slug, state: {
-                    "results": [{"id": 42, "title": "Ship output cleanup", "state": "OPEN"}]
+                    "results": [{"id": 42, "title": "Example pull request", "state": "OPEN"}]
                 }
             },
         )(),

@@ -10,7 +10,7 @@ def build_provider_with_client(client) -> BitbucketServerProvider:
 def test_list_projects_materializes_paged_generator() -> None:
     class FakeClient:
         def project_list(self, *, limit: int, start: int):
-            yield {"key": "PROJ", "name": "Operations"}
+            yield {"key": "PROJ", "name": "Demo Project"}
             yield {"key": "CLOUD", "name": "Cloud"}
 
     provider = build_provider_with_client(FakeClient())
@@ -18,7 +18,7 @@ def test_list_projects_materializes_paged_generator() -> None:
     result = provider.list_projects(start=0, limit=5)
 
     assert result == [
-        {"key": "PROJ", "name": "Operations"},
+        {"key": "PROJ", "name": "Demo Project"},
         {"key": "CLOUD", "name": "Cloud"},
     ]
 
@@ -89,7 +89,7 @@ def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() ->
         "PROJ",
         "infra",
         42,
-        merge_message="Merge pull request #42: Ship output cleanup",
+        merge_message="Merge pull request #42: Example pull request",
         pr_version=7,
     )
 
@@ -98,7 +98,7 @@ def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() ->
         "PROJ",
         "infra",
         42,
-        "Merge pull request #42: Ship output cleanup",
+        "Merge pull request #42: Example pull request",
         7,
     )
 

@@ -11,7 +11,7 @@ class FakeIssueProvider:
         return {
             "key": issue_key,
             "fields": {
-                "summary": "Broken deploy",
+                "summary": "Example issue summary",
                 "status": {"name": "Open"},
                 "assignee": {"displayName": "Alice"},
                 "reporter": {"displayName": "Bob"},
@@ -32,7 +32,7 @@ class FakeIssueProvider:
                 {
                     "key": "PROJ-1",
                     "fields": {
-                        "summary": "Broken deploy",
+                        "summary": "Example issue summary",
                         "status": {"name": "Open"},
                         "assignee": {"displayName": "Alice"},
                         "reporter": {"displayName": "Bob"},
@@ -43,7 +43,7 @@ class FakeIssueProvider:
                 {
                     "key": "PROJ-2",
                     "fields": {
-                        "summary": "Fix flaky test",
+                        "summary": "Example follow-up",
                         "status": {"name": "In Progress"},
                         "assignee": {"displayName": "Carol"},
                         "reporter": {"displayName": "Bob"},
@@ -72,7 +72,7 @@ def test_issue_service_exposes_raw_issue_payload() -> None:
 
     result = service.get_raw("PROJ-1")
 
-    assert result["fields"]["summary"] == "Broken deploy"
+    assert result["fields"]["summary"] == "Example issue summary"
     assert result["fields"]["status"]["name"] == "Open"
 
 

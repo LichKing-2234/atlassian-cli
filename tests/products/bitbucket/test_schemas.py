@@ -5,7 +5,7 @@ def test_bitbucket_pr_schema_handles_missing_author_and_reviewers() -> None:
     pr = BitbucketPullRequest.from_api_response(
         {
             "id": 42,
-            "title": "Ship output cleanup",
+            "title": "Example pull request",
             "state": "OPEN",
             "fromRef": {"displayId": "feature/output"},
             "toRef": {"displayId": "main"},
@@ -22,7 +22,7 @@ def test_bitbucket_pr_schema_exposes_summary_oriented_list_payload() -> None:
     pr = BitbucketPullRequest.from_api_response(
         {
             "id": 42,
-            "title": "Ship output cleanup",
+            "title": "Example pull request",
             "description": "Long body that should stay out of list output",
             "state": "OPEN",
             "open": True,
@@ -50,7 +50,7 @@ def test_bitbucket_pr_schema_exposes_summary_oriented_list_payload() -> None:
 
     assert summarized == {
         "id": 42,
-        "title": "Ship output cleanup",
+        "title": "Example pull request",
         "state": "OPEN",
         "author": {"display_name": "Alice", "name": "alice@example.com"},
         "reviewers": [{"approved": False, "display_name": "Bob", "name": "bob@example.com"}],

@@ -92,7 +92,7 @@ def test_reply_to_comment_posts_comment_container_payload() -> None:
 
     class FakeResponse:
         def __init__(self) -> None:
-            self.payload = {"id": "c2", "body": {"storage": {"value": "ack"}}}
+            self.payload = {"id": "c2", "body": {"storage": {"value": "example response"}}}
 
         def raise_for_status(self) -> None:
             return None
@@ -112,14 +112,14 @@ def test_reply_to_comment_posts_comment_container_payload() -> None:
 
     provider = build_provider_with_client(FakeClient())
 
-    result = provider.reply_to_comment("c1", "ack")
+    result = provider.reply_to_comment("c1", "example response")
 
     assert result["id"] == "c2"
     assert calls["url"] == "https://confluence.example.com/rest/api/content/"
     assert calls["json"] == {
         "type": "comment",
         "container": {"id": "c1", "type": "comment", "status": "current"},
-        "body": {"storage": {"value": "ack", "representation": "storage"}},
+        "body": {"storage": {"value": "example response", "representation": "storage"}},
     }
 
 
@@ -131,7 +131,7 @@ def test_list_comments_returns_results_items() -> None:
                 "results": [
                     {
                         "id": "c1",
-                        "body": {"storage": {"value": "LGTM"}},
+                        "body": {"storage": {"value": "example approval"}},
                     }
                 ]
             }
@@ -140,4 +140,4 @@ def test_list_comments_returns_results_items() -> None:
 
     result = provider.list_comments("1234")
 
-    assert result == [{"id": "c1", "body": {"storage": {"value": "LGTM"}}}]
+    assert result == [{"id": "c1", "body": {"storage": {"value": "example approval"}}}]

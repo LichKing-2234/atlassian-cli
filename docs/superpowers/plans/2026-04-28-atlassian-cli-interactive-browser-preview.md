@@ -80,19 +80,19 @@ def build_preview_source() -> InteractiveCollectionSource:
         {
             "id": 24990,
             "state": "OPEN",
-            "author": "example-author",
-            "title": "[FEAT] ENG-12345 add configurable mic test playback across desktop, mobile, and web",
+            "author": "sample-author",
+            "title": "[FEAT] DEMO-1234 example preview change",
             "preview": "\n".join(
                 [
                     "State: OPEN",
-                    "Author: example-author",
+                    "Author: sample-author",
                     "Reviewers: Alice, Bob, Carol, +1 more",
-                    "From: jira/ENG-12345/release/4.5",
-                    "To: release/4.5",
+                    "From: feature/DEMO-1234/example-change",
+                    "To: main",
                     "Updated: 2026-04-27 13:19:55",
                     "",
                     "Description:",
-                    "Add configurable recording device test playback across C++, Android, and Objective-C.",
+                    "Example description for preview rendering.",
                 ]
             ),
             "detail": "# PR #24990\n\nFull markdown detail",
@@ -135,13 +135,13 @@ def test_collection_browser_state_updates_preview_when_selection_changes() -> No
     state = CollectionBrowserState(build_preview_source())
     state.load_initial()
 
-    assert "Author: example-author" in render_state(state, width=80, preview_lines=7)
+    assert "Author: sample-author" in render_state(state, width=80, preview_lines=7)
 
     state.move(1)
 
     rendered = render_state(state, width=80, preview_lines=7)
     assert "Author: alice" in rendered
-    assert "Author: example-author" not in rendered
+    assert "Author: sample-author" not in rendered
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -721,20 +721,20 @@ from atlassian_cli.output.markdown import render_markdown_list_item, render_mark
 def test_render_markdown_list_item_returns_single_scan_line() -> None:
     item = {
         "key": "PROJ-1",
-        "summary": "Broken deploy",
+        "summary": "Example issue summary",
         "status": {"name": "Open"},
         "assignee": {"display_name": "Alice"},
     }
 
     rendered = render_markdown_list_item(item)
 
-    assert rendered == "PROJ-1  Open  Alice  Broken deploy"
+    assert rendered == "PROJ-1  Open  Alice  Example issue summary"
 
 
 def test_render_markdown_preview_limits_description_excerpt() -> None:
     item = {
         "key": "PROJ-1",
-        "summary": "Broken deploy",
+        "summary": "Example issue summary",
         "status": {"name": "Open"},
         "assignee": {"display_name": "Alice"},
         "description": "Line one\\nLine two\\nLine three\\nLine four",
@@ -762,13 +762,13 @@ def test_render_pull_request_item_uses_dense_single_line_format() -> None:
     item = {
         "id": 24990,
         "state": "OPEN",
-        "author": {"display_name": "example-author"},
-        "title": "[FEAT] ENG-12345 add configurable mic test",
+        "author": {"display_name": "sample-author"},
+        "title": "[FEAT] DEMO-1234 example preview change",
     }
 
     rendered = render_pull_request_item(1, item)
 
-    assert rendered == "24990  OPEN  example-author  [FEAT] ENG-12345 add configurable mic test"
+    assert rendered == "24990  OPEN  sample-author  [FEAT] DEMO-1234 example preview change"
     assert "\n" not in rendered
 
 
@@ -776,15 +776,15 @@ def test_render_pull_request_preview_summarizes_reviewers_and_description() -> N
     item = {
         "id": 24990,
         "state": "OPEN",
-        "author": {"display_name": "example-author"},
+        "author": {"display_name": "sample-author"},
         "reviewers": [
             {"display_name": "Alice", "approved": True},
             {"display_name": "Bob", "approved": False},
             {"display_name": "Carol", "approved": False},
             {"display_name": "Dave", "approved": False},
         ],
-        "from_ref": {"display_id": "jira/ENG-12345/release/4.5"},
-        "to_ref": {"display_id": "release/4.5"},
+        "from_ref": {"display_id": "feature/DEMO-1234/example-change"},
+        "to_ref": {"display_id": "main"},
         "updated_date": "2026-04-27T13:19:55+00:00",
         "description": "Line one\\nLine two\\nLine three\\nLine four",
         "participants": [{"role": "PARTICIPANT"}],
@@ -794,8 +794,8 @@ def test_render_pull_request_preview_summarizes_reviewers_and_description() -> N
     rendered = render_pull_request_preview(item)
 
     assert "Reviewers: Alice, Bob, Carol, +1 more" in rendered
-    assert "From: jira/ENG-12345/release/4.5" in rendered
-    assert "To: release/4.5" in rendered
+    assert "From: feature/DEMO-1234/example-change" in rendered
+    assert "To: main" in rendered
     assert "Updated: 2026-04-27 13:19:55" in rendered
     assert "Line four" not in rendered
     assert "participants" not in rendered.lower()
@@ -812,16 +812,16 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
     sample_item = {
         "id": 24990,
         "state": "OPEN",
-        "author": {"display_name": "example-author"},
-        "title": "[FEAT] ENG-12345 add configurable mic test",
+        "author": {"display_name": "sample-author"},
+        "title": "[FEAT] DEMO-1234 example preview change",
         "reviewers": [
             {"display_name": "Alice"},
             {"display_name": "Bob"},
             {"display_name": "Carol"},
             {"display_name": "Dave"},
         ],
-        "from_ref": {"display_id": "jira/ENG-12345/release/4.5"},
-        "to_ref": {"display_id": "release/4.5"},
+        "from_ref": {"display_id": "feature/DEMO-1234/example-change"},
+        "to_ref": {"display_id": "main"},
         "updated_date": "2026-04-27T13:19:55+00:00",
         "description": "Line one\\nLine two\\nLine three\\nLine four",
     }
@@ -854,9 +854,9 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
     )
 
     assert result.exit_code == 0
-    assert captured["item"] == "24990  OPEN  example-author  [FEAT] ENG-12345 add configurable mic test"
+    assert captured["item"] == "24990  OPEN  sample-author  [FEAT] DEMO-1234 example preview change"
     assert "Reviewers: Alice, Bob, Carol, +1 more" in captured["preview"]
-    assert captured["detail"].startswith("# 24990 - [FEAT] ENG-12345 add configurable mic test")
+    assert captured["detail"].startswith("# 24990 - [FEAT] DEMO-1234 example preview change")
 ```
 
 Append this test to `tests/products/jira/test_issue_command.py`:
@@ -868,7 +868,7 @@ def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monk
 
     sample_issue = {
         "key": "PROJ-1",
-        "summary": "Broken deploy",
+        "summary": "Example issue summary",
         "status": {"name": "Open"},
         "assignee": {"display_name": "Alice"},
         "description": "Investigate rollout health",
@@ -901,7 +901,7 @@ def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monk
     )
 
     assert result.exit_code == 0
-    assert captured["item"] == "PROJ-1  Open  Alice  Broken deploy"
+    assert captured["item"] == "PROJ-1  Open  Alice  Example issue summary"
     assert "Status: Open" in captured["preview"]
     assert "Assignee: Alice" in captured["preview"]
 ```

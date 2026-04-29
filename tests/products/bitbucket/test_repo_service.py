@@ -5,7 +5,7 @@ class FakeRepoProvider:
     def list_repos(self, project_key: str | None, start: int, limit: int) -> list[dict]:
         return [
             {
-                "project": {"key": project_key or "PROJ", "name": "Operations"},
+                "project": {"key": project_key or "PROJ", "name": "Demo Project"},
                 "slug": "infra",
                 "name": "Infra",
                 "state": "AVAILABLE",
@@ -14,7 +14,7 @@ class FakeRepoProvider:
 
     def get_repo(self, project_key: str, repo_slug: str) -> dict:
         return {
-            "project": {"key": project_key, "name": "Operations"},
+            "project": {"key": project_key, "name": "Demo Project"},
             "slug": repo_slug,
             "name": "infra",
             "state": "AVAILABLE",
@@ -28,7 +28,7 @@ def test_repo_service_normalizes_repo_payload() -> None:
     result = service.get("PROJ", "infra")
 
     assert result == {
-        "project": {"key": "PROJ", "name": "Operations"},
+        "project": {"key": "PROJ", "name": "Demo Project"},
         "slug": "infra",
         "name": "infra",
         "state": "AVAILABLE",
@@ -55,7 +55,7 @@ def test_repo_service_list_returns_results_envelope() -> None:
                 "slug": "infra",
                 "name": "Infra",
                 "state": "AVAILABLE",
-                "project": {"key": "PROJ", "name": "Operations"},
+                "project": {"key": "PROJ", "name": "Demo Project"},
             }
         ],
         "start_at": 0,

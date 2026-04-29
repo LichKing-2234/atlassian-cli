@@ -363,8 +363,8 @@ def test_root_callback_reports_missing_pat_token_as_usage_error() -> None:
             "bitbucket",
             "pr",
             "list",
-            "SDK",
-            "rtmp_streaming_kit",
+            "EXAMPLE",
+            "example-repo",
         ],
         env=ci_output_env(),
     )

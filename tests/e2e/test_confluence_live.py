@@ -266,7 +266,7 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
             "add",
             page_id,
             "--body",
-            "top-level comment",
+            "example root note",
             "--output",
             "json",
         )
@@ -279,7 +279,7 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
             "reply",
             comment["id"],
             "--body",
-            "reply comment",
+            "example child note",
             "--output",
             "json",
         )

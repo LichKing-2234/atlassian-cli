@@ -1475,7 +1475,7 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
             "add",
             page_id,
             "--body",
-            "top-level comment",
+            "example root note",
             "--output",
             "json",
         )
@@ -1488,7 +1488,7 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
             "reply",
             comment["id"],
             "--body",
-            "reply comment",
+            "example child note",
             "--output",
             "json",
         )
@@ -1504,7 +1504,7 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
             "json",
         )
         bodies = [item.get("body", "") for item in comments["results"]]
-        assert any("top-level comment" in body for body in bodies)
+        assert any("example root note" in body for body in bodies)
     finally:
         registry.run()
 

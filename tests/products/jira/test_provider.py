@@ -18,7 +18,7 @@ def test_create_issues_falls_back_to_single_create_on_server_error() -> None:
     class FakeClient:
         def create_issues(self, issues: list[dict]) -> list[dict]:
             calls["create_issues"] = issues
-            raise HTTPError("内部服务器错误", response=FakeResponse())
+            raise HTTPError("Server error", response=FakeResponse())
 
         def issue_create(self, fields: dict) -> dict:
             cast_calls = calls["issue_create"]
@@ -51,7 +51,7 @@ def test_get_field_options_filters_issue_type_by_name() -> None:
                         "issuetypes": [
                             {
                                 "id": "10002",
-                                "name": "任务",
+                                "name": "Task",
                                 "fields": {
                                     "priority": {
                                         "allowedValues": [
@@ -68,7 +68,7 @@ def test_get_field_options_filters_issue_type_by_name() -> None:
 
     provider = build_provider_with_client(FakeClient())
 
-    result = provider.get_field_options("priority", "TEST", "任务")
+    result = provider.get_field_options("priority", "TEST", "Task")
 
     assert result == [
         {"id": "1", "name": "Highest"},

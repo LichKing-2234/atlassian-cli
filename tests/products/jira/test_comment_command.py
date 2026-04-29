@@ -28,7 +28,7 @@ def test_jira_comment_add_outputs_json(monkeypatch) -> None:
             "add",
             "PROJ-1",
             "--body",
-            "ship it",
+            "example approval comment",
             "--output",
             "json",
         ],

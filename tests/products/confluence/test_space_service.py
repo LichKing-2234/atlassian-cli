@@ -8,7 +8,7 @@ class FakeSpaceProvider:
                 {
                     "id": 1,
                     "key": "PROJ",
-                    "name": "Operations",
+                    "name": "Demo Project",
                     "type": "global",
                     "status": "current",
                 }
@@ -31,7 +31,7 @@ def test_space_service_normalizes_space_payload() -> None:
             {
                 "id": "1",
                 "key": "PROJ",
-                "name": "Operations",
+                "name": "Demo Project",
                 "type": "global",
                 "status": "current",
             }

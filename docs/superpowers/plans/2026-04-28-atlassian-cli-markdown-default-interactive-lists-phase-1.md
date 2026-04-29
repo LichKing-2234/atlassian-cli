@@ -302,14 +302,14 @@ from atlassian_cli.output.markdown import render_markdown
 def test_render_markdown_formats_single_resource_detail() -> None:
     payload = {
         "key": "PROJ-1",
-        "summary": "Broken deploy",
+        "summary": "Example issue summary",
         "status": {"name": "Open"},
         "description": "Investigate the release pipeline",
     }
 
     rendered = render_markdown(payload)
 
-    assert rendered.startswith("# PROJ-1 - Broken deploy")
+    assert rendered.startswith("# PROJ-1 - Example issue summary")
     assert "- Status: Open" in rendered
     assert "## Description" in rendered
     assert "Investigate the release pipeline" in rendered
@@ -320,7 +320,7 @@ def test_render_markdown_formats_results_envelope_as_numbered_summary() -> None:
         "results": [
             {
                 "id": 42,
-                "title": "Ship output cleanup",
+                "title": "Example pull request",
                 "state": "OPEN",
                 "author": {"display_name": "Alice"},
                 "reviewers": ["Bob", "Carol", "Dave", "Eve"],
@@ -330,7 +330,7 @@ def test_render_markdown_formats_results_envelope_as_numbered_summary() -> None:
 
     rendered = render_markdown(payload)
 
-    assert "1. 42 - Ship output cleanup" in rendered
+    assert "1. 42 - Example pull request" in rendered
     assert "- State: OPEN" in rendered
     assert "- Author: Alice" in rendered
     assert "- Reviewers: Bob, Carol, Dave, +1 more" in rendered
@@ -340,11 +340,11 @@ Replace the table-specific assertions in `tests/output/test_renderers.py` with:
 
 ```python
 def test_render_output_markdown_dispatches_to_markdown_renderer() -> None:
-    payload = {"key": "PROJ-1", "summary": "Broken deploy"}
+    payload = {"key": "PROJ-1", "summary": "Example issue summary"}
 
     rendered = render_output(payload, output="markdown")
 
-    assert rendered.startswith("# PROJ-1 - Broken deploy")
+    assert rendered.startswith("# PROJ-1 - Example issue summary")
 
 
 def test_render_output_markdown_returns_empty_string_for_empty_lists() -> None:
@@ -588,7 +588,7 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
             limit=limit,
             total=1,
         ),
-        fetch_detail=lambda item: {"id": item["id"], "title": item["title"], "description": "Broken deploy"},
+        fetch_detail=lambda item: {"id": item["id"], "title": item["title"], "description": "Example issue summary"},
         render_item=lambda index, item: f"{index}. {item['title']}",
         render_detail=lambda item: item["description"],
     )
@@ -597,7 +597,7 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
     state.load_initial()
     state.open_selected_detail()
     assert state.mode == "detail"
-    assert state.detail_text == "Broken deploy"
+    assert state.detail_text == "Example issue summary"
 
     state.close_detail()
     assert state.mode == "list"
@@ -809,18 +809,18 @@ def test_jira_issue_search_uses_interactive_browser_for_markdown_tty(monkeypatch
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Broken deploy"}],
+                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
                 },
                 "search_page": lambda self, jql, start, limit: CollectionPage(
-                    items=[{"key": "PROJ-1", "summary": "Broken deploy"}],
+                    items=[{"key": "PROJ-1", "summary": "Example issue summary"}],
                     start=start,
                     limit=limit,
                     total=1,
                 ),
-                "get": lambda self, issue_key: {"key": issue_key, "summary": "Broken deploy"},
+                "get": lambda self, issue_key: {"key": issue_key, "summary": "Example issue summary"},
             },
         )(),
     )
@@ -846,7 +846,7 @@ def test_jira_issue_search_non_tty_falls_back_to_markdown(monkeypatch) -> None:
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Broken deploy"}],
+                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
@@ -861,7 +861,7 @@ def test_jira_issue_search_non_tty_falls_back_to_markdown(monkeypatch) -> None:
     )
 
     assert result.exit_code == 0
-    assert "1. PROJ-1 - Broken deploy" in result.stdout
+    assert "1. PROJ-1 - Example issue summary" in result.stdout
 ```
 
 Append to `tests/products/bitbucket/test_provider.py`:
@@ -900,7 +900,7 @@ Update the existing fake provider in `tests/products/bitbucket/test_pr_service.p
         return [
             {
                 "id": 42,
-                "title": "Ship output cleanup",
+                "title": "Example pull request",
                 "state": "OPEN",
                 "version": 7,
                 "reviewers": [{"user": {"displayName": "Bob"}, "approved": True}],
@@ -943,17 +943,17 @@ def test_bitbucket_pr_list_uses_interactive_browser_for_markdown_tty(monkeypatch
             (),
             {
                 "list": lambda self, project_key, repo_slug, state, start, limit: {
-                    "results": [{"id": 42, "title": "Ship output cleanup"}],
+                    "results": [{"id": 42, "title": "Example pull request"}],
                     "start_at": start,
                     "max_results": limit,
                 },
                 "list_page": lambda self, project_key, repo_slug, state, start, limit: CollectionPage(
-                    items=[{"id": 42, "title": "Ship output cleanup"}],
+                    items=[{"id": 42, "title": "Example pull request"}],
                     start=start,
                     limit=limit,
                     total=1,
                 ),
-                "get": lambda self, project_key, repo_slug, pr_id: {"id": pr_id, "title": "Ship output cleanup"},
+                "get": lambda self, project_key, repo_slug, pr_id: {"id": pr_id, "title": "Example pull request"},
             },
         )(),
     )

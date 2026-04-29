@@ -19,7 +19,7 @@ def test_jira_issue_get_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"get": lambda self, issue_key: {"key": issue_key, "summary": "Broken deploy"}},
+            {"get": lambda self, issue_key: {"key": issue_key, "summary": "Example issue summary"}},
         )(),
     )
 
@@ -49,18 +49,18 @@ def test_jira_issue_search_uses_interactive_browser_for_markdown_tty(monkeypatch
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Broken deploy"}],
+                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
                 },
                 "search_page": lambda self, jql, start, limit: CollectionPage(
-                    items=[{"key": "PROJ-1", "summary": "Broken deploy"}],
+                    items=[{"key": "PROJ-1", "summary": "Example issue summary"}],
                     start=start,
                     limit=limit,
                     total=1,
                 ),
-                "get": lambda self, issue_key: {"key": issue_key, "summary": "Broken deploy"},
+                "get": lambda self, issue_key: {"key": issue_key, "summary": "Example issue summary"},
             },
         )(),
     )
@@ -88,7 +88,7 @@ def test_jira_issue_search_non_tty_falls_back_to_markdown(monkeypatch) -> None:
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Broken deploy"}],
+                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
@@ -103,7 +103,7 @@ def test_jira_issue_search_non_tty_falls_back_to_markdown(monkeypatch) -> None:
     )
 
     assert result.exit_code == 0
-    assert "1. PROJ-1 - Broken deploy" in result.stdout
+    assert "1. PROJ-1 - Example issue summary" in result.stdout
 
 
 def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monkeypatch) -> None:
@@ -111,7 +111,7 @@ def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monk
 
     sample_issue = {
         "key": "PROJ-1",
-        "summary": "Broken deploy",
+        "summary": "Example issue summary",
         "status": {"name": "Open"},
         "assignee": {"display_name": "Alice"},
         "description": "Investigate rollout health",
@@ -146,7 +146,7 @@ def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monk
     )
 
     assert result.exit_code == 0
-    assert captured["item"] == "PROJ-1  Open  Alice  Broken deploy"
+    assert captured["item"] == "PROJ-1  Open  Alice  Example issue summary"
     assert "Status: Open" in captured["preview"]
     assert "Assignee: Alice" in captured["preview"]
 
@@ -168,18 +168,18 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_import_fails(
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Broken deploy"}],
+                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
                 },
                 "search_page": lambda self, jql, start, limit: CollectionPage(
-                    items=[{"key": "PROJ-1", "summary": "Broken deploy"}],
+                    items=[{"key": "PROJ-1", "summary": "Example issue summary"}],
                     start=start,
                     limit=limit,
                     total=1,
                 ),
-                "get": lambda self, issue_key: {"key": issue_key, "summary": "Broken deploy"},
+                "get": lambda self, issue_key: {"key": issue_key, "summary": "Example issue summary"},
             },
         )(),
     )
@@ -190,7 +190,7 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_import_fails(
     )
 
     assert result.exit_code == 0
-    assert "1. PROJ-1 - Broken deploy" in result.stdout
+    assert "1. PROJ-1 - Example issue summary" in result.stdout
 
 
 def test_jira_issue_search_falls_back_to_markdown_when_interactive_runtime_fails(
@@ -212,18 +212,18 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_runtime_fails
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Broken deploy"}],
+                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
                 },
                 "search_page": lambda self, jql, start, limit: CollectionPage(
-                    items=[{"key": "PROJ-1", "summary": "Broken deploy"}],
+                    items=[{"key": "PROJ-1", "summary": "Example issue summary"}],
                     start=start,
                     limit=limit,
                     total=1,
                 ),
-                "get": lambda self, issue_key: {"key": issue_key, "summary": "Broken deploy"},
+                "get": lambda self, issue_key: {"key": issue_key, "summary": "Example issue summary"},
             },
         )(),
     )
@@ -234,7 +234,7 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_runtime_fails
     )
 
     assert result.exit_code == 0
-    assert "1. PROJ-1 - Broken deploy" in result.stdout
+    assert "1. PROJ-1 - Example issue summary" in result.stdout
 
 
 def test_jira_issue_transitions_outputs_available_ids(monkeypatch) -> None:

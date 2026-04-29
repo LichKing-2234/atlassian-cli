@@ -20,7 +20,7 @@ class FakePullRequestProvider:
         return [
             {
                 "id": 42,
-                "title": "Ship output cleanup",
+                "title": "Example pull request",
                 "description": "Long body that should stay out of list output",
                 "state": "OPEN",
                 "open": True,
@@ -39,7 +39,7 @@ class FakePullRequestProvider:
     def get_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
         return {
             "id": 42,
-            "title": "Ship output cleanup",
+            "title": "Example pull request",
             "description": "Long body that should stay out of list output",
             "state": "OPEN",
             "open": True,
@@ -65,7 +65,7 @@ class FakePullRequestProvider:
         self.merge_calls.append((project_key, repo_slug, pr_id, merge_message, pr_version))
         return {
             "id": pr_id,
-            "title": "Ship output cleanup",
+            "title": "Example pull request",
             "state": "MERGED",
             "fromRef": {"displayId": "feature/output"},
             "toRef": {"displayId": "main"},
@@ -79,7 +79,7 @@ def test_pull_request_service_normalizes_payload() -> None:
 
     assert result == {
         "id": 42,
-        "title": "Ship output cleanup",
+        "title": "Example pull request",
         "description": "Long body that should stay out of list output",
         "state": "OPEN",
         "open": True,
@@ -102,7 +102,7 @@ def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> No
         "results": [
             {
                 "id": 42,
-                "title": "Ship output cleanup",
+                "title": "Example pull request",
                 "description": "Long body that should stay out of list output",
                 "state": "OPEN",
                 "open": True,
@@ -159,5 +159,5 @@ def test_pull_request_service_merge_prefetches_title_and_version() -> None:
 
     assert result["state"] == "MERGED"
     assert provider.merge_calls == [
-        ("PROJ", "infra", 42, "Merge pull request #42: Ship output cleanup", 7)
+        ("PROJ", "infra", 42, "Merge pull request #42: Example pull request", 7)
     ]

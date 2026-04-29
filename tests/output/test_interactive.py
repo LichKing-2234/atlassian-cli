@@ -57,7 +57,7 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
         fetch_detail=lambda item: {
             "id": item["id"],
             "title": item["title"],
-            "description": "Broken deploy",
+            "description": "Example issue summary",
         },
         render_item=lambda index, item: f"{index}. {item['title']}",
         render_detail=lambda item: item["description"],
@@ -67,7 +67,7 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
     state.load_initial()
     state.open_selected_detail()
     assert state.mode == "detail"
-    assert state.detail_text == "Broken deploy"
+    assert state.detail_text == "Example issue summary"
 
     state.close_detail()
     assert state.mode == "list"
@@ -151,7 +151,7 @@ def test_render_state_in_detail_mode_has_detail_header_and_back_hint() -> None:
         fetch_detail=lambda item: {
             "id": item["id"],
             "title": item["title"],
-            "description": "Broken deploy",
+            "description": "Example issue summary",
         },
         render_item=lambda index, item: item["title"],
         render_detail=lambda item: item["description"],
@@ -164,7 +164,7 @@ def test_render_state_in_detail_mode_has_detail_header_and_back_hint() -> None:
     rendered = _render_state(state)
 
     assert rendered.startswith("Detail")
-    assert "Broken deploy" in rendered
+    assert "Example issue summary" in rendered
     assert "b/esc: back" in rendered
 
 
@@ -322,19 +322,19 @@ def build_preview_source() -> InteractiveCollectionSource:
         {
             "id": 24990,
             "state": "OPEN",
-            "author": "example-author",
-            "title": "[FEAT] ENG-12345 add configurable mic test playback across desktop, mobile, and web",
+            "author": "sample-author",
+            "title": "[FEAT] DEMO-1234 example preview change with extended summary text",
             "preview": "\n".join(
                 [
                     "State: OPEN",
-                    "Author: example-author",
+                    "Author: sample-author",
                     "Reviewers: Alice, Bob, Carol, +1 more",
-                    "From: jira/ENG-12345/release/4.5",
-                    "To: release/4.5",
+                    "From: feature/DEMO-1234/example-change",
+                    "To: main",
                     "Updated: 2026-04-27 13:19:55",
                     "",
                     "Description:",
-                    "Add configurable recording device test playback across C++, Android, and Objective-C.",
+                    "Example description for preview rendering.",
                 ]
             ),
             "detail": "# PR #24990\n\nFull markdown detail",
@@ -384,13 +384,13 @@ def test_collection_browser_state_updates_preview_when_selection_changes() -> No
     state = CollectionBrowserState(build_preview_source())
     state.load_initial()
 
-    assert "Author: example-author" in _render_state(state)
+    assert "Author: sample-author" in _render_state(state)
 
     state.move(1)
 
     rendered = _render_state(state)
     assert "Author: alice" in rendered
-    assert "Author: example-author" not in rendered
+    assert "Author: sample-author" not in rendered
 
 
 def test_render_state_clips_to_terminal_height_and_keeps_preview_visible() -> None:

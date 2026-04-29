@@ -124,8 +124,8 @@ Example simplified `json`:
 ```json
 {
   "key": "ENG-10001",
-  "summary": "【自然选择】flutter和unity混合打包对jar包移除需求",
-  "status": { "name": "已解决" },
+  "summary": "Example work item summary",
+  "status": { "name": "Done" },
   "assignee": { "display_name": "example-user" },
   "reporter": { "display_name": "user@example.com" },
   "priority": { "name": "Highest" },

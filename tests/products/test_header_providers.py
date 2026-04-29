@@ -259,7 +259,7 @@ def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch)
 
         def get_all_spaces(self, start: int, limit: int) -> dict:
             return {
-                "results": [{"id": 1, "key": "PROJ", "name": "Operations"}],
+                "results": [{"id": 1, "key": "PROJ", "name": "Demo Project"}],
                 "start": start,
                 "limit": limit,
             }

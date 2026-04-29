@@ -584,7 +584,7 @@ from atlassian_cli.output.renderers import render_output
 
 
 def test_render_output_json_returns_pretty_json() -> None:
-    payload = [{"key": "PROJ-1", "summary": "Broken deploy"}]
+    payload = [{"key": "PROJ-1", "summary": "Example issue summary"}]
 
     rendered = render_output(payload, output="json")
 
@@ -593,7 +593,7 @@ def test_render_output_json_returns_pretty_json() -> None:
 
 
 def test_render_output_table_includes_columns() -> None:
-    payload = [{"key": "PROJ-1", "summary": "Broken deploy"}]
+    payload = [{"key": "PROJ-1", "summary": "Example issue summary"}]
 
     rendered = render_output(payload, output="table")
 
@@ -1015,7 +1015,7 @@ class FakeIssueProvider:
         return {
             "key": issue_key,
             "fields": {
-                "summary": "Broken deploy",
+                "summary": "Example issue summary",
                 "status": {"name": "Open"},
                 "assignee": {"displayName": "Alice"},
                 "reporter": {"displayName": "Bob"},
@@ -1052,7 +1052,7 @@ def test_jira_issue_get_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"get": lambda self, issue_key: {"key": issue_key, "summary": "Broken deploy"}},
+            {"get": lambda self, issue_key: {"key": issue_key, "summary": "Example issue summary"}},
         )(),
     )
 
@@ -1380,7 +1380,7 @@ class FakePageProvider:
     def get_page(self, page_id: str) -> dict:
         return {
             "id": page_id,
-            "title": "Runbook",
+            "title": "Example Page",
             "space": {"key": "PROJ"},
             "version": {"number": 7},
         }
@@ -1392,7 +1392,7 @@ def test_page_service_normalizes_page_payload() -> None:
     result = service.get("1234")
 
     assert result["id"] == "1234"
-    assert result["title"] == "Runbook"
+    assert result["title"] == "Example Page"
     assert result["space_key"] == "PROJ"
 ```
 
@@ -1413,7 +1413,7 @@ def test_confluence_page_get_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"get": lambda self, page_id: {"id": page_id, "title": "Runbook"}},
+            {"get": lambda self, page_id: {"id": page_id, "title": "Example Page"}},
         )(),
     )
 

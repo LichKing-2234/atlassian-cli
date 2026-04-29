@@ -14,7 +14,7 @@ def test_confluence_comment_list_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"list": lambda self, page_id: {"results": [{"id": "c1", "body": "LGTM"}]}},
+            {"list": lambda self, page_id: {"results": [{"id": "c1", "body": "example approval"}]}},
         )(),
     )
 
@@ -59,7 +59,7 @@ def test_confluence_comment_add_outputs_json(monkeypatch) -> None:
             "add",
             "1234",
             "--body",
-            "ship it",
+            "example approval comment",
             "--output",
             "json",
         ],
@@ -92,7 +92,7 @@ def test_confluence_comment_reply_outputs_json(monkeypatch) -> None:
             "reply",
             "c1",
             "--body",
-            "ack",
+            "example response",
             "--output",
             "json",
         ],

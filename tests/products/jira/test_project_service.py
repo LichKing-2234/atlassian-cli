@@ -6,7 +6,7 @@ class FakeProjectProvider:
         return [
             {
                 "key": "PROJ",
-                "name": "Operations",
+                "name": "Demo Project",
                 "avatarUrls": {"48x48": "https://example.com/avatar.png"},
                 "projectTypeKey": "software",
             }
@@ -23,7 +23,7 @@ def test_project_service_normalizes_project_payload() -> None:
 
     assert result == {
         "key": "PROJ",
-        "name": "Operations",
+        "name": "Demo Project",
         "avatar_url": "https://example.com/avatar.png",
     }
 
@@ -45,7 +45,7 @@ def test_project_service_list_returns_results_envelope() -> None:
         "results": [
             {
                 "key": "PROJ",
-                "name": "Operations",
+                "name": "Demo Project",
                 "avatar_url": "https://example.com/avatar.png",
             }
         ]

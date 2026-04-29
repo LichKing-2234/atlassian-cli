@@ -8,7 +8,7 @@ def test_jira_issue_from_api_response_builds_rich_resource() -> None:
             "key": "PROJ-1",
             "self": "https://jira.example.com/rest/api/2/issue/10001",
             "fields": {
-                "summary": "Broken deploy",
+                "summary": "Example issue summary",
                 "description": "Investigate release failure",
                 "status": {"name": "Open"},
                 "issuetype": {"name": "Bug"},
@@ -16,7 +16,7 @@ def test_jira_issue_from_api_response_builds_rich_resource() -> None:
                 "assignee": {"displayName": "Alice", "name": "alice"},
                 "reporter": {"displayName": "Bob", "name": "bob"},
                 "labels": ["release"],
-                "project": {"key": "PROJ", "name": "Operations"},
+                "project": {"key": "PROJ", "name": "Demo Project"},
                 "created": "2026-04-23T09:00:00.000+0000",
                 "updated": "2026-04-23T10:00:00.000+0000",
             },
