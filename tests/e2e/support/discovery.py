@@ -15,7 +15,16 @@ def build_jira_create_payload(
     meta = provider.client.issue_createmeta(project_key, expand="projects.issuetypes.fields")
     projects = meta.get("projects", []) if isinstance(meta, dict) else []
     issue_types = projects[0].get("issuetypes", []) if projects else []
-    selected = next(item for item in issue_types if item.get("name") == issue_type)
+    selected = next((item for item in issue_types if item.get("name") == issue_type), None)
+    if selected is None:
+        available_issue_types = sorted(item.get("name") for item in issue_types if item.get("name"))
+        available_display = ", ".join(available_issue_types) if available_issue_types else "none"
+        raise RuntimeError(
+            "requested Jira issue type "
+            f"{issue_type!r} is not available for project {project_key!r}. "
+            f"Available issue types: {available_display}. "
+            "Set ATLASSIAN_E2E_JIRA_ISSUE_TYPE to one of the available issue types."
+        )
     payload = {
         "project": {"key": project_key},
         "issuetype": {"name": issue_type},

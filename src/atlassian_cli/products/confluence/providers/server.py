@@ -31,9 +31,12 @@ class ConfluenceServerProvider:
         page_id: str,
         *,
         include_metadata: bool = True,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict:
-        del convert_to_markdown
+        if convert_to_markdown:
+            raise NotImplementedError(
+                "Confluence Server/DC provider does not support convert_to_markdown"
+            )
         expand = "space,version,body.storage" if include_metadata else "body.storage"
         return self.client.get_page_by_id(page_id, expand=expand)
 
@@ -43,9 +46,12 @@ class ConfluenceServerProvider:
         title: str,
         *,
         include_metadata: bool = True,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict | None:
-        del convert_to_markdown
+        if convert_to_markdown:
+            raise NotImplementedError(
+                "Confluence Server/DC provider does not support convert_to_markdown"
+            )
         expand = "space,version,body.storage" if include_metadata else "body.storage"
         return self.client.get_page_by_title(space_key, title, expand=expand)
 
@@ -98,9 +104,12 @@ class ConfluenceServerProvider:
         page_id: str,
         version: int,
         *,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict:
-        del convert_to_markdown
+        if convert_to_markdown:
+            raise NotImplementedError(
+                "Confluence Server/DC provider does not support convert_to_markdown"
+            )
         return self.client.get_page_by_id(
             page_id, expand="space,version,body.storage", version=version
         )
@@ -112,12 +121,16 @@ class ConfluenceServerProvider:
         title: str,
         body: str,
         parent_id: str | None = None,
-        content_format: str = "markdown",
+        content_format: str = "storage",
         enable_heading_anchors: bool = False,
         emoji: str | None = None,
     ) -> dict:
         del enable_heading_anchors, emoji
-        representation = "storage" if content_format == "markdown" else content_format
+        if content_format == "markdown":
+            raise NotImplementedError(
+                "Confluence Server/DC provider does not support content_format=markdown"
+            )
+        representation = content_format
         return self.client.create_page(
             space=space_key,
             title=title,
@@ -133,14 +146,18 @@ class ConfluenceServerProvider:
         title: str,
         body: str,
         parent_id: str | None = None,
-        content_format: str = "markdown",
+        content_format: str = "storage",
         is_minor_edit: bool = False,
         version_comment: str | None = None,
         enable_heading_anchors: bool = False,
         emoji: str | None = None,
     ) -> dict:
         del enable_heading_anchors, emoji
-        representation = "storage" if content_format == "markdown" else content_format
+        if content_format == "markdown":
+            raise NotImplementedError(
+                "Confluence Server/DC provider does not support content_format=markdown"
+            )
+        representation = content_format
         return self.client.update_page(
             page_id=page_id,
             title=title,

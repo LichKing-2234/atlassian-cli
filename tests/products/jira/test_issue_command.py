@@ -476,21 +476,7 @@ def test_jira_issue_update_accepts_fields_attachments_and_additional_fields(monk
     assert captured["kwargs"]["attachments"] == ["release.txt"]
 
 
-def test_jira_issue_batch_create_accepts_inline_json_and_validate_only(monkeypatch) -> None:
-    from atlassian_cli.products.jira.commands import issue as issue_module
-
-    captured: dict[str, object] = {}
-
-    class FakeService:
-        def batch_create(self, issues, *, validate_only: bool):
-            captured["issues"] = issues
-            captured["validate_only"] = validate_only
-            return {"message": "Issues validated successfully", "issues": [{"key": "DEMO-1"}]}
-
-    monkeypatch.setattr(
-        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
-    )
-
+def test_jira_issue_batch_create_rejects_validate_only_on_server_dc() -> None:
     result = runner.invoke(
         app,
         [
@@ -507,9 +493,8 @@ def test_jira_issue_batch_create_accepts_inline_json_and_validate_only(monkeypat
         ],
     )
 
-    assert result.exit_code == 0
-    assert captured["validate_only"] is True
-    assert captured["issues"][0]["project_key"] == "DEMO"
+    assert result.exit_code != 0
+    assert "validate-only is not supported" in result.output.lower()
 
 
 def test_jira_issue_batch_create_reads_json_file(monkeypatch, tmp_path) -> None:

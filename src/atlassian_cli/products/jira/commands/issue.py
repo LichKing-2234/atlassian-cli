@@ -348,16 +348,16 @@ def batch_create_issues(
     validate_only: bool = typer.Option(False, "--validate-only"),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
+    if validate_only:
+        raise typer.BadParameter(
+            "validate-only is not supported on Jira Server/DC", param_hint="--validate-only"
+        )
     issues = _load_batch_issues(issues_json=issues_json, file_path=file_path)
     service = build_issue_service(ctx.obj)
     if is_raw_output(output):
         payload = service.batch_create_raw(issues)
     else:
-        payload = (
-            service.batch_create(issues, validate_only=validate_only)
-            if validate_only
-            else service.batch_create(issues)
-        )
+        payload = service.batch_create(issues)
     typer.echo(render_output(payload, output=output))
 
 

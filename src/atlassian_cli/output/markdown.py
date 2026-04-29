@@ -71,7 +71,7 @@ def _unwrap_record(value: Mapping[str, Any]) -> Mapping[str, Any]:
     for key in ("issue", "page"):
         candidate = value.get(key)
         if isinstance(candidate, Mapping):
-            return candidate
+            return _unwrap_record(candidate)
     if isinstance(value.get("metadata"), Mapping):
         record = dict(value["metadata"])
         content = value.get("content")

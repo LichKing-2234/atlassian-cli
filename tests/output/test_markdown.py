@@ -100,3 +100,18 @@ def test_render_markdown_renders_page_metadata_and_content_envelope() -> None:
     assert rendered.startswith("# 1234 - Example Page")
     assert "## Content" in rendered
     assert "Use the checklist." in rendered
+
+
+def test_render_markdown_unwraps_nested_page_envelope() -> None:
+    rendered = render_markdown(
+        {
+            "message": "Page updated successfully",
+            "page": {
+                "metadata": {"id": "1234", "title": "Example Page", "version": 2},
+                "content": {"value": "## Runbook\n\nUse the checklist."},
+            },
+        }
+    )
+
+    assert rendered.startswith("# 1234 - Example Page")
+    assert "## Content" in rendered

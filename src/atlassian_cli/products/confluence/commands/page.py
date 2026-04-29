@@ -28,11 +28,16 @@ def get_page(
     space_key: str | None = typer.Option(None, "--space-key", "--space"),
     include_metadata: bool = typer.Option(True, "--include-metadata/--no-include-metadata"),
     convert_to_markdown: bool = typer.Option(
-        True, "--convert-to-markdown/--no-convert-to-markdown"
+        False, "--convert-to-markdown/--no-convert-to-markdown"
     ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
+    if convert_to_markdown:
+        raise typer.BadParameter(
+            "convert-to-markdown is not supported on Confluence Server/DC",
+            param_hint="--convert-to-markdown",
+        )
     include_metadata_is_default = (
         ctx.get_parameter_source("include_metadata") is ParameterSource.DEFAULT
     )
@@ -41,7 +46,7 @@ def get_page(
     )
     use_default_read = (
         include_metadata
-        and convert_to_markdown
+        and not convert_to_markdown
         and include_metadata_is_default
         and convert_to_markdown_is_default
     )
@@ -90,7 +95,7 @@ def get_page(
         if payload is None:
             raise typer.BadParameter(f"page not found: {title} in {space_key}")
     else:
-        raise typer.BadParameter("provide a page id or both --title and --space")
+        raise typer.BadParameter("provide a page id or both --title and --space-key")
     typer.echo(render_output(payload, output=output))
 
 
@@ -139,11 +144,16 @@ def get_history(
     page_id: str,
     version: int = typer.Option(..., "--version"),
     convert_to_markdown: bool = typer.Option(
-        True, "--convert-to-markdown/--no-convert-to-markdown"
+        False, "--convert-to-markdown/--no-convert-to-markdown"
     ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
+    if convert_to_markdown:
+        raise typer.BadParameter(
+            "convert-to-markdown is not supported on Confluence Server/DC",
+            param_hint="--convert-to-markdown",
+        )
     payload = (
         service.history_raw(page_id, version=version, convert_to_markdown=convert_to_markdown)
         if is_raw_output(output)
@@ -204,13 +214,18 @@ def create_page(
     title: str = typer.Option(..., "--title"),
     content: str = typer.Option(..., "--content", "--body"),
     parent_id: str | None = typer.Option(None, "--parent-id"),
-    content_format: str = typer.Option("markdown", "--content-format"),
+    content_format: str = typer.Option("storage", "--content-format"),
     enable_heading_anchors: bool = typer.Option(False, "--enable-heading-anchors"),
     include_content: bool = typer.Option(False, "--include-content"),
     emoji: str | None = typer.Option(None, "--emoji"),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
+    if content_format == "markdown":
+        raise typer.BadParameter(
+            "content-format=markdown is not supported on Confluence Server/DC; use storage",
+            param_hint="--content-format",
+        )
     payload = (
         service.create_raw(
             space_key=space_key,
@@ -243,7 +258,7 @@ def update_page(
     title: str = typer.Option(..., "--title"),
     content: str = typer.Option(..., "--content", "--body"),
     parent_id: str | None = typer.Option(None, "--parent-id"),
-    content_format: str = typer.Option("markdown", "--content-format"),
+    content_format: str = typer.Option("storage", "--content-format"),
     is_minor_edit: bool = typer.Option(False, "--is-minor-edit"),
     version_comment: str | None = typer.Option(None, "--version-comment"),
     enable_heading_anchors: bool = typer.Option(False, "--enable-heading-anchors"),
@@ -252,6 +267,11 @@ def update_page(
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
+    if content_format == "markdown":
+        raise typer.BadParameter(
+            "content-format=markdown is not supported on Confluence Server/DC; use storage",
+            param_hint="--content-format",
+        )
     payload = (
         service.update_raw(
             page_id,

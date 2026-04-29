@@ -37,7 +37,18 @@ class JiraServerProvider:
         properties: list[str] | None = None,
         update_history: bool = True,
     ) -> dict:
-        del comment_limit, properties, update_history
+        unsupported_options: list[str] = []
+        if comment_limit != 10:
+            unsupported_options.append("comment_limit")
+        if properties:
+            unsupported_options.append("properties")
+        if update_history is not True:
+            unsupported_options.append("update_history")
+        if unsupported_options:
+            raise NotImplementedError(
+                "Jira Server/DC provider does not support get_issue options: "
+                + ", ".join(unsupported_options)
+            )
         return self.client.issue(issue_key, fields=fields or "*all", expand=expand)
 
     def search_issues(

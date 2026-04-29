@@ -111,6 +111,24 @@ def test_confluence_page_get_by_title_missing_page_exits_nonzero(monkeypatch) ->
     assert "page not found" in result.output.lower()
 
 
+def test_confluence_page_get_missing_space_key_mentions_new_flag() -> None:
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "page",
+            "get",
+            "--title",
+            "Missing",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "--space-key" in result.output
+
+
 def test_confluence_page_search_outputs_json(monkeypatch) -> None:
     from atlassian_cli.products.confluence.commands import page as page_module
 
@@ -286,19 +304,7 @@ def test_confluence_page_history_outputs_json(monkeypatch) -> None:
     assert '"version": 2' in result.stdout
 
 
-def test_confluence_page_get_supports_metadata_and_markdown_flags(monkeypatch) -> None:
-    from atlassian_cli.products.confluence.commands import page as page_module
-
-    captured: dict[str, object] = {}
-
-    class FakeService:
-        def get(self, page_id, **kwargs):
-            captured["page_id"] = page_id
-            captured["kwargs"] = kwargs
-            return {"metadata": {"id": page_id}, "content": {"value": "Example body"}}
-
-    monkeypatch.setattr(page_module, "build_page_service", lambda *_args, **_kwargs: FakeService())
-
+def test_confluence_page_get_rejects_convert_to_markdown_until_supported() -> None:
     result = runner.invoke(
         app,
         [
@@ -315,8 +321,10 @@ def test_confluence_page_get_supports_metadata_and_markdown_flags(monkeypatch) -
         ],
     )
 
-    assert result.exit_code == 0
-    assert captured["kwargs"] == {"include_metadata": True, "convert_to_markdown": True}
+    assert result.exit_code != 0
+    assert "convert-to-markdown" in result.output.lower()
+    assert "not" in result.output.lower()
+    assert "supported" in result.output.lower()
 
 
 def test_confluence_page_diff_outputs_json(monkeypatch) -> None:

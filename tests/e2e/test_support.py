@@ -1,6 +1,5 @@
 import subprocess
 import sys
-from pathlib import Path
 
 from atlassian_cli.config.models import Product
 from tests.e2e.support.cleanup import CleanupRegistry
@@ -225,6 +224,23 @@ def test_build_jira_create_payload_uses_allowed_value_defaults() -> None:
     assert payload["project"]["key"] == "DEMO"
     assert payload["customfield_10001"] == {"id": "11"}
     assert payload["reporter"] == {"name": "example-user"}
+
+
+def test_build_jira_create_payload_raises_clear_error_for_unknown_issue_type() -> None:
+    try:
+        build_jira_create_payload(
+            FakeJiraProvider(),
+            project_key="DEMO",
+            summary="Example issue summary",
+            issue_type="Bug",
+            env_overrides={},
+            reporter_name="example-user",
+        )
+    except RuntimeError as exc:
+        assert "issue type" in str(exc)
+        assert "ATLASSIAN_E2E_JIRA_ISSUE_TYPE" in str(exc)
+    else:
+        raise AssertionError("expected RuntimeError")
 
 
 def test_resolve_confluence_write_target_prefers_explicit_parent(tmp_path) -> None:

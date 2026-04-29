@@ -37,7 +37,7 @@ class PageService:
         page_id: str,
         *,
         include_metadata: bool = True,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict:
         raw = self.provider.get_page(
             page_id,
@@ -51,7 +51,7 @@ class PageService:
         page_id: str,
         *,
         include_metadata: bool = True,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict:
         return self.provider.get_page(
             page_id,
@@ -65,7 +65,7 @@ class PageService:
         title: str,
         *,
         include_metadata: bool = True,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict | None:
         page = self.provider.get_page_by_title(
             space_key,
@@ -83,7 +83,7 @@ class PageService:
         title: str,
         *,
         include_metadata: bool = True,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict | None:
         return self.provider.get_page_by_title(
             space_key,
@@ -140,7 +140,7 @@ class PageService:
         page_id: str,
         *,
         version: int,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict:
         raw = self.provider.get_page_version(
             page_id, version, convert_to_markdown=convert_to_markdown
@@ -152,7 +152,7 @@ class PageService:
         page_id: str,
         *,
         version: int,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict:
         return self.provider.get_page_version(
             page_id, version, convert_to_markdown=convert_to_markdown
@@ -221,7 +221,7 @@ class PageService:
         title: str,
         content: str,
         parent_id: str | None = None,
-        content_format: str = "markdown",
+        content_format: str = "storage",
         enable_heading_anchors: bool = False,
         include_content: bool = False,
         emoji: str | None = None,
@@ -249,7 +249,7 @@ class PageService:
         title: str,
         body: str,
         parent_id: str | None = None,
-        content_format: str = "markdown",
+        content_format: str = "storage",
         enable_heading_anchors: bool = False,
         emoji: str | None = None,
     ) -> dict:
@@ -270,7 +270,7 @@ class PageService:
         title: str,
         content: str,
         parent_id: str | None = None,
-        content_format: str = "markdown",
+        content_format: str = "storage",
         is_minor_edit: bool = False,
         version_comment: str | None = None,
         enable_heading_anchors: bool = False,
@@ -302,7 +302,7 @@ class PageService:
         title: str,
         body: str,
         parent_id: str | None = None,
-        content_format: str = "markdown",
+        content_format: str = "storage",
         is_minor_edit: bool = False,
         version_comment: str | None = None,
         enable_heading_anchors: bool = False,

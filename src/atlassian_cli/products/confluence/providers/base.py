@@ -7,7 +7,7 @@ class ConfluenceProvider(Protocol):
         page_id: str,
         *,
         include_metadata: bool = True,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict: ...
     def get_page_by_title(
         self,
@@ -15,7 +15,7 @@ class ConfluenceProvider(Protocol):
         title: str,
         *,
         include_metadata: bool = True,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict | None: ...
     def search_pages(
         self,
@@ -38,7 +38,7 @@ class ConfluenceProvider(Protocol):
         page_id: str,
         version: int,
         *,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict: ...
     def create_page(
         self,
@@ -47,7 +47,7 @@ class ConfluenceProvider(Protocol):
         title: str,
         body: str,
         parent_id: str | None = None,
-        content_format: str = "markdown",
+        content_format: str = "storage",
         enable_heading_anchors: bool = False,
         emoji: str | None = None,
     ) -> dict: ...
@@ -58,7 +58,7 @@ class ConfluenceProvider(Protocol):
         title: str,
         body: str,
         parent_id: str | None = None,
-        content_format: str = "markdown",
+        content_format: str = "storage",
         is_minor_edit: bool = False,
         version_comment: str | None = None,
         enable_heading_anchors: bool = False,

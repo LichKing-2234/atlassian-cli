@@ -164,3 +164,36 @@ def test_list_comments_returns_results_items() -> None:
     result = provider.list_comments("1234")
 
     assert result == [{"id": "c1", "body": {"storage": {"value": "example approval"}}}]
+
+
+def test_get_page_rejects_markdown_conversion_until_supported() -> None:
+    class FakeClient:
+        pass
+
+    provider = build_provider_with_client(FakeClient())
+
+    try:
+        provider.get_page("1234", convert_to_markdown=True)
+    except NotImplementedError as exc:
+        assert "convert_to_markdown" in str(exc)
+    else:
+        raise AssertionError("expected NotImplementedError")
+
+
+def test_create_page_rejects_markdown_content_format_until_supported() -> None:
+    class FakeClient:
+        pass
+
+    provider = build_provider_with_client(FakeClient())
+
+    try:
+        provider.create_page(
+            space_key="DEMO",
+            title="Example Page",
+            body="# Example",
+            content_format="markdown",
+        )
+    except NotImplementedError as exc:
+        assert "content_format" in str(exc)
+    else:
+        raise AssertionError("expected NotImplementedError")

@@ -11,7 +11,7 @@ class FakePageProvider:
         page_id: str,
         *,
         include_metadata: bool = True,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict:
         del include_metadata, convert_to_markdown
         return {
@@ -30,7 +30,7 @@ class FakePageProvider:
         title: str,
         *,
         include_metadata: bool = True,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict | None:
         assert space_key == "DEMO"
         assert title == "Example Page"
@@ -97,7 +97,7 @@ class FakePageProvider:
         page_id: str,
         version: int,
         *,
-        convert_to_markdown: bool = True,
+        convert_to_markdown: bool = False,
     ) -> dict:
         del convert_to_markdown
         body = "Version 1 body" if version == 1 else "Version 2 body"
@@ -117,7 +117,7 @@ class FakePageProvider:
         title: str,
         body: str,
         parent_id: str | None = None,
-        content_format: str = "markdown",
+        content_format: str = "storage",
         enable_heading_anchors: bool = False,
         emoji: str | None = None,
     ) -> dict:
@@ -125,7 +125,7 @@ class FakePageProvider:
         assert title == "Example Page"
         assert body == "## Runbook"
         assert parent_id == "5678"
-        assert content_format == "markdown"
+        assert content_format == "storage"
         assert enable_heading_anchors is True
         assert emoji == "📝"
         return self.get_page("1235")
@@ -137,7 +137,7 @@ class FakePageProvider:
         title: str,
         body: str,
         parent_id: str | None = None,
-        content_format: str = "markdown",
+        content_format: str = "storage",
         is_minor_edit: bool = False,
         version_comment: str | None = None,
         enable_heading_anchors: bool = False,
@@ -147,7 +147,7 @@ class FakePageProvider:
         assert title == "Example Page"
         assert body == "## Runbook"
         assert parent_id == "5678"
-        assert content_format == "markdown"
+        assert content_format == "storage"
         assert is_minor_edit is True
         assert version_comment == "Example update"
         assert enable_heading_anchors is False
@@ -199,7 +199,7 @@ def test_page_service_get_by_title_returns_none_when_missing() -> None:
             title: str,
             *,
             include_metadata: bool = True,
-            convert_to_markdown: bool = True,
+            convert_to_markdown: bool = False,
         ) -> dict | None:
             del space_key, title, include_metadata, convert_to_markdown
             return None
@@ -283,7 +283,7 @@ def test_page_service_create_returns_message_and_page() -> None:
         title="Example Page",
         content="## Runbook",
         parent_id="5678",
-        content_format="markdown",
+        content_format="storage",
         enable_heading_anchors=True,
         include_content=False,
         emoji="📝",
@@ -301,7 +301,7 @@ def test_page_service_update_returns_message_and_page() -> None:
         title="Example Page",
         content="## Runbook",
         parent_id="5678",
-        content_format="markdown",
+        content_format="storage",
         is_minor_edit=True,
         version_comment="Example update",
         enable_heading_anchors=False,
