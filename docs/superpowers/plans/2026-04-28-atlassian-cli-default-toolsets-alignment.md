@@ -174,7 +174,7 @@ class FakeFieldProvider:
 
     def get_field_options(self, field_id: str, project_key: str, issue_type: str) -> list[dict]:
         assert field_id == "customfield_10001"
-        assert project_key == "PROJ"
+        assert project_key == "DEMO"
         assert issue_type == "Bug"
         return [{"id": "1", "value": "1"}, {"id": "2", "value": "2"}]
 
@@ -194,7 +194,7 @@ def test_field_service_search_normalizes_results() -> None:
 def test_field_service_options_normalizes_results() -> None:
     service = FieldService(provider=FakeFieldProvider())
 
-    result = service.options("customfield_10001", project_key="PROJ", issue_type="Bug")
+    result = service.options("customfield_10001", project_key="DEMO", issue_type="Bug")
 
     assert result["results"] == [{"id": "1", "value": "1"}, {"id": "2", "value": "2"}]
 ```
@@ -222,7 +222,7 @@ def test_jira_issue_transitions_outputs_available_ids(monkeypatch) -> None:
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "transitions", "PROJ-1", "--output", "json"],
+        ["--url", "https://jira.example.com", "jira", "issue", "transitions", "DEMO-1", "--output", "json"],
     )
 
     assert result.exit_code == 0
@@ -342,21 +342,21 @@ from atlassian_cli.products.jira.services.comment import CommentService
 
 class FakeCommentProvider:
     def add_comment(self, issue_key: str, body: str) -> dict:
-        return {"id": "10001", "body": body, "author": {"displayName": "Alice"}}
+        return {"id": "10001", "body": body, "author": {"displayName": "Example Author"}}
 
     def edit_comment(self, issue_key: str, comment_id: str, body: str) -> dict:
-        return {"id": comment_id, "body": body, "author": {"displayName": "Alice"}}
+        return {"id": comment_id, "body": body, "author": {"displayName": "Example Author"}}
 
 
 def test_comment_service_add_normalizes_result() -> None:
     service = CommentService(provider=FakeCommentProvider())
 
-    result = service.add("PROJ-1", "Looks good")
+    result = service.add("DEMO-1", "Looks good")
 
     assert result == {
         "id": "10001",
         "body": "Looks good",
-        "author": {"display_name": "Alice", "name": "Alice"},
+        "author": {"display_name": "Example Author", "name": "Example Author"},
     }
 ```
 
@@ -364,11 +364,11 @@ def test_comment_service_add_normalizes_result() -> None:
 def test_issue_service_delete_returns_success_payload() -> None:
     class FakeIssueProvider:
         def delete_issue(self, issue_key: str) -> None:
-            assert issue_key == "PROJ-1"
+            assert issue_key == "DEMO-1"
 
     service = IssueService(provider=FakeIssueProvider())
 
-    assert service.delete("PROJ-1") == {"key": "PROJ-1", "deleted": True}
+    assert service.delete("DEMO-1") == {"key": "DEMO-1", "deleted": True}
 ```
 
 ```python
@@ -387,7 +387,7 @@ def test_jira_comment_add_outputs_json(monkeypatch) -> None:
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "comment", "add", "PROJ-1", "--body", "example approval comment", "--output", "json"],
+        ["--url", "https://jira.example.com", "jira", "comment", "add", "DEMO-1", "--body", "example approval comment", "--output", "json"],
     )
 
     assert result.exit_code == 0
@@ -496,7 +496,7 @@ def test_page_service_search_normalizes_results() -> None:
 
         def search_pages(self, query: str, limit: int) -> list[dict]:
             assert query == "runbook"
-            return [{"id": "1234", "title": "Example Page", "space": {"key": "PROJ", "name": "Demo Project"}}]
+            return [{"id": "1234", "title": "Example Page", "space": {"key": "DEMO", "name": "Demo Project"}}]
 
     service = PageService(provider=FakePageProvider())
 
@@ -771,7 +771,7 @@ def test_jira_issue_changelog_batch_is_explicitly_unsupported_on_server(monkeypa
             "issue",
             "changelog-batch",
             "--issue",
-            "PROJ-1",
+            "DEMO-1",
         ],
     )
 

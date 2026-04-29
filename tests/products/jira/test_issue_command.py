@@ -25,11 +25,11 @@ def test_jira_issue_get_outputs_json(monkeypatch) -> None:
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "get", "PROJ-1", "--output", "json"],
+        ["--url", "https://jira.example.com", "jira", "issue", "get", "DEMO-1", "--output", "json"],
     )
 
     assert result.exit_code == 0
-    assert '"key": "PROJ-1"' in result.stdout
+    assert '"key": "DEMO-1"' in result.stdout
 
 
 def test_jira_issue_search_uses_interactive_browser_for_markdown_tty(monkeypatch) -> None:
@@ -49,13 +49,13 @@ def test_jira_issue_search_uses_interactive_browser_for_markdown_tty(monkeypatch
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
+                    "issues": [{"key": "DEMO-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
                 },
                 "search_page": lambda self, jql, start, limit: CollectionPage(
-                    items=[{"key": "PROJ-1", "summary": "Example issue summary"}],
+                    items=[{"key": "DEMO-1", "summary": "Example issue summary"}],
                     start=start,
                     limit=limit,
                     total=1,
@@ -67,7 +67,7 @@ def test_jira_issue_search_uses_interactive_browser_for_markdown_tty(monkeypatch
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = PROJ"],
+        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = DEMO"],
     )
 
     assert result.exit_code == 0
@@ -88,7 +88,7 @@ def test_jira_issue_search_non_tty_falls_back_to_markdown(monkeypatch) -> None:
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
+                    "issues": [{"key": "DEMO-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
@@ -99,21 +99,21 @@ def test_jira_issue_search_non_tty_falls_back_to_markdown(monkeypatch) -> None:
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = PROJ"],
+        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = DEMO"],
     )
 
     assert result.exit_code == 0
-    assert "1. PROJ-1 - Example issue summary" in result.stdout
+    assert "1. DEMO-1 - Example issue summary" in result.stdout
 
 
 def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monkeypatch) -> None:
     from atlassian_cli.products.jira.commands import issue as issue_module
 
     sample_issue = {
-        "key": "PROJ-1",
+        "key": "DEMO-1",
         "summary": "Example issue summary",
         "status": {"name": "Open"},
-        "assignee": {"display_name": "Alice"},
+        "assignee": {"display_name": "Example Author"},
         "description": "Investigate rollout health",
     }
     captured: dict[str, str] = {}
@@ -142,13 +142,13 @@ def test_jira_issue_search_interactive_source_uses_generic_preview_renderer(monk
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = PROJ"],
+        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = DEMO"],
     )
 
     assert result.exit_code == 0
-    assert captured["item"] == "PROJ-1  Open  Alice  Example issue summary"
+    assert captured["item"] == "DEMO-1  Open  Example Author  Example issue summary"
     assert "Status: Open" in captured["preview"]
-    assert "Assignee: Alice" in captured["preview"]
+    assert "Assignee: Example Author" in captured["preview"]
 
 
 def test_jira_issue_search_falls_back_to_markdown_when_interactive_import_fails(
@@ -168,13 +168,13 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_import_fails(
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
+                    "issues": [{"key": "DEMO-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
                 },
                 "search_page": lambda self, jql, start, limit: CollectionPage(
-                    items=[{"key": "PROJ-1", "summary": "Example issue summary"}],
+                    items=[{"key": "DEMO-1", "summary": "Example issue summary"}],
                     start=start,
                     limit=limit,
                     total=1,
@@ -186,11 +186,11 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_import_fails(
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = PROJ"],
+        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = DEMO"],
     )
 
     assert result.exit_code == 0
-    assert "1. PROJ-1 - Example issue summary" in result.stdout
+    assert "1. DEMO-1 - Example issue summary" in result.stdout
 
 
 def test_jira_issue_search_falls_back_to_markdown_when_interactive_runtime_fails(
@@ -212,13 +212,13 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_runtime_fails
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
+                    "issues": [{"key": "DEMO-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
                 },
                 "search_page": lambda self, jql, start, limit: CollectionPage(
-                    items=[{"key": "PROJ-1", "summary": "Example issue summary"}],
+                    items=[{"key": "DEMO-1", "summary": "Example issue summary"}],
                     start=start,
                     limit=limit,
                     total=1,
@@ -230,11 +230,11 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_runtime_fails
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = PROJ"],
+        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = DEMO"],
     )
 
     assert result.exit_code == 0
-    assert "1. PROJ-1 - Example issue summary" in result.stdout
+    assert "1. DEMO-1 - Example issue summary" in result.stdout
 
 
 def test_jira_issue_transitions_outputs_available_ids(monkeypatch) -> None:
@@ -262,7 +262,7 @@ def test_jira_issue_transitions_outputs_available_ids(monkeypatch) -> None:
             "jira",
             "issue",
             "transitions",
-            "PROJ-1",
+            "DEMO-1",
             "--output",
             "json",
         ],
@@ -287,7 +287,7 @@ def test_jira_issue_delete_requires_confirmation(monkeypatch) -> None:
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "delete", "PROJ-1"],
+        ["--url", "https://jira.example.com", "jira", "issue", "delete", "DEMO-1"],
     )
 
     assert result.exit_code != 0
@@ -319,7 +319,7 @@ def test_jira_issue_delete_outputs_json(monkeypatch) -> None:
             "jira",
             "issue",
             "delete",
-            "PROJ-1",
+            "DEMO-1",
             "--yes",
             "--output",
             "json",
@@ -338,7 +338,7 @@ def test_jira_issue_batch_create_reads_json_file(monkeypatch, tmp_path) -> None:
         json.dumps(
             [
                 {
-                    "project": {"key": "PROJ"},
+                    "project": {"key": "DEMO"},
                     "issuetype": {"name": "Task"},
                     "summary": "First issue",
                 }
@@ -352,7 +352,7 @@ def test_jira_issue_batch_create_reads_json_file(monkeypatch, tmp_path) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"batch_create": lambda self, issues: {"issues": [{"key": "PROJ-1"}]}},
+            {"batch_create": lambda self, issues: {"issues": [{"key": "DEMO-1"}]}},
         )(),
     )
 
@@ -372,7 +372,7 @@ def test_jira_issue_batch_create_reads_json_file(monkeypatch, tmp_path) -> None:
     )
 
     assert result.exit_code == 0
-    assert '"key": "PROJ-1"' in result.stdout
+    assert '"key": "DEMO-1"' in result.stdout
 
 
 def test_jira_issue_batch_create_rejects_missing_file(tmp_path) -> None:
@@ -449,7 +449,7 @@ def test_jira_issue_changelog_batch_is_explicitly_unsupported_on_server() -> Non
             "issue",
             "changelog-batch",
             "--issue",
-            "PROJ-1",
+            "DEMO-1",
         ],
     )
 

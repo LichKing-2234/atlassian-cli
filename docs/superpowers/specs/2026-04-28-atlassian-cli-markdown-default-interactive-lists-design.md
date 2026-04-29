@@ -139,7 +139,7 @@ Collection markdown should:
 Example shape:
 
 ```md
-1. PR #24996 - [FIX] DEMO-2345: add example.feature.toggle for iOS
+1. PR #24996 - [FEAT] DEMO-2345 example preview change
    - State: OPEN
    - Author: Example Author
    - Reviewers: reviewer-one, reviewer-two, reviewer-three, +3 more
@@ -164,7 +164,7 @@ Example shape:
 
 ```md
 # PR #24996
-[FIX] DEMO-2345: add example.feature.toggle for iOS
+[FEAT] DEMO-2345 example preview change
 
 - State: OPEN
 - Author: Example Author

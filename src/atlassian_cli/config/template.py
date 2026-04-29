@@ -7,7 +7,7 @@ DEFAULT_CONFIG_TEMPLATE = """[headers]
 # deployment = "server"
 # url = "https://jira.example.com"
 # auth = "basic"
-# username = "alice"
+# username = "example-user"
 # token = "secret"
 
 [jira.headers]

@@ -10,7 +10,7 @@ def build_provider_with_client(client) -> BitbucketServerProvider:
 def test_list_projects_materializes_paged_generator() -> None:
     class FakeClient:
         def project_list(self, *, limit: int, start: int):
-            yield {"key": "PROJ", "name": "Demo Project"}
+            yield {"key": "DEMO", "name": "Demo Project"}
             yield {"key": "CLOUD", "name": "Cloud"}
 
     provider = build_provider_with_client(FakeClient())
@@ -18,7 +18,7 @@ def test_list_projects_materializes_paged_generator() -> None:
     result = provider.list_projects(start=0, limit=5)
 
     assert result == [
-        {"key": "PROJ", "name": "Demo Project"},
+        {"key": "DEMO", "name": "Demo Project"},
         {"key": "CLOUD", "name": "Cloud"},
     ]
 
@@ -26,13 +26,13 @@ def test_list_projects_materializes_paged_generator() -> None:
 def test_list_repos_materializes_paged_generator() -> None:
     class FakeClient:
         def repo_list(self, *, project_key: str, limit: int, start: int):
-            yield {"slug": "infra", "project": {"key": project_key}}
+            yield {"slug": "example-repo", "project": {"key": project_key}}
 
     provider = build_provider_with_client(FakeClient())
 
-    result = provider.list_repos(project_key="PROJ", start=0, limit=5)
+    result = provider.list_repos(project_key="DEMO", start=0, limit=5)
 
-    assert result == [{"slug": "infra", "project": {"key": "PROJ"}}]
+    assert result == [{"slug": "example-repo", "project": {"key": "DEMO"}}]
 
 
 def test_list_branches_materializes_paged_generator() -> None:
@@ -42,7 +42,7 @@ def test_list_branches_materializes_paged_generator() -> None:
 
     provider = build_provider_with_client(FakeClient())
 
-    result = provider.list_branches("PROJ", "infra", None)
+    result = provider.list_branches("DEMO", "example-repo", None)
 
     assert result == [{"displayId": "main", "latestCommit": "abc123"}]
 
@@ -66,13 +66,13 @@ def test_list_pull_requests_materializes_paged_generator() -> None:
 
     provider = build_provider_with_client(FakeClient())
 
-    result = provider.list_pull_requests("PROJ", "infra", "OPEN", start=25, limit=2)
+    result = provider.list_pull_requests("DEMO", "example-repo", "OPEN", start=25, limit=2)
 
     assert result == [
         {"id": 1, "title": "Add release automation"},
         {"id": 2, "title": "Refine release notes"},
     ]
-    assert calls["args"] == ("PROJ", "infra", "OPEN", 2, 25)
+    assert calls["args"] == ("DEMO", "example-repo", "OPEN", 2, 25)
 
 
 def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() -> None:
@@ -86,8 +86,8 @@ def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() ->
     provider = build_provider_with_client(FakeClient())
 
     result = provider.merge_pull_request(
-        "PROJ",
-        "infra",
+        "DEMO",
+        "example-repo",
         42,
         merge_message="Merge pull request #42: Example pull request",
         pr_version=7,
@@ -95,8 +95,8 @@ def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() ->
 
     assert result["state"] == "MERGED"
     assert calls["args"] == (
-        "PROJ",
-        "infra",
+        "DEMO",
+        "example-repo",
         42,
         "Merge pull request #42: Example pull request",
         7,

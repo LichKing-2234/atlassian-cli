@@ -49,7 +49,7 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
         title="Demo",
         page_size=1,
         fetch_page=lambda start, limit: CollectionPage(
-            items=[{"id": 1, "title": "PROJ-1"}],
+            items=[{"id": 1, "title": "DEMO-1"}],
             start=start,
             limit=limit,
             total=1,
@@ -143,7 +143,7 @@ def test_render_state_in_detail_mode_has_detail_header_and_back_hint() -> None:
         title="Demo",
         page_size=1,
         fetch_page=lambda start, limit: CollectionPage(
-            items=[{"id": 1, "title": "PROJ-1"}],
+            items=[{"id": 1, "title": "DEMO-1"}],
             start=start,
             limit=limit,
             total=1,
@@ -322,13 +322,13 @@ def build_preview_source() -> InteractiveCollectionSource:
         {
             "id": 24990,
             "state": "OPEN",
-            "author": "sample-author",
+            "author": "Example Author",
             "title": "[FEAT] DEMO-1234 example preview change with extended summary text",
             "preview": "\n".join(
                 [
                     "State: OPEN",
-                    "Author: sample-author",
-                    "Reviewers: Alice, Bob, Carol, +1 more",
+                    "Author: Example Author",
+                    "Reviewers: reviewer-one, reviewer-two, reviewer-three, +1 more",
                     "From: feature/DEMO-1234/example-change",
                     "To: main",
                     "Updated: 2026-04-27 13:19:55",
@@ -342,9 +342,9 @@ def build_preview_source() -> InteractiveCollectionSource:
         {
             "id": 24991,
             "state": "MERGED",
-            "author": "alice",
-            "title": "Release cleanup",
-            "preview": "State: MERGED\nAuthor: alice",
+            "author": "Example Collaborator",
+            "title": "Example merged change",
+            "preview": "State: MERGED\nAuthor: Example Collaborator",
             "detail": "# PR #24991\n\nMerged detail",
         },
     ]
@@ -384,13 +384,13 @@ def test_collection_browser_state_updates_preview_when_selection_changes() -> No
     state = CollectionBrowserState(build_preview_source())
     state.load_initial()
 
-    assert "Author: sample-author" in _render_state(state)
+    assert "Author: Example Author" in _render_state(state)
 
     state.move(1)
 
     rendered = _render_state(state)
-    assert "Author: alice" in rendered
-    assert "Author: sample-author" not in rendered
+    assert "Author: Example Collaborator" in rendered
+    assert "Author: Example Author" not in rendered
 
 
 def test_render_state_clips_to_terminal_height_and_keeps_preview_visible() -> None:

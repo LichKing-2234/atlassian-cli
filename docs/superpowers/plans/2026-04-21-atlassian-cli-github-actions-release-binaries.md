@@ -4,7 +4,7 @@
 
 **Goal:** Add GitHub Actions gating for `main` and `release/*`, publish installable `linux/amd64` and `darwin/arm64` binaries from GitHub Releases, and provide a repository-owned installer script.
 
-**Architecture:** Keep the implementation close to the `ai-efficiency` reference repository with separate `.github/workflows/ci.yml` and `.github/workflows/release.yml` files, but replace GoReleaser with a checked-in PyInstaller build path. Add one repository-root `install.sh` that downloads release tarballs from `LichKing-2234/atlassian-cli`, verifies SHA-256 checksums, and installs `atlassian` into a local bin directory without requiring Python on the target machine.
+**Architecture:** Keep the implementation close to the `ai-efficiency` reference repository with separate `.github/workflows/ci.yml` and `.github/workflows/release.yml` files, but replace GoReleaser with a checked-in PyInstaller build path. Add one repository-root `install.sh` that downloads release tarballs from `example-org/example-repo`, verifies SHA-256 checksums, and installs `atlassian` into a local bin directory without requiring Python on the target machine.
 
 **Tech Stack:** Python 3.12+, Hatchling, PyInstaller, Ruff, Pytest, GitHub Actions, POSIX shell
 
@@ -336,7 +336,7 @@ Create `install.sh` with this content:
 #!/bin/sh
 set -eu
 
-REPO_OWNER="LichKing-2234"
+REPO_OWNER="example-org"
 REPO_NAME="atlassian-cli"
 INSTALL_DIR="${INSTALL_DIR:-${HOME}/.local/bin}"
 INSTALL_RELEASE_API_URL="${INSTALL_RELEASE_API_URL:-https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest}"
@@ -950,13 +950,13 @@ Each release uploads:
 Install the latest binary release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/example-org/example-repo/main/install.sh | sh
 ```
 
 Install a specific release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/main/install.sh | env INSTALL_VERSION=v0.1.0 sh
+curl -fsSL https://raw.githubusercontent.com/example-org/example-repo/main/install.sh | env INSTALL_VERSION=v0.1.0 sh
 ```
 
 By default the installer writes `atlassian` to `~/.local/bin`.

@@ -527,7 +527,7 @@ def test_build_live_context_reads_product_config(tmp_path, monkeypatch) -> None:
         deployment = "server"
         url = "https://jira.example.com"
         auth = "basic"
-        username = "alice"
+        username = "example-user"
         token = "secret"
         """.strip()
     )
@@ -539,7 +539,7 @@ def test_build_live_context_reads_product_config(tmp_path, monkeypatch) -> None:
 
     assert context.product is Product.JIRA
     assert context.url == "https://jira.example.com"
-    assert context.auth.username == "alice"
+    assert context.auth.username == "example-user"
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -1173,7 +1173,7 @@ def test_jira_issue_changelog_batch_rejected_live(live_env) -> None:
         "issue",
         "changelog-batch",
         "--issue",
-        "TEST-1",
+        "DEMO-1",
         expected="Cloud support is not available in v1",
     )
     assert "Cloud support is not available in v1" in output
@@ -1475,7 +1475,7 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
             "add",
             page_id,
             "--body",
-            "example root note",
+            "example comment",
             "--output",
             "json",
         )
@@ -1488,7 +1488,7 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
             "reply",
             comment["id"],
             "--body",
-            "example child note",
+            "example response",
             "--output",
             "json",
         )
@@ -1504,7 +1504,7 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
             "json",
         )
         bodies = [item.get("body", "") for item in comments["results"]]
-        assert any("example root note" in body for body in bodies)
+        assert any("example comment" in body for body in bodies)
     finally:
         registry.run()
 

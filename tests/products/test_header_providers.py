@@ -16,7 +16,7 @@ def make_context(product: Product) -> ExecutionContext:
         output="json",
         auth=ResolvedAuth(
             mode=AuthMode.PAT,
-            username="alice",
+            username="example-user",
             password="legacy-password",
             token="legacy-token",
             headers={"Authorization": "Bearer oauth-token"},
@@ -56,13 +56,13 @@ def test_jira_provider_prefers_injected_headers(monkeypatch) -> None:
     JiraServerProvider(
         auth_mode=AuthMode.BASIC,
         url="https://jira.example.com",
-        username="alice",
+        username="example-user",
         password="legacy-password",
         token="legacy-token",
         headers={"Authorization": "Bearer oauth-token"},
     )
 
-    assert captured["username"] == "alice"
+    assert captured["username"] == "example-user"
     assert captured["password"] == "legacy-password"
     assert captured["patched"] == {"Authorization": "Bearer oauth-token"}
 
@@ -86,13 +86,13 @@ def test_confluence_provider_prefers_injected_headers(monkeypatch) -> None:
     ConfluenceServerProvider(
         auth_mode=AuthMode.BASIC,
         url="https://confluence.example.com",
-        username="alice",
+        username="example-user",
         password="legacy-password",
         token="legacy-token",
         headers={"Authorization": "Bearer oauth-token"},
     )
 
-    assert captured["username"] == "alice"
+    assert captured["username"] == "example-user"
     assert captured["password"] == "legacy-password"
     assert captured["patched"] == {"Authorization": "Bearer oauth-token"}
 
@@ -147,13 +147,13 @@ def test_bitbucket_provider_prefers_injected_headers(monkeypatch) -> None:
     BitbucketServerProvider(
         auth_mode=AuthMode.BASIC,
         url="https://bitbucket.example.com",
-        username="alice",
+        username="example-user",
         password="legacy-password",
         token="legacy-token",
         headers={"Authorization": "Bearer oauth-token"},
     )
 
-    assert captured["username"] == "alice"
+    assert captured["username"] == "example-user"
     assert captured["password"] == "legacy-password"
     assert "token" not in captured or captured["token"] is None
     assert captured["patched"] == {"Authorization": "Bearer oauth-token"}
@@ -229,7 +229,7 @@ def test_jira_provider_search_issues_returns_full_search_payload(monkeypatch) ->
                 "total": 2,
                 "startAt": start,
                 "maxResults": limit,
-                "issues": [{"key": "PROJ-1"}, {"key": "PROJ-2"}],
+                "issues": [{"key": "DEMO-1"}, {"key": "DEMO-2"}],
             }
 
     monkeypatch.setattr("atlassian_cli.products.jira.providers.server.Jira", FakeJira)
@@ -240,16 +240,16 @@ def test_jira_provider_search_issues_returns_full_search_payload(monkeypatch) ->
 
     provider = JiraServerProvider(
         url="https://jira.example.com",
-        username="alice",
+        username="example-user",
         password="secret",
         token=None,
         headers={},
     )
 
-    result = provider.search_issues("project = PROJ", start=0, limit=2)
+    result = provider.search_issues("project = DEMO", start=0, limit=2)
 
     assert result["total"] == 2
-    assert [item["key"] for item in result["issues"]] == ["PROJ-1", "PROJ-2"]
+    assert [item["key"] for item in result["issues"]] == ["DEMO-1", "DEMO-2"]
 
 
 def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch) -> None:
@@ -259,7 +259,7 @@ def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch)
 
         def get_all_spaces(self, start: int, limit: int) -> dict:
             return {
-                "results": [{"id": 1, "key": "PROJ", "name": "Demo Project"}],
+                "results": [{"id": 1, "key": "DEMO", "name": "Demo Project"}],
                 "start": start,
                 "limit": limit,
             }
@@ -275,7 +275,7 @@ def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch)
 
     provider = ConfluenceServerProvider(
         url="https://confluence.example.com",
-        username="alice",
+        username="example-user",
         password="secret",
         token=None,
         headers={},
@@ -284,4 +284,4 @@ def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch)
     result = provider.list_spaces(start=0, limit=25)
 
     assert result["start"] == 0
-    assert result["results"][0]["key"] == "PROJ"
+    assert result["results"][0]["key"] == "DEMO"

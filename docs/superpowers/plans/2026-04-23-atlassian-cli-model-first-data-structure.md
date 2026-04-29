@@ -129,22 +129,22 @@ def test_render_output_table_uses_results_envelope_rows() -> None:
         "start_at": 0,
         "max_results": 2,
         "results": [
-            {"key": "PROJ-1", "summary": "First"},
-            {"key": "PROJ-2", "summary": "Second", "assignee": {"display_name": "Alice"}},
+            {"key": "DEMO-1", "summary": "First"},
+            {"key": "DEMO-2", "summary": "Second", "assignee": {"display_name": "Example Author"}},
         ],
     }
 
     rendered = render_output(payload, output="table")
 
-    assert "PROJ-1" in rendered
-    assert "PROJ-2" in rendered
+    assert "DEMO-1" in rendered
+    assert "DEMO-2" in rendered
     assert "assignee" in rendered.lower()
 
 
 def test_render_output_table_unions_columns_across_sparse_rows() -> None:
     payload = [
-        {"key": "PROJ-1", "summary": "First"},
-        {"key": "PROJ-2", "summary": "Second", "priority": {"name": "High"}},
+        {"key": "DEMO-1", "summary": "First"},
+        {"key": "DEMO-2", "summary": "Second", "priority": {"name": "High"}},
     ]
 
     rendered = render_output(payload, output="table")
@@ -333,7 +333,7 @@ def test_jira_provider_search_issues_returns_full_search_payload(monkeypatch) ->
                 "total": 2,
                 "startAt": start,
                 "maxResults": limit,
-                "issues": [{"key": "PROJ-1"}, {"key": "PROJ-2"}],
+                "issues": [{"key": "DEMO-1"}, {"key": "DEMO-2"}],
             }
 
     monkeypatch.setattr("atlassian_cli.products.jira.providers.server.Jira", FakeJira)
@@ -344,16 +344,16 @@ def test_jira_provider_search_issues_returns_full_search_payload(monkeypatch) ->
 
     provider = JiraServerProvider(
         url="https://jira.example.com",
-        username="alice",
+        username="example-user",
         password="secret",
         token=None,
         headers={},
     )
 
-    result = provider.search_issues("project = PROJ", start=0, limit=2)
+    result = provider.search_issues("project = DEMO", start=0, limit=2)
 
     assert result["total"] == 2
-    assert [item["key"] for item in result["issues"]] == ["PROJ-1", "PROJ-2"]
+    assert [item["key"] for item in result["issues"]] == ["DEMO-1", "DEMO-2"]
 
 
 def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch) -> None:
@@ -363,7 +363,7 @@ def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch)
 
         def get_all_spaces(self, start: int, limit: int) -> dict:
             return {
-                "results": [{"id": 1, "key": "PROJ", "name": "Demo Project"}],
+                "results": [{"id": 1, "key": "DEMO", "name": "Demo Project"}],
                 "start": start,
                 "limit": limit,
             }
@@ -379,7 +379,7 @@ def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch)
 
     provider = ConfluenceServerProvider(
         url="https://confluence.example.com",
-        username="alice",
+        username="example-user",
         password="secret",
         token=None,
         headers={},
@@ -388,7 +388,7 @@ def test_confluence_provider_list_spaces_returns_full_paged_payload(monkeypatch)
     result = provider.list_spaces(start=0, limit=25)
 
     assert result["start"] == 0
-    assert result["results"][0]["key"] == "PROJ"
+    assert result["results"][0]["key"] == "DEMO"
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -502,7 +502,7 @@ def test_jira_issue_from_api_response_builds_rich_resource() -> None:
     issue = JiraIssue.from_api_response(
         {
             "id": 10001,
-            "key": "PROJ-1",
+            "key": "DEMO-1",
             "self": "https://jira.example.com/rest/api/2/issue/10001",
             "fields": {
                 "summary": "Example issue summary",
@@ -510,10 +510,10 @@ def test_jira_issue_from_api_response_builds_rich_resource() -> None:
                 "status": {"name": "Open"},
                 "issuetype": {"name": "Bug"},
                 "priority": {"name": "High"},
-                "assignee": {"displayName": "Alice", "name": "alice"},
-                "reporter": {"displayName": "Bob", "name": "bob"},
+                "assignee": {"displayName": "Example Author", "name": "example-user"},
+                "reporter": {"displayName": "reviewer-one", "name": "reviewer-one"},
                 "labels": ["release"],
-                "project": {"key": "PROJ", "name": "Demo Project"},
+                "project": {"key": "DEMO", "name": "Demo Project"},
                 "created": "2026-04-23T09:00:00.000+0000",
                 "updated": "2026-04-23T10:00:00.000+0000",
             },
@@ -524,7 +524,7 @@ def test_jira_issue_from_api_response_builds_rich_resource() -> None:
     assert issue.issue_type.name == "Bug"
 
     simplified = issue.to_simplified_dict()
-    assert simplified["project"]["key"] == "PROJ"
+    assert simplified["project"]["key"] == "DEMO"
     assert simplified["url"] == "https://jira.example.com/rest/api/2/issue/10001"
 
 
@@ -552,8 +552,8 @@ def test_jira_search_result_from_api_response_preserves_metadata() -> None:
             "startAt": 5,
             "maxResults": 2,
             "issues": [
-                {"id": 1, "key": "PROJ-1", "fields": {"summary": "One", "status": {"name": "Open"}}},
-                {"id": 2, "key": "PROJ-2", "fields": {"summary": "Two", "status": {"name": "Done"}}},
+                {"id": 1, "key": "DEMO-1", "fields": {"summary": "One", "status": {"name": "Open"}}},
+                {"id": 2, "key": "DEMO-2", "fields": {"summary": "Two", "status": {"name": "Done"}}},
             ],
         }
     )
@@ -562,7 +562,7 @@ def test_jira_search_result_from_api_response_preserves_metadata() -> None:
 
     assert simplified["total"] == 2
     assert simplified["start_at"] == 5
-    assert [issue["key"] for issue in simplified["issues"]] == ["PROJ-1", "PROJ-2"]
+    assert [issue["key"] for issue in simplified["issues"]] == ["DEMO-1", "DEMO-2"]
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -851,15 +851,15 @@ class FakeIssueProvider:
             "startAt": start,
             "maxResults": limit,
             "issues": [
-                {"id": 1, "key": "PROJ-1", "fields": {"summary": "Example issue summary", "status": {"name": "Open"}}},
-                {"id": 2, "key": "PROJ-2", "fields": {"summary": "Example follow-up", "status": {"name": "Done"}}},
+                {"id": 1, "key": "DEMO-1", "fields": {"summary": "Example issue summary", "status": {"name": "Open"}}},
+                {"id": 2, "key": "DEMO-2", "fields": {"summary": "Example follow-up", "status": {"name": "Done"}}},
             ],
         }
 
 
 class FakeProjectProvider:
     def list_projects(self) -> list[dict]:
-        return [{"id": 1, "key": "PROJ", "name": "Demo Project"}]
+        return [{"id": 1, "key": "DEMO", "name": "Demo Project"}]
 
 
 class FakeUserProvider:
@@ -870,10 +870,10 @@ class FakeUserProvider:
 def test_issue_service_search_returns_envelope() -> None:
     service = IssueService(provider=FakeIssueProvider())
 
-    result = service.search("project = PROJ", start=0, limit=2)
+    result = service.search("project = DEMO", start=0, limit=2)
 
     assert result["total"] == 2
-    assert [item["key"] for item in result["issues"]] == ["PROJ-1", "PROJ-2"]
+    assert [item["key"] for item in result["issues"]] == ["DEMO-1", "DEMO-2"]
 
 
 def test_project_service_list_returns_results_envelope() -> None:
@@ -881,7 +881,7 @@ def test_project_service_list_returns_results_envelope() -> None:
 
     result = service.list()
 
-    assert result == {"results": [{"id": "1", "key": "PROJ", "name": "Demo Project"}]}
+    assert result == {"results": [{"id": "1", "key": "DEMO", "name": "Demo Project"}]}
 
 
 def test_user_service_search_returns_results_envelope() -> None:
@@ -917,7 +917,7 @@ def test_jira_project_list_outputs_results_envelope(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"list": lambda self: {"results": [{"id": "1", "key": "PROJ", "name": "Demo Project"}]}},
+            {"list": lambda self: {"results": [{"id": "1", "key": "DEMO", "name": "Demo Project"}]}},
         )(),
     )
 
@@ -1097,8 +1097,8 @@ def test_confluence_page_from_api_response_builds_rich_resource() -> None:
             "title": "Example Page",
             "type": "page",
             "status": "current",
-            "space": {"id": 7, "key": "PROJ", "name": "Demo Project"},
-            "version": {"number": 3, "by": {"displayName": "Alice"}},
+            "space": {"id": 7, "key": "DEMO", "name": "Demo Project"},
+            "version": {"number": 3, "by": {"displayName": "Example Author"}},
             "history": {"createdDate": "2026-04-20T10:00:00.000Z"},
         },
         base_url="https://confluence.example.com",
@@ -1107,19 +1107,19 @@ def test_confluence_page_from_api_response_builds_rich_resource() -> None:
 
     simplified = page.to_simplified_dict()
 
-    assert simplified["space"]["key"] == "PROJ"
+    assert simplified["space"]["key"] == "DEMO"
     assert simplified["version"] == 3
     assert "url" in simplified
 
 
 def test_confluence_space_from_api_response_keeps_status_and_type() -> None:
     space = ConfluenceSpace.from_api_response(
-        {"id": 9, "key": "PROJ", "name": "Demo Project", "type": "global", "status": "current"}
+        {"id": 9, "key": "DEMO", "name": "Demo Project", "type": "global", "status": "current"}
     )
 
     assert space.to_simplified_dict() == {
         "id": "9",
-        "key": "PROJ",
+        "key": "DEMO",
         "name": "Demo Project",
         "type": "global",
         "status": "current",
@@ -1133,7 +1133,7 @@ def test_confluence_attachment_from_api_response_reads_download_metadata() -> No
             "title": "deploy.log",
             "_links": {"download": "/download/attachments/55/deploy.log"},
             "extensions": {"mediaType": "text/plain", "fileSize": 42},
-            "version": {"number": 2, "by": {"displayName": "Alice"}},
+            "version": {"number": 2, "by": {"displayName": "Example Author"}},
         }
     )
 
@@ -1141,7 +1141,7 @@ def test_confluence_attachment_from_api_response_reads_download_metadata() -> No
 
     assert simplified["download_url"] == "/download/attachments/55/deploy.log"
     assert simplified["file_size"] == 42
-    assert simplified["author_display_name"] == "Alice"
+    assert simplified["author_display_name"] == "Example Author"
 ```
 
 ```python
@@ -1159,7 +1159,7 @@ class FakePageProvider:
             "title": "Example Page",
             "type": "page",
             "status": "current",
-            "space": {"id": 1, "key": "PROJ", "name": "Demo Project"},
+            "space": {"id": 1, "key": "DEMO", "name": "Demo Project"},
             "version": {"number": 7},
         }
 
@@ -1167,7 +1167,7 @@ class FakePageProvider:
 class FakeSpaceProvider:
     def list_spaces(self, start: int, limit: int) -> dict:
         return {
-            "results": [{"id": 1, "key": "PROJ", "name": "Demo Project", "type": "global", "status": "current"}],
+            "results": [{"id": 1, "key": "DEMO", "name": "Demo Project", "type": "global", "status": "current"}],
             "start": start,
             "limit": limit,
         }
@@ -1179,7 +1179,7 @@ def test_page_service_get_returns_rich_resource() -> None:
     result = service.get("1234")
 
     assert result["id"] == "1234"
-    assert result["space"]["key"] == "PROJ"
+    assert result["space"]["key"] == "DEMO"
     assert result["version"] == 7
 
 
@@ -1189,7 +1189,7 @@ def test_space_service_list_returns_results_envelope() -> None:
     result = service.list(start=0, limit=25)
 
     assert result == {
-        "results": [{"id": "1", "key": "PROJ", "name": "Demo Project", "type": "global", "status": "current"}],
+        "results": [{"id": "1", "key": "DEMO", "name": "Demo Project", "type": "global", "status": "current"}],
         "start_at": 0,
         "max_results": 25,
     }
@@ -1540,7 +1540,7 @@ class FakePullRequestProvider:
                 "title": "Example pull request",
                 "state": "OPEN",
                 "version": 7,
-                "fromRef": {"displayId": "feature/output"},
+                "fromRef": {"displayId": "feature/DEMO-1234/example-change"},
                 "toRef": {"displayId": "main"},
             }
         ]
@@ -1562,7 +1562,7 @@ class FakePullRequestProvider:
             "id": pr_id,
             "title": "Example pull request",
             "state": "MERGED",
-            "fromRef": {"displayId": "feature/output"},
+            "fromRef": {"displayId": "feature/DEMO-1234/example-change"},
             "toRef": {"displayId": "main"},
         }
 
@@ -1573,14 +1573,14 @@ def test_bitbucket_pr_schema_handles_missing_author_and_reviewers() -> None:
             "id": 42,
             "title": "Example pull request",
             "state": "OPEN",
-            "fromRef": {"displayId": "feature/output"},
+            "fromRef": {"displayId": "feature/DEMO-1234/example-change"},
             "toRef": {"displayId": "main"},
         }
     )
 
     simplified = pr.to_simplified_dict()
 
-    assert simplified["from_ref"]["display_id"] == "feature/output"
+    assert simplified["from_ref"]["display_id"] == "feature/DEMO-1234/example-change"
     assert "author" not in simplified
 
 
@@ -1588,11 +1588,11 @@ def test_pull_request_service_merge_prefetches_title_and_version() -> None:
     provider = FakePullRequestProvider()
     service = PullRequestService(provider=provider)
 
-    result = service.merge("PROJ", "infra", 42)
+    result = service.merge("DEMO", "example-repo", 42)
 
     assert result["state"] == "MERGED"
     assert provider.merge_calls == [
-        ("PROJ", "infra", 42, "Merge pull request #42: Example pull request", 7)
+        ("DEMO", "example-repo", 42, "Merge pull request #42: Example pull request", 7)
     ]
 
 
@@ -1600,10 +1600,10 @@ class FakeRepoProvider:
     def list_repos(self, project_key: str | None, start: int, limit: int) -> list[dict]:
         return [
             {
-                "slug": "infra",
+                "slug": "example-repo",
                 "name": "Infra",
                 "state": "AVAILABLE",
-                "project": {"key": "PROJ", "name": "Demo Project"},
+                "project": {"key": "DEMO", "name": "Demo Project"},
             }
         ]
 
@@ -1611,15 +1611,15 @@ class FakeRepoProvider:
 def test_repo_service_list_returns_results_envelope() -> None:
     service = RepoService(provider=FakeRepoProvider())
 
-    result = service.list("PROJ", start=0, limit=25)
+    result = service.list("DEMO", start=0, limit=25)
 
     assert result == {
         "results": [
             {
-                "slug": "infra",
+                "slug": "example-repo",
                 "name": "Infra",
                 "state": "AVAILABLE",
-                "project": {"key": "PROJ", "name": "Demo Project"},
+                "project": {"key": "DEMO", "name": "Demo Project"},
             }
         ],
         "start_at": 0,
@@ -1639,8 +1639,8 @@ def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() ->
     provider.client = FakeClient()
 
     result = provider.merge_pull_request(
-        "PROJ",
-        "infra",
+        "DEMO",
+        "example-repo",
         42,
         merge_message="Merge pull request #42: Example pull request",
         pr_version=7,
@@ -1648,8 +1648,8 @@ def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() ->
 
     assert result["state"] == "MERGED"
     assert calls["args"] == (
-        "PROJ",
-        "infra",
+        "DEMO",
+        "example-repo",
         42,
         "Merge pull request #42: Example pull request",
         7,
@@ -1683,7 +1683,7 @@ def test_bitbucket_pr_list_outputs_results_envelope(monkeypatch) -> None:
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "PROJ", "infra", "--output", "json"],
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "DEMO", "example-repo", "--output", "json"],
     )
 
     assert result.exit_code == 0
@@ -2120,10 +2120,10 @@ Expected: FAIL because the README does not yet describe resource-shaped normaliz
 
 Examples:
 
-- `atlassian jira issue get PROJ-1 --output json`
-- `atlassian jira issue search --jql 'project = PROJ' --output json`
+- `atlassian jira issue get DEMO-1 --output json`
+- `atlassian jira issue search --jql 'project = DEMO' --output json`
 - `atlassian confluence space list --output json`
-- `atlassian bitbucket pr list PROJ infra --output json`
+- `atlassian bitbucket pr list DEMO example-repo --output json`
 ```
 
 ```python

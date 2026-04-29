@@ -31,7 +31,7 @@ The current table renderer converts every cell with `str(value)`.
 That creates poor terminal output for normalized resource shapes that intentionally contain small nested objects and lists. Common examples include:
 
 - `{"name": "In Progress"}`
-- `{"display_name": "Alice Zhang", "email": "alice@example.com"}`
+- `{"display_name": "Example Author", "email": "example-user@example.com"}`
 - `["prod", "sev1", "backend"]`
 
 These values are technically correct but hard to scan in a fixed-width terminal. They also increase wrapping because the output includes braces, quotes, key names, and Python-specific formatting that do not add much value in a human-oriented table view.
@@ -117,7 +117,7 @@ Lists of mappings should summarize each element with the same dictionary rules, 
 
 Example:
 
-- `[{"display_name": "Alice"}, {"display_name": "Bob"}]` becomes `Alice, Bob`
+- `[{"display_name": "Example Author"}, {"display_name": "reviewer-one"}]` becomes `Example Author, reviewer-one`
 
 This keeps list-heavy fields readable without expanding them into more columns.
 

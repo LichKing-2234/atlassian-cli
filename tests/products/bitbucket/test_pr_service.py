@@ -27,11 +27,11 @@ class FakePullRequestProvider:
                 "closed": False,
                 "version": 7,
                 "updatedDate": 1704153600000,
-                "author": {"user": {"displayName": "Alice", "name": "alice@example.com"}},
+                "author": {"user": {"displayName": "Example Author", "name": "example-user@example.com"}},
                 "participants": [{"user": {"displayName": "Code Owners"}}],
                 "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
-                "reviewers": [{"user": {"displayName": "Bob"}, "approved": True}],
-                "fromRef": {"displayId": "feature/output", "id": "refs/heads/feature/output"},
+                "reviewers": [{"user": {"displayName": "reviewer-one"}, "approved": True}],
+                "fromRef": {"displayId": "feature/DEMO-1234/example-change", "id": "refs/heads/feature/DEMO-1234/example-change"},
                 "toRef": {"displayId": "main", "id": "refs/heads/main"},
             }
         ]
@@ -48,8 +48,8 @@ class FakePullRequestProvider:
             "updatedDate": 1704153600000,
             "participants": [{"user": {"displayName": "Code Owners"}}],
             "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
-            "reviewers": [{"user": {"displayName": "Bob"}, "approved": True}],
-            "fromRef": {"displayId": "feature/output"},
+            "reviewers": [{"user": {"displayName": "reviewer-one"}, "approved": True}],
+            "fromRef": {"displayId": "feature/DEMO-1234/example-change"},
             "toRef": {"displayId": "main"},
         }
 
@@ -67,7 +67,7 @@ class FakePullRequestProvider:
             "id": pr_id,
             "title": "Example pull request",
             "state": "MERGED",
-            "fromRef": {"displayId": "feature/output"},
+            "fromRef": {"displayId": "feature/DEMO-1234/example-change"},
             "toRef": {"displayId": "main"},
         }
 
@@ -75,7 +75,7 @@ class FakePullRequestProvider:
 def test_pull_request_service_normalizes_payload() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.get("PROJ", "example-skills", 42)
+    result = service.get("DEMO", "example-skills", 42)
 
     assert result == {
         "id": 42,
@@ -85,9 +85,9 @@ def test_pull_request_service_normalizes_payload() -> None:
         "open": True,
         "closed": False,
         "updated_date": "1704153600000",
-        "from_ref": {"display_id": "feature/output"},
+        "from_ref": {"display_id": "feature/DEMO-1234/example-change"},
         "to_ref": {"display_id": "main"},
-        "reviewers": [{"display_name": "Bob", "approved": True}],
+        "reviewers": [{"display_name": "reviewer-one", "approved": True}],
         "participants": [{"user": {"displayName": "Code Owners"}}],
         "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
     }
@@ -96,7 +96,7 @@ def test_pull_request_service_normalizes_payload() -> None:
 def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.list("PROJ", "example-skills", "OPEN")
+    result = service.list("DEMO", "example-skills", "OPEN")
 
     assert result == {
         "results": [
@@ -108,9 +108,9 @@ def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> No
                 "open": True,
                 "closed": False,
                 "updated_date": "1704153600000",
-                "author": {"display_name": "Alice", "name": "alice@example.com"},
-                "reviewers": [{"display_name": "Bob", "approved": True}],
-                "from_ref": {"display_id": "feature/output", "id": "refs/heads/feature/output"},
+                "author": {"display_name": "Example Author", "name": "example-user@example.com"},
+                "reviewers": [{"display_name": "reviewer-one", "approved": True}],
+                "from_ref": {"display_id": "feature/DEMO-1234/example-change", "id": "refs/heads/feature/DEMO-1234/example-change"},
                 "to_ref": {"display_id": "main", "id": "refs/heads/main"},
                 "participants": [{"user": {"displayName": "Code Owners"}}],
                 "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
@@ -124,7 +124,7 @@ def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> No
 def test_pull_request_service_list_accepts_start_and_limit() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.list("PROJ", "example-skills", "OPEN", start=25, limit=10)
+    result = service.list("DEMO", "example-skills", "OPEN", start=25, limit=10)
 
     assert result["results"][0]["id"] == 42
     assert result["start_at"] == 25
@@ -134,7 +134,7 @@ def test_pull_request_service_list_accepts_start_and_limit() -> None:
 def test_pull_request_service_list_page_returns_collection_page() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    page = service.list_page("PROJ", "example-skills", "OPEN", start=25, limit=10)
+    page = service.list_page("DEMO", "example-skills", "OPEN", start=25, limit=10)
 
     assert isinstance(page, CollectionPage)
     assert page.start == 25
@@ -146,7 +146,7 @@ def test_pull_request_service_list_page_returns_collection_page() -> None:
 def test_pull_request_service_exposes_raw_payload() -> None:
     service = PullRequestService(provider=FakePullRequestProvider())
 
-    result = service.get_raw("PROJ", "example-skills", 42)
+    result = service.get_raw("DEMO", "example-skills", 42)
 
     assert "version" in result
 
@@ -155,9 +155,9 @@ def test_pull_request_service_merge_prefetches_title_and_version() -> None:
     provider = FakePullRequestProvider()
     service = PullRequestService(provider=provider)
 
-    result = service.merge("PROJ", "infra", 42)
+    result = service.merge("DEMO", "example-repo", 42)
 
     assert result["state"] == "MERGED"
     assert provider.merge_calls == [
-        ("PROJ", "infra", 42, "Merge pull request #42: Example pull request", 7)
+        ("DEMO", "example-repo", 42, "Merge pull request #42: Example pull request", 7)
     ]

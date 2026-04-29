@@ -123,11 +123,11 @@ Example simplified `json`:
 
 ```json
 {
-  "key": "ENG-10001",
+  "key": "DEMO-10001",
   "summary": "Example work item summary",
   "status": { "name": "Done" },
-  "assignee": { "display_name": "example-user" },
-  "reporter": { "display_name": "user@example.com" },
+  "assignee": { "display_name": "Example Author" },
+  "reporter": { "display_name": "reviewer-one" },
   "priority": { "name": "Highest" },
   "updated": "2025-10-11T06:39:12.513+0000"
 }
@@ -140,8 +140,8 @@ Example simplified `json`:
 ```json
 {
   "id": "668233149",
-  "title": "📇 Bitbucket",
-  "space": { "key": "RD", "name": "RD" },
+  "title": "Example Page",
+  "space": { "key": "DEMO", "name": "Demo Project" },
   "version": 34
 }
 ```
@@ -153,13 +153,13 @@ Example simplified `json`:
 ```json
 {
   "id": 42,
-  "title": "Add simplified output modes",
+  "title": "Example pull request",
   "state": "OPEN",
-  "author": { "display_name": "alice" },
-  "from_ref": { "display_id": "feature/output" },
+  "author": { "display_name": "Example Author" },
+  "from_ref": { "display_id": "feature/DEMO-1234/example-change" },
   "to_ref": { "display_id": "main" },
   "reviewers": [
-    { "display_name": "bob", "approved": true }
+    { "display_name": "reviewer-one", "approved": true }
   ]
 }
 ```

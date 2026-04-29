@@ -31,8 +31,8 @@ def test_bitbucket_pr_list_outputs_results_envelope(monkeypatch) -> None:
             "bitbucket",
             "pr",
             "list",
-            "PROJ",
-            "infra",
+            "DEMO",
+            "example-repo",
             "--output",
             "json",
         ],
@@ -74,8 +74,8 @@ def test_bitbucket_pr_list_json_keeps_full_payload(monkeypatch) -> None:
             "bitbucket",
             "pr",
             "list",
-            "PROJ",
-            "infra",
+            "DEMO",
+            "example-repo",
             "--output",
             "json",
         ],
@@ -118,8 +118,8 @@ def test_bitbucket_pr_list_markdown_non_tty_uses_summary_payload(monkeypatch) ->
             "bitbucket",
             "pr",
             "list",
-            "PROJ",
-            "infra",
+            "DEMO",
+            "example-repo",
             "--output",
             "markdown",
         ],
@@ -169,7 +169,7 @@ def test_bitbucket_pr_list_uses_interactive_browser_for_markdown_tty(monkeypatch
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "PROJ", "infra"],
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "DEMO", "example-repo"],
     )
 
     assert result.exit_code == 0
@@ -182,13 +182,13 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
     sample_item = {
         "id": 24990,
         "state": "OPEN",
-        "author": {"display_name": "sample-author"},
+        "author": {"display_name": "Example Author"},
         "title": "[FEAT] DEMO-1234 example preview change",
         "reviewers": [
-            {"display_name": "Alice"},
-            {"display_name": "Bob"},
-            {"display_name": "Carol"},
-            {"display_name": "Dave"},
+            {"display_name": "reviewer-one"},
+            {"display_name": "reviewer-two"},
+            {"display_name": "reviewer-three"},
+            {"display_name": "reviewer-four"},
         ],
         "from_ref": {"display_id": "feature/DEMO-1234/example-change"},
         "to_ref": {"display_id": "main"},
@@ -220,14 +220,14 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "PROJ", "infra"],
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "DEMO", "example-repo"],
     )
 
     assert result.exit_code == 0
     assert (
-        captured["item"] == "24990  OPEN  sample-author  [FEAT] DEMO-1234 example preview change"
+        captured["item"] == "24990  OPEN  Example Author  [FEAT] DEMO-1234 example preview change"
     )
-    assert "Reviewers: Alice, Bob, Carol, +1 more" in captured["preview"]
+    assert "Reviewers: reviewer-one, reviewer-two, reviewer-three, +1 more" in captured["preview"]
     assert captured["detail"].startswith("# 24990 - [FEAT] DEMO-1234 example preview change")
 
 
@@ -277,7 +277,7 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "PROJ", "infra"],
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "DEMO", "example-repo"],
     )
 
     assert result.exit_code == 0
@@ -330,7 +330,7 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_runtime_fails
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "PROJ", "infra"],
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "DEMO", "example-repo"],
     )
 
     assert result.exit_code == 0

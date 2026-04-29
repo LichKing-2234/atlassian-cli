@@ -5,7 +5,7 @@ def test_jira_issue_from_api_response_builds_rich_resource() -> None:
     issue = JiraIssue.from_api_response(
         {
             "id": 10001,
-            "key": "PROJ-1",
+            "key": "DEMO-1",
             "self": "https://jira.example.com/rest/api/2/issue/10001",
             "fields": {
                 "summary": "Example issue summary",
@@ -13,10 +13,10 @@ def test_jira_issue_from_api_response_builds_rich_resource() -> None:
                 "status": {"name": "Open"},
                 "issuetype": {"name": "Bug"},
                 "priority": {"name": "High"},
-                "assignee": {"displayName": "Alice", "name": "alice"},
-                "reporter": {"displayName": "Bob", "name": "bob"},
+                "assignee": {"displayName": "Example Author", "name": "example-user"},
+                "reporter": {"displayName": "reviewer-one", "name": "reviewer-one"},
                 "labels": ["release"],
-                "project": {"key": "PROJ", "name": "Demo Project"},
+                "project": {"key": "DEMO", "name": "Demo Project"},
                 "created": "2026-04-23T09:00:00.000+0000",
                 "updated": "2026-04-23T10:00:00.000+0000",
             },
@@ -27,7 +27,7 @@ def test_jira_issue_from_api_response_builds_rich_resource() -> None:
     assert issue.issue_type.name == "Bug"
 
     simplified = issue.to_simplified_dict()
-    assert simplified["project"]["key"] == "PROJ"
+    assert simplified["project"]["key"] == "DEMO"
     assert simplified["url"] == "https://jira.example.com/rest/api/2/issue/10001"
 
 
@@ -55,8 +55,8 @@ def test_jira_search_result_from_api_response_preserves_metadata() -> None:
             "startAt": 5,
             "maxResults": 2,
             "issues": [
-                {"id": 1, "key": "PROJ-1", "fields": {"summary": "One", "status": {"name": "Open"}}},
-                {"id": 2, "key": "PROJ-2", "fields": {"summary": "Two", "status": {"name": "Done"}}},
+                {"id": 1, "key": "DEMO-1", "fields": {"summary": "One", "status": {"name": "Open"}}},
+                {"id": 2, "key": "DEMO-2", "fields": {"summary": "Two", "status": {"name": "Done"}}},
             ],
         }
     )
@@ -65,4 +65,4 @@ def test_jira_search_result_from_api_response_preserves_metadata() -> None:
 
     assert simplified["total"] == 2
     assert simplified["start_at"] == 5
-    assert [issue["key"] for issue in simplified["issues"]] == ["PROJ-1", "PROJ-2"]
+    assert [issue["key"] for issue in simplified["issues"]] == ["DEMO-1", "DEMO-2"]

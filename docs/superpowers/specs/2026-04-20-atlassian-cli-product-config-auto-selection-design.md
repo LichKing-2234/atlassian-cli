@@ -14,7 +14,7 @@ The new primary config shape is:
 deployment = "server"
 url = "https://jira.example.com"
 auth = "basic"
-username = "alice"
+username = "example-user"
 token = "secret"
 
 [jira.headers]

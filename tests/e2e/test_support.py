@@ -86,7 +86,7 @@ def test_build_live_context_reads_product_config(tmp_path, monkeypatch) -> None:
         deployment = "server"
         url = "https://jira.example.com"
         auth = "basic"
-        username = "alice"
+        username = "example-user"
         token = "secret"
         """.strip()
     )
@@ -98,4 +98,4 @@ def test_build_live_context_reads_product_config(tmp_path, monkeypatch) -> None:
 
     assert context.product is Product.JIRA
     assert context.url == "https://jira.example.com"
-    assert context.auth.username == "alice"
+    assert context.auth.username == "example-user"

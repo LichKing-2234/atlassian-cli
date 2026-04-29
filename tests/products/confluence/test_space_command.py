@@ -16,7 +16,7 @@ def test_confluence_space_list_outputs_results_envelope(monkeypatch) -> None:
             (),
             {
                 "list": lambda self, start, limit: {
-                    "results": [{"id": "1", "key": "PROJ", "name": "Demo Project"}]
+                    "results": [{"id": "1", "key": "DEMO", "name": "Demo Project"}]
                 }
             },
         )(),

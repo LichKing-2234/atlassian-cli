@@ -31,15 +31,15 @@ def test_bitbucket_repo_get_outputs_json(monkeypatch) -> None:
             "bitbucket",
             "repo",
             "get",
-            "PROJ",
-            "infra",
+            "DEMO",
+            "example-repo",
             "--output",
             "json",
         ],
     )
 
     assert result.exit_code == 0
-    assert '"slug": "infra"' in result.stdout
+    assert '"slug": "example-repo"' in result.stdout
 
 
 def test_bitbucket_repo_create_outputs_json(monkeypatch) -> None:

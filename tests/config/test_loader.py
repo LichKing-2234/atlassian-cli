@@ -35,7 +35,7 @@ def test_load_config_reads_top_level_product_sections(tmp_path: Path) -> None:
         deployment = "server"
         url = "https://jira.example.com"
         auth = "basic"
-        username = "alice"
+        username = "example-user"
         token = "secret"
 
         [jira.headers]

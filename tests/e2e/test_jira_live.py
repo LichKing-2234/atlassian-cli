@@ -263,7 +263,7 @@ def test_jira_issue_changelog_batch_rejected_live(live_env) -> None:
         "issue",
         "changelog-batch",
         "--issue",
-        "TEST-1",
+        "DEMO-1",
         expected="Cloud support is not available in v1",
     )
     assert "Cloud support is not available in v1" in output

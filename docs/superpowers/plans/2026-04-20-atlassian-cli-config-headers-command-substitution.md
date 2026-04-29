@@ -116,7 +116,7 @@ def test_load_profiles_preserves_existing_profile_lookup(tmp_path: Path) -> None
         deployment = "server"
         url = "https://jira.example.com"
         auth = "basic"
-        username = "alice"
+        username = "example-user"
         token = "secret"
 
         [profiles.prod_jira.headers]
@@ -249,7 +249,7 @@ def test_substitute_header_commands_replaces_command_output() -> None:
 
 def test_substitute_header_commands_supports_multiple_substitutions() -> None:
     outputs = {
-        "whoami": "alice",
+        "whoami": "example-user",
         "example-oauth token": "oauth-token",
     }
     resolved = substitute_header_commands(
@@ -259,7 +259,7 @@ def test_substitute_header_commands_supports_multiple_substitutions() -> None:
         runner=lambda command: outputs[command],
     )
 
-    assert resolved == "User alice Token oauth-token"
+    assert resolved == "User example-user Token oauth-token"
 
 
 def test_substitute_header_commands_rejects_malformed_syntax() -> None:
@@ -819,7 +819,7 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list PROJ example-repo --output json`
+- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list DEMO example-repo --output json`
 
 Config file example:
 
@@ -837,7 +837,7 @@ auth = "pat"
 X-Request-Source = "example-oauth"
 ```
 
-- `atlassian --profile code bitbucket pr list PROJ example-repo --output json`
+- `atlassian --profile code bitbucket pr list DEMO example-repo --output json`
 
 Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
 ````

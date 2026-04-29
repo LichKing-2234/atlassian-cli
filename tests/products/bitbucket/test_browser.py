@@ -8,13 +8,13 @@ def test_render_pull_request_item_uses_dense_single_line_format() -> None:
     item = {
         "id": 24990,
         "state": "OPEN",
-        "author": {"display_name": "sample-author"},
+        "author": {"display_name": "Example Author"},
         "title": "[FEAT] DEMO-1234 example preview change",
     }
 
     rendered = render_pull_request_item(1, item)
 
-    assert rendered == "24990  OPEN  sample-author  [FEAT] DEMO-1234 example preview change"
+    assert rendered == "24990  OPEN  Example Author  [FEAT] DEMO-1234 example preview change"
     assert "\n" not in rendered
 
 
@@ -22,12 +22,12 @@ def test_render_pull_request_preview_summarizes_reviewers_and_description() -> N
     item = {
         "id": 24990,
         "state": "OPEN",
-        "author": {"display_name": "sample-author"},
+        "author": {"display_name": "Example Author"},
         "reviewers": [
-            {"display_name": "Alice", "approved": True},
-            {"display_name": "Bob", "approved": False},
-            {"display_name": "Carol", "approved": False},
-            {"display_name": "Dave", "approved": False},
+            {"display_name": "reviewer-one", "approved": True},
+            {"display_name": "reviewer-two", "approved": False},
+            {"display_name": "reviewer-three", "approved": False},
+            {"display_name": "reviewer-four", "approved": False},
         ],
         "from_ref": {"display_id": "feature/DEMO-1234/example-change"},
         "to_ref": {"display_id": "main"},
@@ -39,7 +39,7 @@ def test_render_pull_request_preview_summarizes_reviewers_and_description() -> N
 
     rendered = render_pull_request_preview(item)
 
-    assert "Reviewers: Alice, Bob, Carol, +1 more" in rendered
+    assert "Reviewers: reviewer-one, reviewer-two, reviewer-three, +1 more" in rendered
     assert "From: feature/DEMO-1234/example-change" in rendered
     assert "To: main" in rendered
     assert "Updated: 2026-04-27 13:19:55" in rendered

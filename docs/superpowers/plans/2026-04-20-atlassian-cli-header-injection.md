@@ -95,7 +95,7 @@ def test_collect_env_headers_reads_single_header_value() -> None:
 def test_resolve_auth_preserves_injected_headers() -> None:
     auth = resolve_auth(
         auth=AuthMode.BASIC,
-        username="alice",
+        username="example-user",
         password=None,
         token="legacy-token",
         headers={"Authorization": "Bearer oauth-token"},
@@ -564,12 +564,12 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.example.com --header 'Authorization: Bearer ...' bitbucket pr list PROJ example-repo --output json`
+- `atlassian --url https://bitbucket.example.com --header 'Authorization: Bearer ...' bitbucket pr list DEMO example-repo --output json`
 
 Environment variable example:
 
 - `export ATLASSIAN_HEADER='Authorization: Bearer ...'`
-- `atlassian --url https://bitbucket.example.com bitbucket pr list PROJ example-repo --output json`
+- `atlassian --url https://bitbucket.example.com bitbucket pr list DEMO example-repo --output json`
 ```
 
 - [ ] **Step 4: Run verification commands**

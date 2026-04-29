@@ -60,7 +60,7 @@ def test_confluence_page_get_by_title_outputs_json(monkeypatch) -> None:
             "--title",
             "Example Page",
             "--space",
-            "PROJ",
+            "DEMO",
             "--output",
             "json",
         ],
@@ -94,7 +94,7 @@ def test_confluence_page_get_by_title_missing_page_exits_nonzero(monkeypatch) ->
             "--title",
             "Missing",
             "--space",
-            "PROJ",
+            "DEMO",
         ],
     )
 
@@ -194,7 +194,7 @@ def test_confluence_page_tree_outputs_json(monkeypatch) -> None:
             "confluence",
             "page",
             "tree",
-            "PROJ",
+            "DEMO",
             "--output",
             "json",
         ],

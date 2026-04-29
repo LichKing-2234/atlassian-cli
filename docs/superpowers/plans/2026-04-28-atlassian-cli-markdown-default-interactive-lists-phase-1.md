@@ -126,7 +126,7 @@ def test_nested_command_help_lists_markdown_output_mode() -> None:
 def test_cli_rejects_removed_table_output_mode() -> None:
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "get", "PROJ-1", "--output", "table"],
+        ["--url", "https://jira.example.com", "jira", "issue", "get", "DEMO-1", "--output", "table"],
     )
 
     assert result.exit_code != 0
@@ -142,7 +142,7 @@ Update the defaults in `tests/products/test_factory.py`:
         deployment=Deployment.SERVER,
         url="https://jira.example.com",
         output="markdown",
-        auth=ResolvedAuth(mode=AuthMode.BASIC, username="alice", token="secret"),
+        auth=ResolvedAuth(mode=AuthMode.BASIC, username="example-user", token="secret"),
     )
 ```
 
@@ -153,7 +153,7 @@ Update the defaults in `tests/products/test_factory.py`:
         deployment=Deployment.CLOUD,
         url="https://example.atlassian.net",
         output="markdown",
-        auth=ResolvedAuth(mode=AuthMode.BASIC, username="alice", token="secret"),
+        auth=ResolvedAuth(mode=AuthMode.BASIC, username="example-user", token="secret"),
     )
 ```
 
@@ -301,7 +301,7 @@ from atlassian_cli.output.markdown import render_markdown
 
 def test_render_markdown_formats_single_resource_detail() -> None:
     payload = {
-        "key": "PROJ-1",
+        "key": "DEMO-1",
         "summary": "Example issue summary",
         "status": {"name": "Open"},
         "description": "Investigate the release pipeline",
@@ -309,7 +309,7 @@ def test_render_markdown_formats_single_resource_detail() -> None:
 
     rendered = render_markdown(payload)
 
-    assert rendered.startswith("# PROJ-1 - Example issue summary")
+    assert rendered.startswith("# DEMO-1 - Example issue summary")
     assert "- Status: Open" in rendered
     assert "## Description" in rendered
     assert "Investigate the release pipeline" in rendered
@@ -322,8 +322,8 @@ def test_render_markdown_formats_results_envelope_as_numbered_summary() -> None:
                 "id": 42,
                 "title": "Example pull request",
                 "state": "OPEN",
-                "author": {"display_name": "Alice"},
-                "reviewers": ["Bob", "Carol", "Dave", "Eve"],
+                "author": {"display_name": "Example Author"},
+                "reviewers": ["reviewer-one", "reviewer-two", "reviewer-three", "reviewer-four"],
             }
         ]
     }
@@ -332,19 +332,19 @@ def test_render_markdown_formats_results_envelope_as_numbered_summary() -> None:
 
     assert "1. 42 - Example pull request" in rendered
     assert "- State: OPEN" in rendered
-    assert "- Author: Alice" in rendered
-    assert "- Reviewers: Bob, Carol, Dave, +1 more" in rendered
+    assert "- Author: Example Author" in rendered
+    assert "- Reviewers: reviewer-one, reviewer-two, reviewer-three, +1 more" in rendered
 ```
 
 Replace the table-specific assertions in `tests/output/test_renderers.py` with:
 
 ```python
 def test_render_output_markdown_dispatches_to_markdown_renderer() -> None:
-    payload = {"key": "PROJ-1", "summary": "Example issue summary"}
+    payload = {"key": "DEMO-1", "summary": "Example issue summary"}
 
     rendered = render_output(payload, output="markdown")
 
-    assert rendered.startswith("# PROJ-1 - Example issue summary")
+    assert rendered.startswith("# DEMO-1 - Example issue summary")
 
 
 def test_render_output_markdown_returns_empty_string_for_empty_lists() -> None:
@@ -583,7 +583,7 @@ def test_collection_browser_state_opens_detail_and_returns_to_list() -> None:
         title="Demo",
         page_size=1,
         fetch_page=lambda start, limit: CollectionPage(
-            items=[{"id": 1, "title": "PROJ-1"}],
+            items=[{"id": 1, "title": "DEMO-1"}],
             start=start,
             limit=limit,
             total=1,
@@ -809,13 +809,13 @@ def test_jira_issue_search_uses_interactive_browser_for_markdown_tty(monkeypatch
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
+                    "issues": [{"key": "DEMO-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
                 },
                 "search_page": lambda self, jql, start, limit: CollectionPage(
-                    items=[{"key": "PROJ-1", "summary": "Example issue summary"}],
+                    items=[{"key": "DEMO-1", "summary": "Example issue summary"}],
                     start=start,
                     limit=limit,
                     total=1,
@@ -827,7 +827,7 @@ def test_jira_issue_search_uses_interactive_browser_for_markdown_tty(monkeypatch
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = PROJ"],
+        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = DEMO"],
     )
 
     assert result.exit_code == 0
@@ -846,7 +846,7 @@ def test_jira_issue_search_non_tty_falls_back_to_markdown(monkeypatch) -> None:
             (),
             {
                 "search": lambda self, jql, start, limit: {
-                    "issues": [{"key": "PROJ-1", "summary": "Example issue summary"}],
+                    "issues": [{"key": "DEMO-1", "summary": "Example issue summary"}],
                     "start_at": start,
                     "max_results": limit,
                     "total": 1,
@@ -857,11 +857,11 @@ def test_jira_issue_search_non_tty_falls_back_to_markdown(monkeypatch) -> None:
 
     result = runner.invoke(
         app,
-        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = PROJ"],
+        ["--url", "https://jira.example.com", "jira", "issue", "search", "--jql", "project = DEMO"],
     )
 
     assert result.exit_code == 0
-    assert "1. PROJ-1 - Example issue summary" in result.stdout
+    assert "1. DEMO-1 - Example issue summary" in result.stdout
 ```
 
 Append to `tests/products/bitbucket/test_provider.py`:
@@ -877,10 +877,10 @@ def test_list_pull_requests_materializes_paged_generator_with_start_and_limit() 
 
     provider = build_provider_with_client(FakeClient())
 
-    result = provider.list_pull_requests("PROJ", "infra", "OPEN", start=25, limit=10)
+    result = provider.list_pull_requests("DEMO", "example-repo", "OPEN", start=25, limit=10)
 
     assert result == [{"id": 1, "title": "Add release automation"}]
-    assert calls["args"] == ("PROJ", "infra", "OPEN", 10, 25)
+    assert calls["args"] == ("DEMO", "example-repo", "OPEN", 10, 25)
 ```
 
 Update the existing fake provider in `tests/products/bitbucket/test_pr_service.py`:
@@ -903,8 +903,8 @@ Update the existing fake provider in `tests/products/bitbucket/test_pr_service.p
                 "title": "Example pull request",
                 "state": "OPEN",
                 "version": 7,
-                "reviewers": [{"user": {"displayName": "Bob"}, "approved": True}],
-                "fromRef": {"displayId": "feature/output"},
+                "reviewers": [{"user": {"displayName": "reviewer-one"}, "approved": True}],
+                "fromRef": {"displayId": "feature/DEMO-1234/example-change"},
                 "toRef": {"displayId": "main"},
             }
         ]
@@ -917,7 +917,7 @@ def test_pull_request_service_list_accepts_start_and_limit() -> None:
     provider = FakePullRequestProvider()
     service = PullRequestService(provider=provider)
 
-    result = service.list("PROJ", "example-skills", "OPEN", start=25, limit=10)
+    result = service.list("DEMO", "example-skills", "OPEN", start=25, limit=10)
 
     assert result["results"][0]["id"] == 42
 ```
@@ -960,7 +960,7 @@ def test_bitbucket_pr_list_uses_interactive_browser_for_markdown_tty(monkeypatch
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "PROJ", "infra"],
+        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "DEMO", "example-repo"],
     )
 
     assert result.exit_code == 0
@@ -1228,10 +1228,10 @@ The CLI now uses `markdown` as the default human-readable mode.
 Add examples:
 
 ```md
-- `atlassian jira issue get PROJ-1`
-- `atlassian jira issue search --jql 'project = PROJ'`
-- `atlassian bitbucket pr list PROJ infra`
-- `atlassian bitbucket pr list PROJ infra --output json`
+- `atlassian jira issue get DEMO-1`
+- `atlassian jira issue search --jql 'project = DEMO'`
+- `atlassian bitbucket pr list DEMO example-repo`
+- `atlassian bitbucket pr list DEMO example-repo --output json`
 ```
 
 Remove any remaining `table` references from `README.md`.

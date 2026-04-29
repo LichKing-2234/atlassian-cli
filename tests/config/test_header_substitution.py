@@ -22,7 +22,7 @@ def test_substitute_header_commands_replaces_command_output() -> None:
 
 def test_substitute_header_commands_supports_multiple_substitutions() -> None:
     outputs = {
-        "whoami": "alice",
+        "whoami": "example-user",
         "example-oauth token": "oauth-token",
     }
     resolved = substitute_header_commands(
@@ -32,7 +32,7 @@ def test_substitute_header_commands_supports_multiple_substitutions() -> None:
         runner=lambda command: outputs[command],
     )
 
-    assert resolved == "User alice Token oauth-token"
+    assert resolved == "User example-user Token oauth-token"
 
 
 def test_substitute_header_commands_rejects_malformed_syntax() -> None:
