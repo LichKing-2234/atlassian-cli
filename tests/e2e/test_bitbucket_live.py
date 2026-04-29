@@ -75,7 +75,9 @@ def test_bitbucket_repo_create_live(live_env) -> None:
             "json",
         )
         repo_slug = created["slug"]
-        registry.add(f"bitbucket repo delete {repo_slug}", lambda: _delete_repo(live_env, repo_slug))
+        registry.add(
+            f"bitbucket repo delete {repo_slug}", lambda: _delete_repo(live_env, repo_slug)
+        )
         assert created["name"] == repo_name
     finally:
         registry.run()

@@ -40,7 +40,9 @@ class GitSandbox:
         self.run("config", "user.name", "atlassian-cli-e2e")
         self.run("config", "user.email", "atlassian-cli-e2e@example.com")
 
-    def create_initial_commit(self, branch: str, file_name: str, content: str, message: str) -> None:
+    def create_initial_commit(
+        self, branch: str, file_name: str, content: str, message: str
+    ) -> None:
         self.run("checkout", "--orphan", branch)
         (self.root / file_name).write_text(content)
         self.run("add", file_name)

@@ -60,7 +60,10 @@ def test_jira_issue_search_uses_interactive_browser_for_markdown_tty(monkeypatch
                     limit=limit,
                     total=1,
                 ),
-                "get": lambda self, issue_key: {"key": issue_key, "summary": "Example issue summary"},
+                "get": lambda self, issue_key: {
+                    "key": issue_key,
+                    "summary": "Example issue summary",
+                },
             },
         )(),
     )
@@ -179,7 +182,10 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_import_fails(
                     limit=limit,
                     total=1,
                 ),
-                "get": lambda self, issue_key: {"key": issue_key, "summary": "Example issue summary"},
+                "get": lambda self, issue_key: {
+                    "key": issue_key,
+                    "summary": "Example issue summary",
+                },
             },
         )(),
     )
@@ -223,7 +229,10 @@ def test_jira_issue_search_falls_back_to_markdown_when_interactive_runtime_fails
                     limit=limit,
                     total=1,
                 ),
-                "get": lambda self, issue_key: {"key": issue_key, "summary": "Example issue summary"},
+                "get": lambda self, issue_key: {
+                    "key": issue_key,
+                    "summary": "Example issue summary",
+                },
             },
         )(),
     )

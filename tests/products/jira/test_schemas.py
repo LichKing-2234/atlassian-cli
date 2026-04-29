@@ -55,8 +55,16 @@ def test_jira_search_result_from_api_response_preserves_metadata() -> None:
             "startAt": 5,
             "maxResults": 2,
             "issues": [
-                {"id": 1, "key": "DEMO-1", "fields": {"summary": "One", "status": {"name": "Open"}}},
-                {"id": 2, "key": "DEMO-2", "fields": {"summary": "Two", "status": {"name": "Done"}}},
+                {
+                    "id": 1,
+                    "key": "DEMO-1",
+                    "fields": {"summary": "One", "status": {"name": "Open"}},
+                },
+                {
+                    "id": 2,
+                    "key": "DEMO-2",
+                    "fields": {"summary": "Two", "status": {"name": "Done"}},
+                },
             ],
         }
     )

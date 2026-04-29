@@ -169,7 +169,15 @@ def test_bitbucket_pr_list_uses_interactive_browser_for_markdown_tty(monkeypatch
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "DEMO", "example-repo"],
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
     )
 
     assert result.exit_code == 0
@@ -220,7 +228,15 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "DEMO", "example-repo"],
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
     )
 
     assert result.exit_code == 0
@@ -277,7 +293,15 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "DEMO", "example-repo"],
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
     )
 
     assert result.exit_code == 0
@@ -330,7 +354,15 @@ def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_runtime_fails
 
     result = runner.invoke(
         app,
-        ["--url", "https://bitbucket.example.com", "bitbucket", "pr", "list", "DEMO", "example-repo"],
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
     )
 
     assert result.exit_code == 0

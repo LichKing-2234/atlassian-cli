@@ -53,7 +53,9 @@ def test_bitbucket_pr_schema_exposes_summary_oriented_list_payload() -> None:
         "title": "Example pull request",
         "state": "OPEN",
         "author": {"display_name": "Example Author", "name": "example-user-id"},
-        "reviewers": [{"approved": False, "display_name": "reviewer-one", "name": "reviewer-one-id"}],
+        "reviewers": [
+            {"approved": False, "display_name": "reviewer-one", "name": "reviewer-one-id"}
+        ],
         "from_ref": {"display_id": "feature/DEMO-1234/example-change"},
         "to_ref": {"display_id": "main"},
         "updated_date": "2024-01-02 00:00:00",

@@ -16,5 +16,5 @@
 
 - If you change CLI behavior, command output, command wiring, or examples, update the matching tests and user-facing documentation in the same change.
 - If you add, remove, or rename CLI subcommands, update `tests/e2e/coverage_manifest.py` and the relevant live e2e coverage.
-- Before claiming completion, run repository verification with the project virtualenv: `python -m pytest -q` and `ruff check README.md pyproject.toml src tests docs`.
+- Before claiming completion, run repository verification with the project virtualenv: `ruff format --check .`, `python -m pytest -q`, and `ruff check README.md pyproject.toml src tests docs`.
 - If you are working from a git worktree, use the shared repository virtualenv when the worktree does not have its own `.venv`.

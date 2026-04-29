@@ -192,7 +192,9 @@ def test_confluence_page_move_and_children_live(live_env) -> None:
             "json",
         )
         parent_id = parent["id"]
-        registry.add(f"confluence page delete {parent_id}", lambda: _delete_page(live_env, parent_id))
+        registry.add(
+            f"confluence page delete {parent_id}", lambda: _delete_page(live_env, parent_id)
+        )
 
         child = run_json(
             live_env,

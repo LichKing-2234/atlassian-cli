@@ -14,6 +14,7 @@ python3 -m venv .venv
 Run these checks before opening or updating a PR:
 
 ```bash
+.venv/bin/ruff format --check .
 .venv/bin/python -m pytest -q
 .venv/bin/ruff check README.md pyproject.toml src tests docs
 ```

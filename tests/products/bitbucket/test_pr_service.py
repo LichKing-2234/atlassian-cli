@@ -31,7 +31,10 @@ class FakePullRequestProvider:
                 "participants": [{"user": {"displayName": "Code Owners"}}],
                 "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
                 "reviewers": [{"user": {"displayName": "reviewer-one"}, "approved": True}],
-                "fromRef": {"displayId": "feature/DEMO-1234/example-change", "id": "refs/heads/feature/DEMO-1234/example-change"},
+                "fromRef": {
+                    "displayId": "feature/DEMO-1234/example-change",
+                    "id": "refs/heads/feature/DEMO-1234/example-change",
+                },
                 "toRef": {"displayId": "main", "id": "refs/heads/main"},
             }
         ]
@@ -110,7 +113,10 @@ def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> No
                 "updated_date": "1704153600000",
                 "author": {"display_name": "Example Author", "name": "example-user-id"},
                 "reviewers": [{"display_name": "reviewer-one", "approved": True}],
-                "from_ref": {"display_id": "feature/DEMO-1234/example-change", "id": "refs/heads/feature/DEMO-1234/example-change"},
+                "from_ref": {
+                    "display_id": "feature/DEMO-1234/example-change",
+                    "id": "refs/heads/feature/DEMO-1234/example-change",
+                },
                 "to_ref": {"display_id": "main", "id": "refs/heads/main"},
                 "participants": [{"user": {"displayName": "Code Owners"}}],
                 "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
