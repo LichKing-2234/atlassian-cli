@@ -165,7 +165,7 @@ def test_render_state_in_detail_mode_has_detail_header_and_back_hint() -> None:
 
     assert rendered.startswith("Detail")
     assert "Example issue summary" in rendered
-    assert "b/esc: back" in rendered
+    assert "j/k scroll  n/p page  b/esc back  q quit" in rendered
 
 
 def test_truncate_line_adds_ellipsis_for_long_lines() -> None:
@@ -441,3 +441,57 @@ def test_render_state_uses_terminal_width_for_all_lines() -> None:
     rendered = _render_state(state, max_width=32, max_height=12)
 
     assert all(len(line) <= 32 for line in rendered.splitlines())
+
+
+def test_collection_browser_state_scrolls_detail_text() -> None:
+    detail = "\n".join(f"Line {index}" for index in range(1, 9))
+    source = InteractiveCollectionSource(
+        title="Demo",
+        page_size=1,
+        fetch_page=lambda start, limit: CollectionPage(
+            items=[{"id": 1, "title": "DEMO-1", "detail": detail}],
+            start=start,
+            limit=limit,
+            total=1,
+        ),
+        fetch_detail=lambda item: item,
+        render_item=lambda index, item: item["title"],
+        render_detail=lambda item: item["detail"],
+    )
+    state = CollectionBrowserState(source)
+
+    state.load_initial()
+    state.open_selected_detail()
+    state.scroll_detail(2, window_size=3)
+
+    assert state.detail_offset == 2
+
+
+def test_render_state_clips_detail_mode_and_shows_scroll_footer() -> None:
+    detail = "\n".join(f"Line {index}" for index in range(1, 9))
+    source = InteractiveCollectionSource(
+        title="Demo",
+        page_size=1,
+        fetch_page=lambda start, limit: CollectionPage(
+            items=[{"id": 1, "title": "DEMO-1", "detail": detail}],
+            start=start,
+            limit=limit,
+            total=1,
+        ),
+        fetch_detail=lambda item: item,
+        render_item=lambda index, item: item["title"],
+        render_detail=lambda item: item["detail"],
+    )
+    state = CollectionBrowserState(source)
+
+    state.load_initial()
+    state.open_selected_detail()
+    state.scroll_detail(2, window_size=3)
+
+    rendered = _render_state(state, max_width=40, max_height=7)
+
+    assert rendered.startswith("Detail (3-5/8)")
+    assert "Line 3" in rendered
+    assert "Line 5" in rendered
+    assert "Line 1" not in rendered
+    assert "j/k scroll  n/p page  b/esc back  q quit" in rendered
