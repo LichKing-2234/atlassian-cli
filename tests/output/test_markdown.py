@@ -178,3 +178,33 @@ def test_render_markdown_renders_nested_object_lists_as_detail_sections() -> Non
     assert "- Approved: True" in rendered
     assert "## Participants" in rendered
     assert "Example Collaborator" in rendered
+
+
+def test_render_markdown_converts_confluence_storage_xhtml_to_readable_text() -> None:
+    rendered = render_markdown(
+        {
+            "metadata": {
+                "id": "1234",
+                "title": "Example Page",
+                "space": {"key": "DEMO", "name": "Demo Project"},
+            },
+            "content": {
+                "value": (
+                    "<h2>Runbook</h2>"
+                    "<p>Use the checklist.</p>"
+                    "<ul><li>Confirm backups</li><li>Restart services</li></ul>"
+                    '<p><a href="https://example.invalid/runbook">Example Page</a></p>'
+                )
+            },
+        }
+    )
+
+    assert rendered.startswith("# 1234 - Example Page")
+    assert "## Content" in rendered
+    assert "Runbook" in rendered
+    assert "Use the checklist." in rendered
+    assert "- Confirm backups" in rendered
+    assert "- Restart services" in rendered
+    assert "Example Page" in rendered
+    assert "<h2>" not in rendered
+    assert "<li>" not in rendered

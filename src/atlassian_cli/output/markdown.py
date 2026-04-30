@@ -1,6 +1,8 @@
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from atlassian_cli.output.html_text import render_htmlish_text
+
 MAX_SUMMARY_LIST_ITEMS = 3
 DETAIL_BODY_FIELDS = ("description", "content", "body", "diff")
 CORE_DETAIL_FIELDS = (
@@ -25,7 +27,11 @@ CORE_DETAIL_FIELDS = (
     ("resolutiondate", "Resolution Date"),
     ("url", "URL"),
 )
-DETAIL_SKIP_FIELDS = {field for field, _ in CORE_DETAIL_FIELDS} | set(DETAIL_BODY_FIELDS)
+DETAIL_SKIP_FIELDS = (
+    {field for field, _ in CORE_DETAIL_FIELDS}
+    | set(DETAIL_BODY_FIELDS)
+    | {"id", "key", "slug", "name", "summary", "title"}
+)
 PREVIEW_FIELDS = (
     ("state", "State"),
     ("status", "Status"),
@@ -117,7 +123,7 @@ def _is_empty(value: Any) -> bool:
 
 
 def _render_body_text(value: Any) -> str:
-    return str(value)
+    return render_htmlish_text(str(value))
 
 
 def _append_mapping_fields(lines: list[str], value: Mapping[str, Any], *, level: int) -> None:
