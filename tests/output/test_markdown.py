@@ -115,3 +115,66 @@ def test_render_markdown_unwraps_nested_page_envelope() -> None:
 
     assert rendered.startswith("# 1234 - Example Page")
     assert "## Content" in rendered
+
+
+def test_render_markdown_expands_remaining_detail_fields() -> None:
+    payload = {
+        "key": "DEMO-1",
+        "summary": "Example issue summary",
+        "status": {"name": "Open"},
+        "priority": {"name": "High"},
+        "project": {"key": "DEMO", "name": "Demo Project"},
+        "labels": ["platform", "release"],
+        "attachments": [
+            {
+                "id": "9001",
+                "filename": "trace.txt",
+                "mime_type": "text/plain",
+            }
+        ],
+        "url": "https://example.invalid/rest/api/2/issue/DEMO-1",
+        "description": "Investigate the release pipeline",
+    }
+
+    rendered = render_markdown(payload)
+
+    assert rendered.startswith("# DEMO-1 - Example issue summary")
+    assert "- Status: Open" in rendered
+    assert "- Priority: High" in rendered
+    assert "- Project: DEMO" in rendered
+    assert "- URL: https://example.invalid/rest/api/2/issue/DEMO-1" in rendered
+    assert "## Labels" in rendered
+    assert "- platform" in rendered
+    assert "- release" in rendered
+    assert "## Attachments" in rendered
+    assert "trace.txt" in rendered
+    assert "- Mime Type: text/plain" in rendered
+    assert "## Description" in rendered
+
+
+def test_render_markdown_renders_nested_object_lists_as_detail_sections() -> None:
+    payload = {
+        "id": 42,
+        "title": "Example pull request",
+        "state": "OPEN",
+        "reviewers": [
+            {"display_name": "reviewer-one", "approved": True},
+            {"display_name": "reviewer-two", "approved": False},
+        ],
+        "participants": [
+            {
+                "status": "APPROVED",
+                "user": {"display_name": "Example Collaborator"},
+            }
+        ],
+    }
+
+    rendered = render_markdown(payload)
+
+    assert rendered.startswith("# 42 - Example pull request")
+    assert "- State: OPEN" in rendered
+    assert "## Reviewers" in rendered
+    assert "reviewer-one" in rendered
+    assert "- Approved: True" in rendered
+    assert "## Participants" in rendered
+    assert "Example Collaborator" in rendered
