@@ -126,9 +126,7 @@ def test_confluence_page_get_missing_space_key_mentions_new_flag() -> None:
     )
 
     assert result.exit_code != 0
-    normalized_output = " ".join(
-        token for token in result.output.split() if token.strip("│╭╮╰╯─")
-    )
+    normalized_output = " ".join(token for token in result.output.split() if token.strip("│╭╮╰╯─"))
     assert "--space-key" in normalized_output
 
 
