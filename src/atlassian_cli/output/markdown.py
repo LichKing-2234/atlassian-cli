@@ -167,9 +167,7 @@ def _append_remaining_detail(lines: list[str], key: str, value: Any, *, level: i
         lines.extend(["", f"{heading} {label}"])
         if all(
             not isinstance(item, Mapping)
-            and not (
-                isinstance(item, Sequence) and not isinstance(item, (str, bytes, bytearray))
-            )
+            and not (isinstance(item, Sequence) and not isinstance(item, (str, bytes, bytearray)))
             for item in values
         ):
             lines.extend(f"- {_inline_value(item)}" for item in values)

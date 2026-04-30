@@ -53,3 +53,11 @@ def test_contributing_mentions_new_live_e2e_env_overrides() -> None:
     assert "ATLASSIAN_E2E_JIRA_ISSUE_TYPE" in contributing
     assert "ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE" in contributing
     assert "ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO" in contributing
+
+
+def test_readme_mentions_richer_detail_and_confluence_readability() -> None:
+    readme = Path("README.md").read_text()
+
+    assert "near-complete detail" in readme.lower()
+    assert "Confluence page content is rendered into readable text" in readme
+    assert "scroll line-by-line" in readme.lower()

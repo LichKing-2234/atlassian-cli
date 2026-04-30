@@ -203,7 +203,9 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
             event.app.invalidate()
             return
         if state.mode == "detail":
-            state.scroll_detail(1, window_size=_detail_window_size(get_app().output.get_size().rows))
+            state.scroll_detail(
+                1, window_size=_detail_window_size(get_app().output.get_size().rows)
+            )
             event.app.invalidate()
             return
         if state.mode == "list":
@@ -252,9 +254,7 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
             event.app.invalidate()
             return
         if state.mode == "detail":
-            state.page_detail_up(
-                window_size=_detail_window_size(get_app().output.get_size().rows)
-            )
+            state.page_detail_up(window_size=_detail_window_size(get_app().output.get_size().rows))
             event.app.invalidate()
             return
         if state.mode == "list":

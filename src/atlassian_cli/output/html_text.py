@@ -1,7 +1,6 @@
 import re
 from html.parser import HTMLParser
 
-
 HTMLISH_RE = re.compile(r"<[A-Za-z/][^>]*>")
 BLOCK_TAGS = {
     "h1",
