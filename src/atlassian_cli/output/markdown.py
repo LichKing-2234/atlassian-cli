@@ -1,8 +1,37 @@
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from atlassian_cli.output.html_text import render_htmlish_text
+
 MAX_SUMMARY_LIST_ITEMS = 3
-DETAIL_BODY_FIELDS = {"description", "content"}
+DETAIL_BODY_FIELDS = ("description", "content", "body", "diff")
+CORE_DETAIL_FIELDS = (
+    ("state", "State"),
+    ("status", "Status"),
+    ("issue_type", "Issue Type"),
+    ("type", "Type"),
+    ("priority", "Priority"),
+    ("assignee", "Assignee"),
+    ("author", "Author"),
+    ("reporter", "Reporter"),
+    ("project", "Project"),
+    ("space", "Space"),
+    ("from_ref", "From"),
+    ("to_ref", "To"),
+    ("version", "Version"),
+    ("created", "Created"),
+    ("created_date", "Created"),
+    ("updated", "Updated"),
+    ("updated_date", "Updated"),
+    ("duedate", "Due Date"),
+    ("resolutiondate", "Resolution Date"),
+    ("url", "URL"),
+)
+DETAIL_SKIP_FIELDS = (
+    {field for field, _ in CORE_DETAIL_FIELDS}
+    | set(DETAIL_BODY_FIELDS)
+    | {"id", "key", "slug", "name", "summary", "title"}
+)
 PREVIEW_FIELDS = (
     ("state", "State"),
     ("status", "Status"),
@@ -32,7 +61,16 @@ def _inline_value(value: Any) -> str:
     if value is None:
         return ""
     if isinstance(value, Mapping):
-        for field in ("display_name", "display_id", "name", "title", "key", "id"):
+        for field in (
+            "display_name",
+            "display_id",
+            "key",
+            "name",
+            "title",
+            "summary",
+            "filename",
+            "id",
+        ):
             candidate = value.get(field)
             if candidate not in (None, ""):
                 return str(candidate)
@@ -65,6 +103,91 @@ def _heading(record: Mapping[str, Any]) -> str:
         "",
     )
     return f"{identifier} - {title}" if title and title != identifier else identifier
+
+
+def _label_for_key(key: str) -> str:
+    label = key.replace("_", " ").title()
+    return label.replace("Url", "URL")
+
+
+def _is_empty(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value == ""
+    if isinstance(value, Mapping):
+        return len(value) == 0
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return len(value) == 0
+    return False
+
+
+def _render_body_text(value: Any) -> str:
+    return render_htmlish_text(str(value))
+
+
+def _append_mapping_fields(lines: list[str], value: Mapping[str, Any], *, level: int) -> None:
+    scalar_fields: list[tuple[str, Any]] = []
+    nested_fields: list[tuple[str, Any]] = []
+    for nested_key, nested_value in value.items():
+        if _is_empty(nested_value):
+            continue
+        if isinstance(nested_value, Mapping) or (
+            isinstance(nested_value, Sequence)
+            and not isinstance(nested_value, (str, bytes, bytearray))
+        ):
+            nested_fields.append((nested_key, nested_value))
+        else:
+            scalar_fields.append((nested_key, nested_value))
+
+    for nested_key, nested_value in scalar_fields:
+        lines.append(f"- {_label_for_key(nested_key)}: {_inline_value(nested_value)}")
+
+    for nested_key, nested_value in nested_fields:
+        _append_remaining_detail(lines, nested_key, nested_value, level=min(level + 1, 6))
+
+
+def _append_remaining_detail(lines: list[str], key: str, value: Any, *, level: int = 2) -> None:
+    if _is_empty(value):
+        return
+
+    heading = "#" * level
+    label = _label_for_key(key)
+
+    if isinstance(value, Mapping):
+        lines.extend(["", f"{heading} {label}"])
+        _append_mapping_fields(lines, value, level=level)
+        return
+
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        values = [item for item in value if not _is_empty(item)]
+        if not values:
+            return
+
+        lines.extend(["", f"{heading} {label}"])
+        if all(
+            not isinstance(item, Mapping)
+            and not (isinstance(item, Sequence) and not isinstance(item, (str, bytes, bytearray)))
+            for item in values
+        ):
+            lines.extend(f"- {_inline_value(item)}" for item in values)
+            return
+
+        item_heading = "#" * min(level + 1, 6)
+        for index, item in enumerate(values, start=1):
+            if isinstance(item, Mapping):
+                title = _inline_value(item) or f"Item {index}"
+                lines.append(f"{item_heading} Item {index}: {title}")
+                _append_mapping_fields(lines, item, level=level + 1)
+                continue
+            if isinstance(item, Sequence) and not isinstance(item, (str, bytes, bytearray)):
+                lines.append(f"{item_heading} Item {index}")
+                lines.extend(f"- {_inline_value(entry)}" for entry in item if not _is_empty(entry))
+                continue
+            lines.append(f"- {_inline_value(item)}")
+        return
+
+    lines.extend(["", f"{heading} {label}", _render_body_text(value)])
 
 
 def _unwrap_record(value: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -163,26 +286,19 @@ def render_markdown(value: Any) -> str:
     value = _unwrap_record(value)
 
     lines = [f"# {_heading(value)}"]
-    for field, label in (
-        ("state", "State"),
-        ("status", "Status"),
-        ("author", "Author"),
-        ("assignee", "Assignee"),
-        ("reporter", "Reporter"),
-        ("from_ref", "From"),
-        ("to_ref", "To"),
-        ("created", "Created"),
-        ("created_date", "Created"),
-        ("updated", "Updated"),
-        ("updated_date", "Updated"),
-    ):
+    for field, label in CORE_DETAIL_FIELDS:
         text = _inline_value(value.get(field))
         if text:
             lines.append(f"- {label}: {text}")
 
     for field in DETAIL_BODY_FIELDS:
-        text = _inline_value(value.get(field))
-        if text:
-            lines.extend(["", f"## {field.title()}", text])
+        text = value.get(field)
+        if text not in (None, ""):
+            lines.extend(["", f"## {_label_for_key(field)}", _render_body_text(text)])
+
+    for key, nested_value in value.items():
+        if key in DETAIL_SKIP_FIELDS or _is_empty(nested_value):
+            continue
+        _append_remaining_detail(lines, key, nested_value)
 
     return "\n".join(lines).strip()

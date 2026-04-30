@@ -33,6 +33,7 @@ class CollectionBrowserState:
     selected_index: int = 0
     mode: str = "list"
     detail_text: str = ""
+    detail_offset: int = 0
     filter_query: str = ""
     filter_buffer: str = ""
     next_start: int = 0
@@ -77,15 +78,33 @@ class CollectionBrowserState:
             return
         detail = self.source.fetch_detail(visible_items[self.selected_index])
         self.detail_text = self.source.render_detail(detail)
+        self.detail_offset = 0
         self.mode = "detail"
 
     def close_detail(self) -> None:
+        self.detail_offset = 0
         self.mode = "list"
+
+    def detail_lines(self) -> list[str]:
+        lines = self.detail_text.splitlines()
+        return lines or [""]
+
+    def scroll_detail(self, delta: int, *, window_size: int) -> None:
+        lines = self.detail_lines()
+        max_offset = max(0, len(lines) - window_size)
+        self.detail_offset = max(0, min(self.detail_offset + delta, max_offset))
+
+    def page_detail_down(self, *, window_size: int) -> None:
+        self.scroll_detail(window_size, window_size=window_size)
+
+    def page_detail_up(self, *, window_size: int) -> None:
+        self.scroll_detail(-window_size, window_size=window_size)
 
     def refresh(self) -> None:
         self.selected_index = 0
         self.mode = "list"
         self.detail_text = ""
+        self.detail_offset = 0
         self.filter_query = ""
         self.filter_buffer = ""
         page = self.source.fetch_page(0, self.source.page_size)
@@ -183,6 +202,12 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
             state.append_filter("j")
             event.app.invalidate()
             return
+        if state.mode == "detail":
+            state.scroll_detail(
+                1, window_size=_detail_window_size(get_app().output.get_size().rows)
+            )
+            event.app.invalidate()
+            return
         if state.mode == "list":
             state.move(1)
             event.app.invalidate()
@@ -192,6 +217,12 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
     def _up(event) -> None:
         if state.mode == "filter":
             state.append_filter("k")
+            event.app.invalidate()
+            return
+        if state.mode == "detail":
+            state.scroll_detail(
+                -1, window_size=_detail_window_size(get_app().output.get_size().rows)
+            )
             event.app.invalidate()
             return
         if state.mode == "list":
@@ -205,6 +236,12 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
             state.append_filter("n")
             event.app.invalidate()
             return
+        if state.mode == "detail":
+            state.page_detail_down(
+                window_size=_detail_window_size(get_app().output.get_size().rows)
+            )
+            event.app.invalidate()
+            return
         if state.mode == "list":
             state.page_down()
             event.app.invalidate()
@@ -214,6 +251,10 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
     def _page_up(event) -> None:
         if state.mode == "filter":
             state.append_filter("p")
+            event.app.invalidate()
+            return
+        if state.mode == "detail":
+            state.page_detail_up(window_size=_detail_window_size(get_app().output.get_size().rows))
             event.app.invalidate()
             return
         if state.mode == "list":
@@ -317,6 +358,12 @@ def _window_bounds(total_items: int, selected_index: int, window_size: int) -> t
     return start, end
 
 
+def _detail_window_size(max_height: int | None) -> int:
+    if max_height is None:
+        return 20
+    return max(1, max_height - 4)
+
+
 def _render_state(
     state: CollectionBrowserState,
     *,
@@ -324,13 +371,18 @@ def _render_state(
     max_height: int | None = None,
 ) -> str:
     if state.mode == "detail":
+        detail_lines = state.detail_lines()
+        window_size = _detail_window_size(max_height)
+        start = min(state.detail_offset, max(0, len(detail_lines) - window_size))
+        end = min(len(detail_lines), start + window_size)
+        visible = [_truncate_line(line, max_width=max_width) for line in detail_lines[start:end]]
         return "\n".join(
             [
-                "Detail",
+                f"Detail ({start + 1}-{end}/{len(detail_lines)})",
                 "",
-                state.detail_text,
+                *visible,
                 "",
-                "b/esc: back  q: quit",
+                "j/k scroll  n/p page  b/esc back  q quit",
             ]
         )
 

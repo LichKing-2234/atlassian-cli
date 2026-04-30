@@ -256,6 +256,33 @@ def test_page_service_history_normalizes_version_payload() -> None:
     assert result["content"]["value"] == "Version 2 body"
 
 
+def test_page_service_preserves_storage_markup_in_content_envelope() -> None:
+    class StorageMarkupPageProvider(FakePageProvider):
+        def get_page(
+            self,
+            page_id: str,
+            *,
+            include_metadata: bool = True,
+            convert_to_markdown: bool = False,
+        ) -> dict:
+            del include_metadata, convert_to_markdown
+            return {
+                "id": page_id,
+                "title": "Example Page",
+                "type": "page",
+                "status": "current",
+                "space": {"key": "DEMO", "name": "Demo Project"},
+                "version": {"number": 7},
+                "body": {"storage": {"value": "<h2>Runbook</h2><p>Use the checklist.</p>"}},
+            }
+
+    service = PageService(provider=StorageMarkupPageProvider())
+
+    result = service.get("1234")
+
+    assert result["content"]["value"] == "<h2>Runbook</h2><p>Use the checklist.</p>"
+
+
 def test_page_service_diff_returns_unified_diff() -> None:
     service = PageService(provider=FakePageProvider())
 

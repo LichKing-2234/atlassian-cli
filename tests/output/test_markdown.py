@@ -115,3 +115,96 @@ def test_render_markdown_unwraps_nested_page_envelope() -> None:
 
     assert rendered.startswith("# 1234 - Example Page")
     assert "## Content" in rendered
+
+
+def test_render_markdown_expands_remaining_detail_fields() -> None:
+    payload = {
+        "key": "DEMO-1",
+        "summary": "Example issue summary",
+        "status": {"name": "Open"},
+        "priority": {"name": "High"},
+        "project": {"key": "DEMO", "name": "Demo Project"},
+        "labels": ["platform", "release"],
+        "attachments": [
+            {
+                "id": "9001",
+                "filename": "trace.txt",
+                "mime_type": "text/plain",
+            }
+        ],
+        "url": "https://example.invalid/rest/api/2/issue/DEMO-1",
+        "description": "Investigate the release pipeline",
+    }
+
+    rendered = render_markdown(payload)
+
+    assert rendered.startswith("# DEMO-1 - Example issue summary")
+    assert "- Status: Open" in rendered
+    assert "- Priority: High" in rendered
+    assert "- Project: DEMO" in rendered
+    assert "- URL: https://example.invalid/rest/api/2/issue/DEMO-1" in rendered
+    assert "## Labels" in rendered
+    assert "- platform" in rendered
+    assert "- release" in rendered
+    assert "## Attachments" in rendered
+    assert "trace.txt" in rendered
+    assert "- Mime Type: text/plain" in rendered
+    assert "## Description" in rendered
+
+
+def test_render_markdown_renders_nested_object_lists_as_detail_sections() -> None:
+    payload = {
+        "id": 42,
+        "title": "Example pull request",
+        "state": "OPEN",
+        "reviewers": [
+            {"display_name": "reviewer-one", "approved": True},
+            {"display_name": "reviewer-two", "approved": False},
+        ],
+        "participants": [
+            {
+                "status": "APPROVED",
+                "user": {"display_name": "Example Collaborator"},
+            }
+        ],
+    }
+
+    rendered = render_markdown(payload)
+
+    assert rendered.startswith("# 42 - Example pull request")
+    assert "- State: OPEN" in rendered
+    assert "## Reviewers" in rendered
+    assert "reviewer-one" in rendered
+    assert "- Approved: True" in rendered
+    assert "## Participants" in rendered
+    assert "Example Collaborator" in rendered
+
+
+def test_render_markdown_converts_confluence_storage_xhtml_to_readable_text() -> None:
+    rendered = render_markdown(
+        {
+            "metadata": {
+                "id": "1234",
+                "title": "Example Page",
+                "space": {"key": "DEMO", "name": "Demo Project"},
+            },
+            "content": {
+                "value": (
+                    "<h2>Runbook</h2>"
+                    "<p>Use the checklist.</p>"
+                    "<ul><li>Confirm backups</li><li>Restart services</li></ul>"
+                    '<p><a href="https://example.invalid/runbook">Example Page</a></p>'
+                )
+            },
+        }
+    )
+
+    assert rendered.startswith("# 1234 - Example Page")
+    assert "## Content" in rendered
+    assert "Runbook" in rendered
+    assert "Use the checklist." in rendered
+    assert "- Confirm backups" in rendered
+    assert "- Restart services" in rendered
+    assert "Example Page" in rendered
+    assert "<h2>" not in rendered
+    assert "<li>" not in rendered

@@ -69,9 +69,10 @@ Only top-level `[jira]`, `[confluence]`, `[bitbucket]`, and `[headers]` are supp
 
 The CLI now uses `markdown` as the default human-readable output mode.
 
-- Single-resource commands default to markdown detail output.
+- Single-resource commands default to near-complete detail output in markdown.
 - Collection commands default to an interactive browser in a TTY.
 - Collection commands fall back to markdown summary output outside a TTY.
+- Confluence page content is rendered into readable text in markdown mode when possible, even when the stored body format is HTML or storage XHTML.
 - Use `--output json` or `--output yaml` for normalized machine-readable output.
 - Use `--output raw-json` to inspect the original provider response as JSON.
 - Use `--output raw-yaml` to inspect the original provider response as YAML.
@@ -92,6 +93,7 @@ TTY collection commands open a compact browser instead of printing a long static
 - The top region is a dense single-line-per-item list for fast scanning.
 - The bottom preview is a live preview that shows metadata for the selected item without opening full detail.
 - `Enter` opens the full markdown detail view for the selected item.
+- In detail view, `j/k` scroll line-by-line and `n/p` page through the open markdown detail.
 - `b` or `Esc` returns from detail to the list.
 - `/` filters only the items already loaded into the current browser session.
 - `r` refreshes the first page and returns the browser to list mode.
