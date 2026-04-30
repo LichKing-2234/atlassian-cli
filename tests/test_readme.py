@@ -34,3 +34,22 @@ def test_readme_mentions_full_local_e2e_suite() -> None:
     assert "ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT" in contributing
     assert "ATLASSIAN_E2E_BITBUCKET_REPO" in contributing
     assert "real writes" in contributing.lower()
+
+
+def test_readme_mentions_semantic_alignment_and_output_breaking_change() -> None:
+    readme = Path("README.md").read_text()
+
+    assert "TOOLSETS=default" in readme
+    assert (
+        "normalized json and yaml output now follows mcp-style resource envelopes" in readme.lower()
+    )
+    assert "raw-json" in readme
+    assert "raw-yaml" in readme
+
+
+def test_contributing_mentions_new_live_e2e_env_overrides() -> None:
+    contributing = Path("CONTRIBUTING.md").read_text()
+
+    assert "ATLASSIAN_E2E_JIRA_ISSUE_TYPE" in contributing
+    assert "ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE" in contributing
+    assert "ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO" in contributing

@@ -5,6 +5,8 @@ import pytest
 from atlassian_cli.config.models import Product
 from tests.e2e.support import (
     CleanupRegistry,
+    build_jira_create_payload,
+    build_live_context,
     build_live_provider,
     run_failure,
     run_json,
@@ -12,6 +14,14 @@ from tests.e2e.support import (
 )
 
 pytestmark = pytest.mark.e2e
+
+
+def _jira_additional_fields(payload: dict) -> dict:
+    return {
+        key: value
+        for key, value in payload.items()
+        if key not in {"project", "issuetype", "summary", "description"}
+    }
 
 
 def test_jira_project_and_metadata_live(live_env) -> None:
@@ -89,23 +99,37 @@ def test_jira_issue_round_trip_live(live_env) -> None:
     summary = unique_name("jira-e2e")
     issue_key = None
     try:
+        jira_context = build_live_context(Product.JIRA, live_env)
+        provider = build_live_provider(Product.JIRA, live_env)
+        issue_type = live_env.jira_issue_type or "Task"
+        payload = build_jira_create_payload(
+            provider,
+            project_key=live_env.jira_project,
+            summary=summary,
+            issue_type=issue_type,
+            env_overrides={},
+            reporter_name=jira_context.auth.username,
+        )
+        payload["description"] = "created by live e2e"
         created = run_json(
             live_env,
             "jira",
             "issue",
             "create",
-            "--project",
+            "--project-key",
             live_env.jira_project,
             "--issue-type",
-            "Task",
+            issue_type,
             "--summary",
             summary,
             "--description",
             "created by live e2e",
+            "--additional-fields",
+            json.dumps(_jira_additional_fields(payload)),
             "--output",
             "json",
         )
-        issue_key = created["key"]
+        issue_key = created["issue"]["key"]
         registry.add(
             f"jira issue delete {issue_key}",
             lambda: run_json(
@@ -130,14 +154,17 @@ def test_jira_issue_round_trip_live(live_env) -> None:
             "issue",
             "update",
             issue_key,
-            "--summary",
-            updated_summary,
-            "--description",
-            "updated by live e2e",
+            "--fields",
+            json.dumps(
+                {
+                    "summary": updated_summary,
+                    "description": "updated by live e2e",
+                }
+            ),
             "--output",
             "json",
         )
-        assert updated["updated"] is True
+        assert updated["issue"]["key"] == issue_key
 
         search = run_json(
             live_env,
@@ -211,28 +238,35 @@ def test_jira_issue_round_trip_live(live_env) -> None:
 
 def test_jira_issue_batch_create_live(live_env, tmp_path) -> None:
     registry = CleanupRegistry()
+    jira_context = build_live_context(Product.JIRA, live_env)
+    provider = build_live_provider(Product.JIRA, live_env)
+    issue_type = live_env.jira_issue_type or "Task"
     payload = [
-        {
-            "project": {"key": live_env.jira_project},
-            "issuetype": {"name": "Task"},
-            "summary": unique_name("jira-batch-one"),
-        },
-        {
-            "project": {"key": live_env.jira_project},
-            "issuetype": {"name": "Task"},
-            "summary": unique_name("jira-batch-two"),
-        },
+        build_jira_create_payload(
+            provider,
+            project_key=live_env.jira_project,
+            summary=unique_name("jira-batch-one"),
+            issue_type=issue_type,
+            env_overrides={},
+            reporter_name=jira_context.auth.username,
+        ),
+        build_jira_create_payload(
+            provider,
+            project_key=live_env.jira_project,
+            summary=unique_name("jira-batch-two"),
+            issue_type=issue_type,
+            env_overrides={},
+            reporter_name=jira_context.auth.username,
+        ),
     ]
-    batch_file = tmp_path / "issues.json"
-    batch_file.write_text(json.dumps(payload))
     try:
         result = run_json(
             live_env,
             "jira",
             "issue",
             "batch-create",
-            "--file",
-            str(batch_file),
+            "--issues",
+            json.dumps(payload),
             "--output",
             "json",
         )

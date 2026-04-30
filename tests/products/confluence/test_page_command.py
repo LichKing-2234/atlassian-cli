@@ -1,8 +1,11 @@
+import re
+
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
 
 runner = CliRunner()
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def test_confluence_page_get_outputs_json(monkeypatch) -> None:
@@ -14,7 +17,12 @@ def test_confluence_page_get_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"get": lambda self, page_id: {"id": page_id, "title": "Example Page"}},
+            {
+                "get": lambda self, page_id, **kwargs: {
+                    "metadata": {"id": page_id, "title": "Example Page"},
+                    "content": {"value": "Example body"},
+                }
+            },
         )(),
     )
 
@@ -33,7 +41,7 @@ def test_confluence_page_get_outputs_json(monkeypatch) -> None:
     )
 
     assert result.exit_code == 0
-    assert '"id": "1234"' in result.stdout
+    assert '"metadata"' in result.stdout
 
 
 def test_confluence_page_get_by_title_outputs_json(monkeypatch) -> None:
@@ -45,7 +53,11 @@ def test_confluence_page_get_by_title_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"get_by_title": lambda self, space_key, title: {"id": "1234", "title": title}},
+            {
+                "get_by_title": lambda self, space_key, title, **kwargs: {
+                    "metadata": {"id": "1234", "title": title}
+                }
+            },
         )(),
     )
 
@@ -59,7 +71,7 @@ def test_confluence_page_get_by_title_outputs_json(monkeypatch) -> None:
             "get",
             "--title",
             "Example Page",
-            "--space",
+            "--space-key",
             "DEMO",
             "--output",
             "json",
@@ -79,7 +91,7 @@ def test_confluence_page_get_by_title_missing_page_exits_nonzero(monkeypatch) ->
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"get_by_title": lambda self, space_key, title: None},
+            {"get_by_title": lambda self, space_key, title, **kwargs: None},
         )(),
     )
 
@@ -93,13 +105,35 @@ def test_confluence_page_get_by_title_missing_page_exits_nonzero(monkeypatch) ->
             "get",
             "--title",
             "Missing",
-            "--space",
+            "--space-key",
             "DEMO",
         ],
     )
 
     assert result.exit_code != 0
     assert "page not found" in result.output.lower()
+
+
+def test_confluence_page_get_missing_space_key_mentions_new_flag() -> None:
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "page",
+            "get",
+            "--title",
+            "Missing",
+        ],
+    )
+
+    assert result.exit_code != 0
+    stripped_output = ANSI_ESCAPE_RE.sub("", result.output)
+    normalized_output = " ".join(
+        token for token in stripped_output.split() if token.strip("│╭╮╰╯─")
+    )
+    assert "--space-key" in normalized_output
 
 
 def test_confluence_page_search_outputs_json(monkeypatch) -> None:
@@ -112,7 +146,7 @@ def test_confluence_page_search_outputs_json(monkeypatch) -> None:
             "FakeService",
             (),
             {
-                "search": lambda self, query, limit: {
+                "search": lambda self, query, limit, spaces_filter=None: {
                     "results": [{"id": "1234", "title": "Example Page"}]
                 }
             },
@@ -136,6 +170,41 @@ def test_confluence_page_search_outputs_json(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert '"title": "Example Page"' in result.stdout
+
+
+def test_confluence_page_search_accepts_spaces_filter(monkeypatch) -> None:
+    from atlassian_cli.products.confluence.commands import page as page_module
+
+    captured: dict[str, object] = {}
+
+    class FakeService:
+        def search(self, query, *, limit, spaces_filter=None):
+            captured["query"] = query
+            captured["limit"] = limit
+            captured["spaces_filter"] = spaces_filter
+            return {"results": [{"id": "1234", "title": "Example Page"}]}
+
+    monkeypatch.setattr(page_module, "build_page_service", lambda *_args, **_kwargs: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "page",
+            "search",
+            "--query",
+            "label=documentation",
+            "--spaces-filter",
+            "DEMO,~example-user",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["spaces_filter"] == ["DEMO", "~example-user"]
 
 
 def test_confluence_page_children_outputs_json(monkeypatch) -> None:
@@ -213,7 +282,12 @@ def test_confluence_page_history_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"history": lambda self, page_id, version: {"id": page_id, "version": version}},
+            {
+                "history": lambda self, page_id, version, **kwargs: {
+                    "metadata": {"id": page_id, "version": version},
+                    "content": {"value": "Example history body"},
+                }
+            },
         )(),
     )
 
@@ -235,6 +309,29 @@ def test_confluence_page_history_outputs_json(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert '"version": 2' in result.stdout
+
+
+def test_confluence_page_get_rejects_convert_to_markdown_until_supported() -> None:
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "page",
+            "get",
+            "1234",
+            "--include-metadata",
+            "--convert-to-markdown",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "convert-to-markdown" in result.output.lower()
+    assert "not" in result.output.lower()
+    assert "supported" in result.output.lower()
 
 
 def test_confluence_page_diff_outputs_json(monkeypatch) -> None:

@@ -67,6 +67,20 @@ def _heading(record: Mapping[str, Any]) -> str:
     return f"{identifier} - {title}" if title and title != identifier else identifier
 
 
+def _unwrap_record(value: Mapping[str, Any]) -> Mapping[str, Any]:
+    for key in ("issue", "page"):
+        candidate = value.get(key)
+        if isinstance(candidate, Mapping):
+            return _unwrap_record(candidate)
+    if isinstance(value.get("metadata"), Mapping):
+        record = dict(value["metadata"])
+        content = value.get("content")
+        if isinstance(content, Mapping) and content.get("value") not in (None, ""):
+            record["content"] = content["value"]
+        return record
+    return value
+
+
 def render_heading(record: Mapping[str, Any]) -> str:
     return _heading(record)
 
@@ -145,6 +159,8 @@ def render_markdown(value: Any) -> str:
 
     if not isinstance(value, Mapping):
         return _inline_value(value)
+
+    value = _unwrap_record(value)
 
     lines = [f"# {_heading(value)}"]
     for field, label in (

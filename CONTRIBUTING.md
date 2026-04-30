@@ -46,24 +46,25 @@ The suite shells out through `python -m atlassian_cli.main`, reuses your normal 
 
 Environment:
 
+- `.env` in the repository root is loaded automatically by `tests/e2e/support/env.py`
+- process environment variables still take precedence over `.env`
 - `ATLASSIAN_E2E=1`
 - `ATLASSIAN_CONFIG_FILE=/path/to/config.toml` (optional)
 - `ATLASSIAN_E2E_JIRA_PROJECT=DEMO`
+- `ATLASSIAN_E2E_JIRA_ISSUE_TYPE=Task` (optional override when the default issue type is not writable)
 - `ATLASSIAN_E2E_CONFLUENCE_SPACE='~example-user'`
+- `ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE=123456` (optional override when writes must happen under a known parent page)
 - `ATLASSIAN_E2E_BITBUCKET_PROJECT=DEMO`
 - `ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=DEMO`
 - `ATLASSIAN_E2E_BITBUCKET_REPO=example-repo`
+- `ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO=example-repo` (optional override when the configured instance does not expose the default seed repo)
 
 Recommended run:
 
 ```bash
-ATLASSIAN_E2E=1 \
-ATLASSIAN_E2E_JIRA_PROJECT=DEMO \
-ATLASSIAN_E2E_CONFLUENCE_SPACE='~example-user' \
-ATLASSIAN_E2E_BITBUCKET_PROJECT=DEMO \
-ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=DEMO \
-ATLASSIAN_E2E_BITBUCKET_REPO=example-repo \
-.venv/bin/python -m pytest \
+cp .env.example .env
+$EDITOR .env
+PYTHONPATH=src .venv/bin/python -m pytest \
   tests/e2e/test_coverage_manifest.py \
   tests/e2e/test_jira_live.py \
   tests/e2e/test_confluence_live.py \
@@ -72,6 +73,8 @@ ATLASSIAN_E2E_BITBUCKET_REPO=example-repo \
 ```
 
 The live suite performs real writes and best-effort cleanup for Jira issues, Confluence pages/comments/attachments, Bitbucket repositories, branches, and pull requests. If cleanup fails, the tests should print residue identifiers for manual removal.
+
+When the target instance requires business-specific Jira fields that cannot be inferred from `issue_createmeta`, provide those values through test setup or project configuration rather than hardcoding them in the suite.
 
 ## CI And Releases
 

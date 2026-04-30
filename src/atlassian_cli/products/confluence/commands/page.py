@@ -1,4 +1,5 @@
 import typer
+from click.core import ParameterSource
 
 from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
@@ -12,27 +13,89 @@ def build_page_service(context) -> PageService:
     return PageService(provider=build_provider(context))
 
 
+def _parse_csv(value: str | None) -> list[str] | None:
+    if value is None:
+        return None
+    values = [item.strip() for item in value.split(",") if item.strip()]
+    return values or None
+
+
 @app.command("get")
 def get_page(
     ctx: typer.Context,
     page_id: str | None = typer.Argument(None),
     title: str | None = typer.Option(None, "--title"),
-    space_key: str | None = typer.Option(None, "--space"),
+    space_key: str | None = typer.Option(None, "--space-key", "--space"),
+    include_metadata: bool = typer.Option(True, "--include-metadata/--no-include-metadata"),
+    convert_to_markdown: bool = typer.Option(
+        False, "--convert-to-markdown/--no-convert-to-markdown"
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
+    if convert_to_markdown:
+        raise typer.BadParameter(
+            "convert-to-markdown is not supported on Confluence Server/DC",
+            param_hint="--convert-to-markdown",
+        )
+    include_metadata_is_default = (
+        ctx.get_parameter_source("include_metadata") is ParameterSource.DEFAULT
+    )
+    convert_to_markdown_is_default = (
+        ctx.get_parameter_source("convert_to_markdown") is ParameterSource.DEFAULT
+    )
+    use_default_read = (
+        include_metadata
+        and not convert_to_markdown
+        and include_metadata_is_default
+        and convert_to_markdown_is_default
+    )
     if page_id is not None:
-        payload = service.get_raw(page_id) if is_raw_output(output) else service.get(page_id)
+        payload = (
+            (service.get_raw(page_id) if is_raw_output(output) else service.get(page_id))
+            if use_default_read
+            else (
+                service.get_raw(
+                    page_id,
+                    include_metadata=include_metadata,
+                    convert_to_markdown=convert_to_markdown,
+                )
+                if is_raw_output(output)
+                else service.get(
+                    page_id,
+                    include_metadata=include_metadata,
+                    convert_to_markdown=convert_to_markdown,
+                )
+            )
+        )
     elif title and space_key:
         payload = (
-            service.get_by_title_raw(space_key, title)
-            if is_raw_output(output)
-            else service.get_by_title(space_key, title)
+            (
+                service.get_by_title_raw(space_key, title)
+                if is_raw_output(output)
+                else service.get_by_title(space_key, title)
+            )
+            if use_default_read
+            else (
+                service.get_by_title_raw(
+                    space_key,
+                    title,
+                    include_metadata=include_metadata,
+                    convert_to_markdown=convert_to_markdown,
+                )
+                if is_raw_output(output)
+                else service.get_by_title(
+                    space_key,
+                    title,
+                    include_metadata=include_metadata,
+                    convert_to_markdown=convert_to_markdown,
+                )
+            )
         )
         if payload is None:
             raise typer.BadParameter(f"page not found: {title} in {space_key}")
     else:
-        raise typer.BadParameter("provide a page id or both --title and --space")
+        raise typer.BadParameter("provide a page id or both --title and --space-key")
     typer.echo(render_output(payload, output=output))
 
 
@@ -41,13 +104,14 @@ def search_pages(
     ctx: typer.Context,
     query: str = typer.Option(..., "--query"),
     limit: int = typer.Option(25, "--limit"),
+    spaces_filter: str | None = typer.Option(None, "--spaces-filter"),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
     payload = (
-        service.search_raw(query, limit=limit)
+        service.search_raw(query, limit=limit, spaces_filter=_parse_csv(spaces_filter))
         if is_raw_output(output)
-        else service.search(query, limit=limit)
+        else service.search(query, limit=limit, spaces_filter=_parse_csv(spaces_filter))
     )
     typer.echo(render_output(payload, output=output))
 
@@ -79,13 +143,21 @@ def get_history(
     ctx: typer.Context,
     page_id: str,
     version: int = typer.Option(..., "--version"),
+    convert_to_markdown: bool = typer.Option(
+        False, "--convert-to-markdown/--no-convert-to-markdown"
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
+    if convert_to_markdown:
+        raise typer.BadParameter(
+            "convert-to-markdown is not supported on Confluence Server/DC",
+            param_hint="--convert-to-markdown",
+        )
     payload = (
-        service.history_raw(page_id, version=version)
+        service.history_raw(page_id, version=version, convert_to_markdown=convert_to_markdown)
         if is_raw_output(output)
-        else service.history(page_id, version=version)
+        else service.history(page_id, version=version, convert_to_markdown=convert_to_markdown)
     )
     typer.echo(render_output(payload, output=output))
 
@@ -138,16 +210,43 @@ def move_page(
 @app.command("create")
 def create_page(
     ctx: typer.Context,
-    space_key: str = typer.Option(..., "--space"),
+    space_key: str = typer.Option(..., "--space-key", "--space"),
     title: str = typer.Option(..., "--title"),
-    body: str = typer.Option(..., "--body"),
+    content: str = typer.Option(..., "--content", "--body"),
+    parent_id: str | None = typer.Option(None, "--parent-id"),
+    content_format: str = typer.Option("storage", "--content-format"),
+    enable_heading_anchors: bool = typer.Option(False, "--enable-heading-anchors"),
+    include_content: bool = typer.Option(False, "--include-content"),
+    emoji: str | None = typer.Option(None, "--emoji"),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
+    if content_format == "markdown":
+        raise typer.BadParameter(
+            "content-format=markdown is not supported on Confluence Server/DC; use storage",
+            param_hint="--content-format",
+        )
     payload = (
-        service.create_raw(space_key=space_key, title=title, body=body)
+        service.create_raw(
+            space_key=space_key,
+            title=title,
+            body=content,
+            parent_id=parent_id,
+            content_format=content_format,
+            enable_heading_anchors=enable_heading_anchors,
+            emoji=emoji,
+        )
         if is_raw_output(output)
-        else service.create(space_key=space_key, title=title, body=body)
+        else service.create(
+            space_key=space_key,
+            title=title,
+            content=content,
+            parent_id=parent_id,
+            content_format=content_format,
+            enable_heading_anchors=enable_heading_anchors,
+            include_content=include_content,
+            emoji=emoji,
+        )
     )
     typer.echo(render_output(payload, output=output))
 
@@ -157,14 +256,47 @@ def update_page(
     ctx: typer.Context,
     page_id: str,
     title: str = typer.Option(..., "--title"),
-    body: str = typer.Option(..., "--body"),
+    content: str = typer.Option(..., "--content", "--body"),
+    parent_id: str | None = typer.Option(None, "--parent-id"),
+    content_format: str = typer.Option("storage", "--content-format"),
+    is_minor_edit: bool = typer.Option(False, "--is-minor-edit"),
+    version_comment: str | None = typer.Option(None, "--version-comment"),
+    enable_heading_anchors: bool = typer.Option(False, "--enable-heading-anchors"),
+    include_content: bool = typer.Option(False, "--include-content"),
+    emoji: str | None = typer.Option(None, "--emoji"),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
+    if content_format == "markdown":
+        raise typer.BadParameter(
+            "content-format=markdown is not supported on Confluence Server/DC; use storage",
+            param_hint="--content-format",
+        )
     payload = (
-        service.update_raw(page_id, title=title, body=body)
+        service.update_raw(
+            page_id,
+            title=title,
+            body=content,
+            parent_id=parent_id,
+            content_format=content_format,
+            is_minor_edit=is_minor_edit,
+            version_comment=version_comment,
+            enable_heading_anchors=enable_heading_anchors,
+            emoji=emoji,
+        )
         if is_raw_output(output)
-        else service.update(page_id, title=title, body=body)
+        else service.update(
+            page_id,
+            title=title,
+            content=content,
+            parent_id=parent_id,
+            content_format=content_format,
+            is_minor_edit=is_minor_edit,
+            version_comment=version_comment,
+            enable_heading_anchors=enable_heading_anchors,
+            include_content=include_content,
+            emoji=emoji,
+        )
     )
     typer.echo(render_output(payload, output=output))
 

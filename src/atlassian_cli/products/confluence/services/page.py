@@ -17,30 +17,95 @@ class PageService:
     def _normalize_page(self, payload: dict) -> dict:
         return ConfluencePage.from_api_response(payload, **self._page_kwargs()).to_simplified_dict()
 
-    def get(self, page_id: str) -> dict:
-        return self._normalize_page(self.provider.get_page(page_id))
+    def _page_envelope(
+        self,
+        payload: dict,
+        *,
+        include_metadata: bool = True,
+        include_content: bool = True,
+    ) -> dict:
+        page = ConfluencePage.from_api_response(payload, **self._page_kwargs())
+        result: dict[str, object] = {}
+        if include_metadata:
+            result["metadata"] = page.to_simplified_dict()
+        if include_content and page.content not in (None, ""):
+            result["content"] = {"value": page.content}
+        return result
 
-    def get_raw(self, page_id: str) -> dict:
-        return self.provider.get_page(page_id)
+    def get(
+        self,
+        page_id: str,
+        *,
+        include_metadata: bool = True,
+        convert_to_markdown: bool = False,
+    ) -> dict:
+        raw = self.provider.get_page(
+            page_id,
+            include_metadata=include_metadata,
+            convert_to_markdown=convert_to_markdown,
+        )
+        return self._page_envelope(raw, include_metadata=include_metadata, include_content=True)
 
-    def get_by_title(self, space_key: str, title: str) -> dict | None:
-        page = self.provider.get_page_by_title(space_key, title)
+    def get_raw(
+        self,
+        page_id: str,
+        *,
+        include_metadata: bool = True,
+        convert_to_markdown: bool = False,
+    ) -> dict:
+        return self.provider.get_page(
+            page_id,
+            include_metadata=include_metadata,
+            convert_to_markdown=convert_to_markdown,
+        )
+
+    def get_by_title(
+        self,
+        space_key: str,
+        title: str,
+        *,
+        include_metadata: bool = True,
+        convert_to_markdown: bool = False,
+    ) -> dict | None:
+        page = self.provider.get_page_by_title(
+            space_key,
+            title,
+            include_metadata=include_metadata,
+            convert_to_markdown=convert_to_markdown,
+        )
         if page is None:
             return None
-        return self._normalize_page(page)
+        return self._page_envelope(page, include_metadata=include_metadata, include_content=True)
 
-    def get_by_title_raw(self, space_key: str, title: str) -> dict | None:
-        return self.provider.get_page_by_title(space_key, title)
+    def get_by_title_raw(
+        self,
+        space_key: str,
+        title: str,
+        *,
+        include_metadata: bool = True,
+        convert_to_markdown: bool = False,
+    ) -> dict | None:
+        return self.provider.get_page_by_title(
+            space_key,
+            title,
+            include_metadata=include_metadata,
+            convert_to_markdown=convert_to_markdown,
+        )
 
-    def search(self, query: str, *, limit: int) -> dict:
+    def search(self, query: str, *, limit: int, spaces_filter: list[str] | None = None) -> dict:
         return {
             "results": [
-                self._normalize_page(item) for item in self.provider.search_pages(query, limit)
+                self._normalize_page(item)
+                for item in self.provider.search_pages(
+                    query, limit=limit, spaces_filter=spaces_filter
+                )
             ]
         }
 
-    def search_raw(self, query: str, *, limit: int) -> list[dict]:
-        return self.provider.search_pages(query, limit)
+    def search_raw(
+        self, query: str, *, limit: int, spaces_filter: list[str] | None = None
+    ) -> list[dict]:
+        return self.provider.search_pages(query, limit=limit, spaces_filter=spaces_filter)
 
     def children(self, page_id: str) -> dict:
         return {
@@ -70,11 +135,28 @@ class PageService:
     def tree_raw(self, space_key: str) -> dict:
         return self.tree(space_key)
 
-    def history(self, page_id: str, *, version: int) -> dict:
-        return self._normalize_page(self.provider.get_page_version(page_id, version))
+    def history(
+        self,
+        page_id: str,
+        *,
+        version: int,
+        convert_to_markdown: bool = False,
+    ) -> dict:
+        raw = self.provider.get_page_version(
+            page_id, version, convert_to_markdown=convert_to_markdown
+        )
+        return self._page_envelope(raw, include_metadata=True, include_content=True)
 
-    def history_raw(self, page_id: str, *, version: int) -> dict:
-        return self.provider.get_page_version(page_id, version)
+    def history_raw(
+        self,
+        page_id: str,
+        *,
+        version: int,
+        convert_to_markdown: bool = False,
+    ) -> dict:
+        return self.provider.get_page_version(
+            page_id, version, convert_to_markdown=convert_to_markdown
+        )
 
     def diff(self, page_id: str, *, from_version: int, to_version: int) -> dict:
         from_page = self.provider.get_page_version(page_id, from_version)
@@ -132,19 +214,111 @@ class PageService:
             position=position,
         )
 
-    def create(self, *, space_key: str, title: str, body: str) -> dict:
-        raw = self.provider.create_page(space_key=space_key, title=title, body=body)
-        return self._normalize_page(raw)
+    def create(
+        self,
+        *,
+        space_key: str,
+        title: str,
+        content: str,
+        parent_id: str | None = None,
+        content_format: str = "storage",
+        enable_heading_anchors: bool = False,
+        include_content: bool = False,
+        emoji: str | None = None,
+    ) -> dict:
+        raw = self.provider.create_page(
+            space_key=space_key,
+            title=title,
+            body=content,
+            parent_id=parent_id,
+            content_format=content_format,
+            enable_heading_anchors=enable_heading_anchors,
+            emoji=emoji,
+        )
+        page = (
+            self._page_envelope(raw, include_metadata=True, include_content=True)
+            if include_content
+            else self._normalize_page(raw)
+        )
+        return {"message": "Page created successfully", "page": page}
 
-    def create_raw(self, *, space_key: str, title: str, body: str) -> dict:
-        return self.provider.create_page(space_key=space_key, title=title, body=body)
+    def create_raw(
+        self,
+        *,
+        space_key: str,
+        title: str,
+        body: str,
+        parent_id: str | None = None,
+        content_format: str = "storage",
+        enable_heading_anchors: bool = False,
+        emoji: str | None = None,
+    ) -> dict:
+        return self.provider.create_page(
+            space_key=space_key,
+            title=title,
+            body=body,
+            parent_id=parent_id,
+            content_format=content_format,
+            enable_heading_anchors=enable_heading_anchors,
+            emoji=emoji,
+        )
 
-    def update(self, page_id: str, *, title: str, body: str) -> dict:
-        raw = self.provider.update_page(page_id=page_id, title=title, body=body)
-        return self._normalize_page(raw)
+    def update(
+        self,
+        page_id: str,
+        *,
+        title: str,
+        content: str,
+        parent_id: str | None = None,
+        content_format: str = "storage",
+        is_minor_edit: bool = False,
+        version_comment: str | None = None,
+        enable_heading_anchors: bool = False,
+        include_content: bool = False,
+        emoji: str | None = None,
+    ) -> dict:
+        raw = self.provider.update_page(
+            page_id=page_id,
+            title=title,
+            body=content,
+            parent_id=parent_id,
+            content_format=content_format,
+            is_minor_edit=is_minor_edit,
+            version_comment=version_comment,
+            enable_heading_anchors=enable_heading_anchors,
+            emoji=emoji,
+        )
+        page = (
+            self._page_envelope(raw, include_metadata=True, include_content=True)
+            if include_content
+            else self._normalize_page(raw)
+        )
+        return {"message": "Page updated successfully", "page": page}
 
-    def update_raw(self, page_id: str, *, title: str, body: str) -> dict:
-        return self.provider.update_page(page_id=page_id, title=title, body=body)
+    def update_raw(
+        self,
+        page_id: str,
+        *,
+        title: str,
+        body: str,
+        parent_id: str | None = None,
+        content_format: str = "storage",
+        is_minor_edit: bool = False,
+        version_comment: str | None = None,
+        enable_heading_anchors: bool = False,
+        emoji: str | None = None,
+    ) -> dict:
+        return self.provider.update_page(
+            page_id=page_id,
+            title=title,
+            body=body,
+            parent_id=parent_id,
+            content_format=content_format,
+            is_minor_edit=is_minor_edit,
+            version_comment=version_comment,
+            enable_heading_anchors=enable_heading_anchors,
+            emoji=emoji,
+        )
 
     def delete(self, page_id: str) -> dict:
         return self.provider.delete_page(page_id)

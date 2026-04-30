@@ -4,8 +4,16 @@ from atlassian_cli.products.confluence.services.page import PageService
 class FakePageProvider:
     def __init__(self) -> None:
         self.client = type("Client", (), {"url": "https://confluence.example.com"})()
+        self.search_calls: list[dict] = []
 
-    def get_page(self, page_id: str) -> dict:
+    def get_page(
+        self,
+        page_id: str,
+        *,
+        include_metadata: bool = True,
+        convert_to_markdown: bool = False,
+    ) -> dict:
+        del include_metadata, convert_to_markdown
         return {
             "id": page_id,
             "title": "Example Page",
@@ -13,17 +21,33 @@ class FakePageProvider:
             "status": "current",
             "space": {"key": "DEMO", "name": "Demo Project"},
             "version": {"number": 7},
-            "body": {"view": {"value": "<p>huge html</p>"}},
+            "body": {"storage": {"value": "## Runbook\n\nUse the checklist."}},
         }
 
-    def get_page_by_title(self, space_key: str, title: str) -> dict | None:
+    def get_page_by_title(
+        self,
+        space_key: str,
+        title: str,
+        *,
+        include_metadata: bool = True,
+        convert_to_markdown: bool = False,
+    ) -> dict | None:
         assert space_key == "DEMO"
         assert title == "Example Page"
-        return self.get_page("1234")
+        return self.get_page(
+            "1234",
+            include_metadata=include_metadata,
+            convert_to_markdown=convert_to_markdown,
+        )
 
-    def search_pages(self, query: str, limit: int) -> list[dict]:
-        assert query == "runbook"
-        assert limit == 10
+    def search_pages(
+        self,
+        query: str,
+        *,
+        limit: int,
+        spaces_filter=None,
+    ) -> list[dict]:
+        self.search_calls.append({"query": query, "limit": limit, "spaces_filter": spaces_filter})
         return [self.get_page("1234")]
 
     def get_page_children(self, page_id: str) -> list[dict]:
@@ -68,8 +92,15 @@ class FakePageProvider:
             "version": {"number": 8},
         }
 
-    def get_page_version(self, page_id: str, version: int) -> dict:
-        body = "hello\nworld\n" if version == 1 else "hello\nops\n"
+    def get_page_version(
+        self,
+        page_id: str,
+        version: int,
+        *,
+        convert_to_markdown: bool = False,
+    ) -> dict:
+        del convert_to_markdown
+        body = "Version 1 body" if version == 1 else "Version 2 body"
         return {
             "id": page_id,
             "title": "Example Page",
@@ -79,6 +110,50 @@ class FakePageProvider:
             "body": {"storage": {"value": body}},
         }
 
+    def create_page(
+        self,
+        *,
+        space_key: str,
+        title: str,
+        body: str,
+        parent_id: str | None = None,
+        content_format: str = "storage",
+        enable_heading_anchors: bool = False,
+        emoji: str | None = None,
+    ) -> dict:
+        assert space_key == "DEMO"
+        assert title == "Example Page"
+        assert body == "## Runbook"
+        assert parent_id == "5678"
+        assert content_format == "storage"
+        assert enable_heading_anchors is True
+        assert emoji == "📝"
+        return self.get_page("1235")
+
+    def update_page(
+        self,
+        *,
+        page_id: str,
+        title: str,
+        body: str,
+        parent_id: str | None = None,
+        content_format: str = "storage",
+        is_minor_edit: bool = False,
+        version_comment: str | None = None,
+        enable_heading_anchors: bool = False,
+        emoji: str | None = None,
+    ) -> dict:
+        assert page_id == "1234"
+        assert title == "Example Page"
+        assert body == "## Runbook"
+        assert parent_id == "5678"
+        assert content_format == "storage"
+        assert is_minor_edit is True
+        assert version_comment == "Example update"
+        assert enable_heading_anchors is False
+        assert emoji is None
+        return self.get_page(page_id)
+
 
 def test_page_service_normalizes_page_payload() -> None:
     service = PageService(provider=FakePageProvider())
@@ -86,13 +161,16 @@ def test_page_service_normalizes_page_payload() -> None:
     result = service.get("1234")
 
     assert result == {
-        "id": "1234",
-        "title": "Example Page",
-        "type": "page",
-        "status": "current",
-        "space": {"key": "DEMO", "name": "Demo Project"},
-        "version": 7,
-        "url": "https://confluence.example.com/pages/viewpage.action?pageId=1234",
+        "metadata": {
+            "id": "1234",
+            "title": "Example Page",
+            "type": "page",
+            "status": "current",
+            "space": {"key": "DEMO", "name": "Demo Project"},
+            "version": 7,
+            "url": "https://confluence.example.com/pages/viewpage.action?pageId=1234",
+        },
+        "content": {"value": "## Runbook\n\nUse the checklist."},
     }
 
 
@@ -109,13 +187,21 @@ def test_page_service_get_by_title_normalizes_page_payload() -> None:
 
     result = service.get_by_title("DEMO", "Example Page")
 
-    assert result["id"] == "1234"
-    assert result["title"] == "Example Page"
+    assert result["metadata"]["id"] == "1234"
+    assert result["metadata"]["title"] == "Example Page"
 
 
 def test_page_service_get_by_title_returns_none_when_missing() -> None:
     class MissingPageProvider(FakePageProvider):
-        def get_page_by_title(self, space_key: str, title: str) -> dict | None:
+        def get_page_by_title(
+            self,
+            space_key: str,
+            title: str,
+            *,
+            include_metadata: bool = True,
+            convert_to_markdown: bool = False,
+        ) -> dict | None:
+            del space_key, title, include_metadata, convert_to_markdown
             return None
 
     service = PageService(provider=MissingPageProvider())
@@ -126,11 +212,19 @@ def test_page_service_get_by_title_returns_none_when_missing() -> None:
 
 
 def test_page_service_search_normalizes_results() -> None:
-    service = PageService(provider=FakePageProvider())
+    provider = FakePageProvider()
+    service = PageService(provider=provider)
 
-    result = service.search("runbook", limit=10)
+    result = service.search("label=documentation", limit=5, spaces_filter=["DEMO", "~example-user"])
 
     assert result["results"][0]["title"] == "Example Page"
+    assert provider.search_calls == [
+        {
+            "query": "label=documentation",
+            "limit": 5,
+            "spaces_filter": ["DEMO", "~example-user"],
+        }
+    ]
 
 
 def test_page_service_children_normalizes_results() -> None:
@@ -155,10 +249,11 @@ def test_page_service_tree_flattens_hierarchy() -> None:
 def test_page_service_history_normalizes_version_payload() -> None:
     service = PageService(provider=FakePageProvider())
 
-    result = service.history("1234", version=2)
+    result = service.history("1234", version=2, convert_to_markdown=False)
 
-    assert result["id"] == "1234"
-    assert result["version"] == 2
+    assert result["metadata"]["id"] == "1234"
+    assert result["metadata"]["version"] == 2
+    assert result["content"]["value"] == "Version 2 body"
 
 
 def test_page_service_diff_returns_unified_diff() -> None:
@@ -168,7 +263,7 @@ def test_page_service_diff_returns_unified_diff() -> None:
 
     assert "--- version-1" in result["diff"]
     assert "+++ version-2" in result["diff"]
-    assert "+ops" in result["diff"]
+    assert "+Version 2 body" in result["diff"]
 
 
 def test_page_service_move_normalizes_result() -> None:
@@ -178,3 +273,41 @@ def test_page_service_move_normalizes_result() -> None:
 
     assert result["id"] == "1234"
     assert result["version"] == 8
+
+
+def test_page_service_create_returns_message_and_page() -> None:
+    service = PageService(provider=FakePageProvider())
+
+    result = service.create(
+        space_key="DEMO",
+        title="Example Page",
+        content="## Runbook",
+        parent_id="5678",
+        content_format="storage",
+        enable_heading_anchors=True,
+        include_content=False,
+        emoji="📝",
+    )
+
+    assert result["message"] == "Page created successfully"
+    assert result["page"]["id"] == "1235"
+
+
+def test_page_service_update_returns_message_and_page() -> None:
+    service = PageService(provider=FakePageProvider())
+
+    result = service.update(
+        "1234",
+        title="Example Page",
+        content="## Runbook",
+        parent_id="5678",
+        content_format="storage",
+        is_minor_edit=True,
+        version_comment="Example update",
+        enable_heading_anchors=False,
+        include_content=True,
+        emoji=None,
+    )
+
+    assert result["message"] == "Page updated successfully"
+    assert result["page"]["metadata"]["id"] == "1234"

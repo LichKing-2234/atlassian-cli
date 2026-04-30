@@ -75,3 +75,20 @@ def test_get_field_options_filters_issue_type_by_name() -> None:
         {"id": "2", "name": "High"},
     ]
     assert calls["args"] == ("TEST", "projects.issuetypes.fields")
+
+
+def test_get_issue_rejects_unsupported_server_options() -> None:
+    class FakeClient:
+        def issue(self, issue_key: str, fields="*all", expand=None) -> dict:
+            raise AssertionError(
+                "should not call client.issue when unsupported options are requested"
+            )
+
+    provider = build_provider_with_client(FakeClient())
+
+    try:
+        provider.get_issue("DEMO-1", comment_limit=5)
+    except NotImplementedError as exc:
+        assert "comment_limit" in str(exc)
+    else:
+        raise AssertionError("expected NotImplementedError")
