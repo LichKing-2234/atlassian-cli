@@ -1,8 +1,11 @@
+import re
+
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
 
 runner = CliRunner()
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def test_confluence_page_get_outputs_json(monkeypatch) -> None:
@@ -126,7 +129,10 @@ def test_confluence_page_get_missing_space_key_mentions_new_flag() -> None:
     )
 
     assert result.exit_code != 0
-    normalized_output = " ".join(token for token in result.output.split() if token.strip("│╭╮╰╯─"))
+    stripped_output = ANSI_ESCAPE_RE.sub("", result.output)
+    normalized_output = " ".join(
+        token for token in stripped_output.split() if token.strip("│╭╮╰╯─")
+    )
     assert "--space-key" in normalized_output
 
 
