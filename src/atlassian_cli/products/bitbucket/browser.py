@@ -2,7 +2,11 @@ from collections.abc import Mapping
 from datetime import datetime, timezone
 from typing import Any
 
-from atlassian_cli.output.markdown import excerpt_text, render_markdown, render_markdown_preview
+from pygments import highlight
+from pygments.formatters import TerminalFormatter
+from pygments.lexers import DiffLexer
+
+from atlassian_cli.output.markdown import excerpt_text, render_markdown_preview
 
 
 def _user_name(value: Any) -> str:
@@ -77,5 +81,37 @@ def render_pull_request_preview(item: dict[str, Any]) -> str:
     return "\n".join(lines) or render_markdown_preview(item)
 
 
-def render_pull_request_detail(item: dict[str, Any]) -> str:
-    return render_markdown(item)
+def _render_diff(diff: str, *, colorize: bool) -> str:
+    diff = diff.rstrip()
+    if not colorize:
+        return diff
+    return highlight(diff, DiffLexer(), TerminalFormatter()).rstrip()
+
+
+def render_pull_request_detail(item: dict[str, Any], *, colorize_diff: bool = False) -> str:
+    identifier = str(item.get("id", "")).strip() or "Pull request"
+    title = str(item.get("title", "")).strip()
+    heading = f"# {identifier} - {title}" if title else f"# {identifier}"
+
+    lines = [heading]
+    for label, value in (
+        ("State", item.get("state")),
+        ("Author", _user_name(item.get("author"))),
+        ("Reviewers", _reviewer_summary(item.get("reviewers"))),
+        ("From", _ref_name(item.get("from_ref"))),
+        ("To", _ref_name(item.get("to_ref"))),
+        ("Created", _format_updated(item.get("created_date"))),
+        ("Updated", _format_updated(item.get("updated_date"))),
+    ):
+        if value:
+            lines.append(f"- {label}: {value}")
+
+    description = item.get("description")
+    if description:
+        lines.extend(["", "## Description", str(description).strip()])
+
+    diff = item.get("diff")
+    if diff:
+        lines.extend(["", "## Diff", _render_diff(str(diff), colorize=colorize_diff)])
+
+    return "\n".join(lines).strip()

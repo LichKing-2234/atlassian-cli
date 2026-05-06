@@ -90,6 +90,11 @@ class BitbucketServerProvider:
     def get_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
         return self.client.get_pull_request(project_key, repo_slug, pr_id)
 
+    def get_pull_request_diff(self, project_key: str, repo_slug: str, pr_id: int) -> str:
+        url = f"{self.client._url_pull_request(project_key, repo_slug, pr_id)}.diff"
+        response = self.client.get(url, headers={"Accept": "text/plain"}, advanced_mode=True)
+        return response.text
+
     def create_pull_request(self, project_key: str, repo_slug: str, payload: dict) -> dict:
         return self.client.create_pull_request(project_key, repo_slug, data=payload)
 

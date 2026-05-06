@@ -69,8 +69,16 @@ class PullRequestService:
             self.provider.get_pull_request(project_key, repo_slug, pr_id)
         ).to_simplified_dict()
 
+    def get_detail(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        detail = self.get(project_key, repo_slug, pr_id)
+        detail["diff"] = self.provider.get_pull_request_diff(project_key, repo_slug, pr_id)
+        return detail
+
     def get_raw(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
         return self.provider.get_pull_request(project_key, repo_slug, pr_id)
+
+    def diff_raw(self, project_key: str, repo_slug: str, pr_id: int) -> str:
+        return self.provider.get_pull_request_diff(project_key, repo_slug, pr_id)
 
     def create(self, project_key: str, repo_slug: str, payload: dict) -> dict:
         return BitbucketPullRequest.from_api_response(

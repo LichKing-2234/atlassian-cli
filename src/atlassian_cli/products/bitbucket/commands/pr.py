@@ -1,9 +1,11 @@
+from functools import partial
+
 import typer
 
 from atlassian_cli.output.interactive import InteractiveCollectionSource, browse_collection
-from atlassian_cli.output.modes import OutputMode, is_raw_output
+from atlassian_cli.output.modes import OutputMode, is_raw_output, normalized_output
 from atlassian_cli.output.renderers import render_output
-from atlassian_cli.output.tty import should_use_interactive_output
+from atlassian_cli.output.tty import should_use_color_output, should_use_interactive_output
 from atlassian_cli.products.bitbucket.browser import (
     render_pull_request_detail,
     render_pull_request_item,
@@ -44,10 +46,12 @@ def list_pull_requests(
                     fetch_page=lambda page_start, page_limit: service.list_page(
                         project_key, repo_slug, state, page_start, page_limit
                     ),
-                    fetch_detail=lambda item: service.get(project_key, repo_slug, item["id"]),
+                    fetch_detail=lambda item: service.get_detail(
+                        project_key, repo_slug, item["id"]
+                    ),
                     render_item=render_pull_request_item,
                     render_preview=render_pull_request_preview,
-                    render_detail=render_pull_request_detail,
+                    render_detail=partial(render_pull_request_detail, colorize_diff=True),
                     filter_text=lambda item: "\n".join(
                         [render_pull_request_item(0, item), render_pull_request_preview(item)]
                     ),
@@ -75,6 +79,32 @@ def get_pull_request(
         if is_raw_output(output)
         else service.get(project_key, repo_slug, pr_id)
     )
+    typer.echo(render_output(payload, output=output))
+
+
+@app.command("diff")
+def get_pull_request_diff(
+    ctx: typer.Context,
+    project_key: str,
+    repo_slug: str,
+    pr_id: int,
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_pr_service(ctx.obj)
+    if is_raw_output(output):
+        typer.echo(render_output(service.diff_raw(project_key, repo_slug, pr_id), output=output))
+        return
+
+    payload = service.get_detail(project_key, repo_slug, pr_id)
+    if normalized_output(output) == OutputMode.MARKDOWN:
+        typer.echo(
+            render_pull_request_detail(
+                payload,
+                colorize_diff=should_use_color_output(output),
+            )
+        )
+        return
+
     typer.echo(render_output(payload, output=output))
 
 

@@ -42,6 +42,7 @@ COVERAGE_MANIFEST = {
     "bitbucket branch list": "test_bitbucket_branch_and_pr_round_trip_live",
     "bitbucket pr list": "test_bitbucket_branch_and_pr_round_trip_live",
     "bitbucket pr get": "test_bitbucket_branch_and_pr_round_trip_live",
+    "bitbucket pr diff": "test_bitbucket_branch_and_pr_round_trip_live",
     "bitbucket pr create": "test_bitbucket_branch_and_pr_round_trip_live",
     "bitbucket pr merge": "test_bitbucket_branch_and_pr_round_trip_live",
 }

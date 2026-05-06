@@ -1,6 +1,6 @@
 import sys
 
-from atlassian_cli.output.modes import is_machine_output
+from atlassian_cli.output.modes import is_machine_output, normalized_output
 
 
 def should_use_interactive_output(
@@ -19,3 +19,12 @@ def should_use_interactive_output(
         and stdout_isatty()
         and not is_machine_output(output)
     )
+
+
+def should_use_color_output(
+    output: str,
+    *,
+    stdout_isatty=None,
+) -> bool:
+    stdout_isatty = stdout_isatty or sys.stdout.isatty
+    return normalized_output(output) == "markdown" and stdout_isatty()
