@@ -102,6 +102,42 @@ def test_render_markdown_renders_page_metadata_and_content_envelope() -> None:
     assert "Use the checklist." in rendered
 
 
+def test_render_markdown_converts_confluence_storage_html_content() -> None:
+    rendered = render_markdown(
+        {
+            "metadata": {"id": "1234", "title": "Example Page", "version": 2},
+            "content": {
+                "value": (
+                    "<p>Intro <a href=\"https://example.com\">example link</a></p>"
+                    "<ol><li>First step</li><li>Second step</li></ol>"
+                )
+            },
+        }
+    )
+
+    assert rendered.startswith("# 1234 - Example Page")
+    assert "## Content" in rendered
+    assert "<p>" not in rendered
+    assert "<ol>" not in rendered
+    assert "[example link](https://example.com)" in rendered
+    assert "1. First step" in rendered
+    assert "2. Second step" in rendered
+
+
+def test_render_markdown_leaves_existing_markdown_content_unchanged() -> None:
+    rendered = render_markdown(
+        {
+            "metadata": {"id": "1234", "title": "Example Page", "version": 2},
+            "content": {"value": "## Runbook\n\n- Use the checklist."},
+        }
+    )
+
+    assert rendered.startswith("# 1234 - Example Page")
+    assert "## Content" in rendered
+    assert "## Runbook" in rendered
+    assert "- Use the checklist." in rendered
+
+
 def test_render_markdown_unwraps_nested_page_envelope() -> None:
     rendered = render_markdown(
         {

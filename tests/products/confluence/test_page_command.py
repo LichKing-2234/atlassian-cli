@@ -44,6 +44,52 @@ def test_confluence_page_get_outputs_json(monkeypatch) -> None:
     assert '"metadata"' in result.stdout
 
 
+def test_confluence_page_get_renders_storage_html_in_markdown_output(monkeypatch) -> None:
+    from atlassian_cli.products.confluence.commands import page as page_module
+
+    monkeypatch.setattr(
+        page_module,
+        "build_page_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {
+                "get": lambda self, page_id, **kwargs: {
+                    "metadata": {"id": page_id, "title": "Example Page"},
+                    "content": {
+                        "value": (
+                            "<p>Intro <a href=\"https://example.com\">example link</a></p>"
+                            "<ac:structured-macro ac:name=\"info\">"
+                            "<ac:rich-text-body><p>Example note</p></ac:rich-text-body>"
+                            "</ac:structured-macro>"
+                        )
+                    },
+                }
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "page",
+            "get",
+            "1234",
+            "--output",
+            "markdown",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "<p>" not in result.stdout
+    assert "ac:structured-macro" not in result.stdout
+    assert "[example link](https://example.com)" in result.stdout
+    assert "Example note" in result.stdout
+
+
 def test_confluence_page_get_by_title_outputs_json(monkeypatch) -> None:
     from atlassian_cli.products.confluence.commands import page as page_module
 
