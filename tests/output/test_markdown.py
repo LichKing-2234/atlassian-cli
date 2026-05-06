@@ -108,7 +108,7 @@ def test_render_markdown_converts_confluence_storage_html_content() -> None:
             "metadata": {"id": "1234", "title": "Example Page", "version": 2},
             "content": {
                 "value": (
-                    "<p>Intro <a href=\"https://example.com\">example link</a></p>"
+                    '<p>Intro <a href="https://example.com">example link</a></p>'
                     "<ol><li>First step</li><li>Second step</li></ol>"
                 )
             },

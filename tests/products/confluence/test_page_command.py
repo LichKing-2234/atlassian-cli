@@ -58,8 +58,8 @@ def test_confluence_page_get_renders_storage_html_in_markdown_output(monkeypatch
                     "metadata": {"id": page_id, "title": "Example Page"},
                     "content": {
                         "value": (
-                            "<p>Intro <a href=\"https://example.com\">example link</a></p>"
-                            "<ac:structured-macro ac:name=\"info\">"
+                            '<p>Intro <a href="https://example.com">example link</a></p>'
+                            '<ac:structured-macro ac:name="info">'
                             "<ac:rich-text-body><p>Example note</p></ac:rich-text-body>"
                             "</ac:structured-macro>"
                         )
