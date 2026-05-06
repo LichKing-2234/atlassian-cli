@@ -34,6 +34,7 @@ You can also download a tarball from the GitHub Release page and run `atlassian/
 - `atlassian confluence page get 1234`
 - `atlassian bitbucket repo get DEMO example-repo`
 - `atlassian bitbucket pr list DEMO example-repo`
+- `atlassian bitbucket pr diff DEMO example-repo 42`
 - `atlassian bitbucket pr list DEMO example-repo --output json`
 
 ## Header injection
@@ -83,6 +84,7 @@ Examples:
 - `atlassian jira issue search --jql 'project = DEMO'`
 - `atlassian confluence space list`
 - `atlassian bitbucket pr list DEMO example-repo`
+- `atlassian bitbucket pr diff DEMO example-repo 42`
 - `atlassian jira issue get DEMO-1 --output json`
 - `atlassian bitbucket pr list DEMO example-repo --output json`
 
@@ -93,6 +95,8 @@ TTY collection commands open a compact browser instead of printing a long static
 - The top region is a dense single-line-per-item list for fast scanning.
 - The bottom preview is a live preview that shows metadata for the selected item without opening full detail.
 - `Enter` opens the full markdown detail view for the selected item.
+- Bitbucket pull request detail lazily loads the textual diff when you open detail.
+- Detail view supports scrolling with `j/k`, arrow keys, and `PageUp/PageDown`.
 - `b` or `Esc` returns from detail to the list.
 - `/` filters only the items already loaded into the current browser session.
 - `r` refreshes the first page and returns the browser to list mode.
@@ -100,6 +104,11 @@ TTY collection commands open a compact browser instead of printing a long static
 Keybindings:
 
 `j/k move  n/p page  / filter  r refresh  enter detail  b/esc back  q quit`
+
+Bitbucket pull request diff behavior:
+
+- `atlassian bitbucket pr diff DEMO example-repo 42` shows ANSI-colored diff output in a TTY.
+- The same command falls back to plain text when redirected or piped.
 
 ## Scope
 

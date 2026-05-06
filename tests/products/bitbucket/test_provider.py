@@ -103,6 +103,32 @@ def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() ->
     )
 
 
+def test_bitbucket_provider_get_pull_request_diff_uses_text_endpoint() -> None:
+    calls = {}
+
+    class FakeResponse:
+        text = "--- a/e2e-note.txt\n+++ b/e2e-note.txt\n"
+
+    class FakeClient:
+        def _url_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> str:
+            return f"rest/api/latest/projects/{project_key}/repos/{repo_slug}/pull-requests/{pr_id}"
+
+        def get(self, url: str, headers=None, advanced_mode: bool = False):
+            calls["args"] = (url, headers, advanced_mode)
+            return FakeResponse()
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.get_pull_request_diff("DEMO", "example-repo", 42)
+
+    assert result.startswith("--- a/e2e-note.txt")
+    assert calls["args"] == (
+        "rest/api/latest/projects/DEMO/repos/example-repo/pull-requests/42.diff",
+        {"Accept": "text/plain"},
+        True,
+    )
+
+
 def test_create_repo_forwards_project_key_and_name_to_sdk() -> None:
     calls = {}
 

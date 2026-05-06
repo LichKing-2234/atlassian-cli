@@ -56,6 +56,9 @@ class FakePullRequestProvider:
             "toRef": {"displayId": "main"},
         }
 
+    def get_pull_request_diff(self, project_key: str, repo_slug: str, pr_id: int) -> str:
+        return "--- a/e2e-note.txt\n+++ b/e2e-note.txt\n@@ -0,0 +1 @@\n+example change\n"
+
     def merge_pull_request(
         self,
         project_key: str,
@@ -155,6 +158,17 @@ def test_pull_request_service_exposes_raw_payload() -> None:
     result = service.get_raw("DEMO", "example-skills", 42)
 
     assert "version" in result
+
+
+def test_pull_request_service_get_detail_includes_diff() -> None:
+    service = PullRequestService(provider=FakePullRequestProvider())
+
+    result = service.get_detail("DEMO", "example-skills", 42)
+
+    assert result["id"] == 42
+    assert result["title"] == "Example pull request"
+    assert result["diff"].startswith("--- a/e2e-note.txt")
+    assert "+example change" in result["diff"]
 
 
 def test_pull_request_service_merge_prefetches_title_and_version() -> None:

@@ -17,6 +17,15 @@ def test_readme_mentions_interactive_preview_browser() -> None:
     assert "live preview" in readme.lower()
     assert "j/k move  n/p page  / filter  r refresh  enter detail  b/esc back  q quit" in readme
     assert "bottom preview" in readme.lower()
+    assert "supports scrolling" in readme.lower()
+
+
+def test_readme_mentions_bitbucket_pr_diff_tty_behavior() -> None:
+    readme = Path("README.md").read_text()
+
+    assert "bitbucket pr diff demo example-repo 42" in readme.lower()
+    assert "ansi-colored diff output in a tty" in readme.lower()
+    assert "falls back to plain text" in readme.lower()
 
 
 def test_readme_mentions_full_local_e2e_suite() -> None:

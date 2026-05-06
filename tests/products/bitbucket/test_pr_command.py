@@ -202,6 +202,7 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
         "to_ref": {"display_id": "main"},
         "updated_date": "2026-04-27T13:19:55+00:00",
         "description": "Line one\nLine two\nLine three\nLine four",
+        "diff": "--- a/e2e-note.txt\n+++ b/e2e-note.txt\n@@ -0,0 +1 @@\n+example change\n",
     }
     captured: dict[str, str] = {}
 
@@ -245,6 +246,131 @@ def test_bitbucket_pr_list_interactive_source_uses_compact_preview_renderers(mon
     )
     assert "Reviewers: reviewer-one, reviewer-two, reviewer-three, +1 more" in captured["preview"]
     assert captured["detail"].startswith("# 24990 - [FEAT] DEMO-1234 example preview change")
+    assert "\x1b[" in captured["detail"]
+
+
+def test_bitbucket_pr_list_interactive_source_fetches_detail_with_diff(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr as pr_module
+
+    calls: dict[str, object] = {}
+    captured: dict[str, object] = {}
+
+    class FakeService:
+        def list_page(self, project_key, repo_slug, state, start, limit):
+            return CollectionPage(
+                items=[{"id": 42, "title": "Example pull request"}], start=0, limit=25, total=1
+            )
+
+        def get_detail(self, project_key, repo_slug, pr_id):
+            calls["args"] = (project_key, repo_slug, pr_id)
+            return {"id": pr_id, "title": "Example pull request", "diff": "+example change\n"}
+
+    monkeypatch.setattr(pr_module, "build_pr_service", lambda *_args, **_kwargs: FakeService())
+    monkeypatch.setattr(pr_module, "should_use_interactive_output", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        pr_module,
+        "browse_collection",
+        lambda source: captured.setdefault("detail", source.fetch_detail({"id": 42})),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls["args"] == ("DEMO", "example-repo", 42)
+    assert captured["detail"]["diff"] == "+example change\n"
+
+
+def test_bitbucket_pr_diff_outputs_markdown_diff_detail(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr as pr_module
+
+    monkeypatch.setattr(
+        pr_module,
+        "build_pr_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {
+                "get_detail": lambda self, project_key, repo_slug, pr_id: {
+                    "id": pr_id,
+                    "title": "Example pull request",
+                    "state": "OPEN",
+                    "diff": "--- a/e2e-note.txt\n+++ b/e2e-note.txt\n@@ -0,0 +1 @@\n+example change\n",
+                }
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "diff",
+            "DEMO",
+            "example-repo",
+            "42",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert result.stdout.startswith("# 42 - Example pull request")
+    assert "## Diff" in result.stdout
+    assert "+example change" in result.stdout
+    assert "\x1b[" not in result.stdout
+
+
+def test_bitbucket_pr_diff_outputs_colored_diff_for_tty(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr as pr_module
+
+    monkeypatch.setattr(pr_module, "should_use_color_output", lambda *args, **kwargs: True)
+    monkeypatch.setattr(
+        pr_module,
+        "build_pr_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {
+                "get_detail": lambda self, project_key, repo_slug, pr_id: {
+                    "id": pr_id,
+                    "title": "Example pull request",
+                    "state": "OPEN",
+                    "diff": "--- a/e2e-note.txt\n+++ b/e2e-note.txt\n@@ -0,0 +1 @@\n+example change\n",
+                }
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "diff",
+            "DEMO",
+            "example-repo",
+            "42",
+        ],
+        color=True,
+    )
+
+    assert result.exit_code == 0
+    assert "\x1b[" in result.stdout
+    assert "+example change" in result.stdout
 
 
 def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(

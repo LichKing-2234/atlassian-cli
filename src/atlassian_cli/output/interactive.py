@@ -4,6 +4,8 @@ from typing import Any, Callable
 MAX_LIST_LINE_WIDTH = 96
 MAX_PREVIEW_LINES = 7
 LIST_FOOTER = "j/k move  n/p page  / filter  r refresh  enter detail  b/esc back  q quit"
+DETAIL_FOOTER = "j/k scroll  n/p page  b/esc back  q quit"
+DETAIL_CHROME_LINES = 4
 
 
 @dataclass
@@ -33,6 +35,7 @@ class CollectionBrowserState:
     selected_index: int = 0
     mode: str = "list"
     detail_text: str = ""
+    detail_scroll: int = 0
     filter_query: str = ""
     filter_buffer: str = ""
     next_start: int = 0
@@ -77,15 +80,29 @@ class CollectionBrowserState:
             return
         detail = self.source.fetch_detail(visible_items[self.selected_index])
         self.detail_text = self.source.render_detail(detail)
+        self.detail_scroll = 0
         self.mode = "detail"
 
     def close_detail(self) -> None:
         self.mode = "list"
 
+    def move_detail(self, delta: int, *, detail_capacity: int) -> None:
+        self.detail_scroll = max(
+            0,
+            min(self.detail_scroll + delta, self._detail_max_scroll(detail_capacity)),
+        )
+
+    def page_down_detail(self, *, detail_capacity: int) -> None:
+        self.move_detail(detail_capacity, detail_capacity=detail_capacity)
+
+    def page_up_detail(self, *, detail_capacity: int) -> None:
+        self.move_detail(-detail_capacity, detail_capacity=detail_capacity)
+
     def refresh(self) -> None:
         self.selected_index = 0
         self.mode = "list"
         self.detail_text = ""
+        self.detail_scroll = 0
         self.filter_query = ""
         self.filter_buffer = ""
         page = self.source.fetch_page(0, self.source.page_size)
@@ -148,10 +165,15 @@ class CollectionBrowserState:
             parts.append(self.source.render_preview(item))
         return "\n".join(part for part in parts if part)
 
+    def _detail_max_scroll(self, detail_capacity: int) -> int:
+        line_count = len(self.detail_text.splitlines()) if self.detail_text else 0
+        return max(0, line_count - max(1, detail_capacity))
+
 
 def browse_collection(source: InteractiveCollectionSource) -> None:
     from prompt_toolkit import Application
     from prompt_toolkit.application.current import get_app
+    from prompt_toolkit.formatted_text import ANSI
     from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.keys import Keys
     from prompt_toolkit.layout import HSplit, Layout, Window
@@ -160,10 +182,12 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
     state = CollectionBrowserState(source)
     state.load_initial()
     body = FormattedTextControl(
-        text=lambda: _render_state(
-            state,
-            max_width=max(20, get_app().output.get_size().columns - 1),
-            max_height=max(8, get_app().output.get_size().rows),
+        text=lambda: ANSI(
+            _render_state(
+                state,
+                max_width=max(20, get_app().output.get_size().columns - 1),
+                max_height=max(8, get_app().output.get_size().rows),
+            )
         )
     )
     bindings = KeyBindings()
@@ -183,6 +207,13 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
             state.append_filter("j")
             event.app.invalidate()
             return
+        if state.mode == "detail":
+            state.move_detail(
+                1,
+                detail_capacity=max(1, get_app().output.get_size().rows - DETAIL_CHROME_LINES),
+            )
+            event.app.invalidate()
+            return
         if state.mode == "list":
             state.move(1)
             event.app.invalidate()
@@ -192,6 +223,13 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
     def _up(event) -> None:
         if state.mode == "filter":
             state.append_filter("k")
+            event.app.invalidate()
+            return
+        if state.mode == "detail":
+            state.move_detail(
+                -1,
+                detail_capacity=max(1, get_app().output.get_size().rows - DETAIL_CHROME_LINES),
+            )
             event.app.invalidate()
             return
         if state.mode == "list":
@@ -205,6 +243,12 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
             state.append_filter("n")
             event.app.invalidate()
             return
+        if state.mode == "detail":
+            state.page_down_detail(
+                detail_capacity=max(1, get_app().output.get_size().rows - DETAIL_CHROME_LINES)
+            )
+            event.app.invalidate()
+            return
         if state.mode == "list":
             state.page_down()
             event.app.invalidate()
@@ -214,6 +258,12 @@ def browse_collection(source: InteractiveCollectionSource) -> None:
     def _page_up(event) -> None:
         if state.mode == "filter":
             state.append_filter("p")
+            event.app.invalidate()
+            return
+        if state.mode == "detail":
+            state.page_up_detail(
+                detail_capacity=max(1, get_app().output.get_size().rows - DETAIL_CHROME_LINES)
+            )
             event.app.invalidate()
             return
         if state.mode == "list":
@@ -324,13 +374,17 @@ def _render_state(
     max_height: int | None = None,
 ) -> str:
     if state.mode == "detail":
+        detail_capacity = max(1, (max_height or 8) - DETAIL_CHROME_LINES)
+        detail_lines = state.detail_text.splitlines()
+        detail_start = min(state.detail_scroll, max(0, len(detail_lines) - detail_capacity))
+        detail_end = detail_start + detail_capacity
         return "\n".join(
             [
                 "Detail",
                 "",
-                state.detail_text,
+                *detail_lines[detail_start:detail_end],
                 "",
-                "b/esc: back  q: quit",
+                DETAIL_FOOTER,
             ]
         )
 

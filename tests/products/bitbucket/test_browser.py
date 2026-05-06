@@ -1,4 +1,5 @@
 from atlassian_cli.products.bitbucket.browser import (
+    render_pull_request_detail,
     render_pull_request_item,
     render_pull_request_preview,
 )
@@ -46,3 +47,38 @@ def test_render_pull_request_preview_summarizes_reviewers_and_description() -> N
     assert "Line four" not in rendered
     assert "participants" not in rendered.lower()
     assert "links" not in rendered.lower()
+
+
+def test_render_pull_request_detail_renders_fenced_diff_block() -> None:
+    item = {
+        "id": 24990,
+        "state": "OPEN",
+        "author": {"display_name": "Example Author"},
+        "title": "[FEAT] DEMO-1234 example preview change",
+        "from_ref": {"display_id": "feature/DEMO-1234/example-change"},
+        "to_ref": {"display_id": "main"},
+        "description": "Example pull request body",
+        "diff": "--- a/e2e-note.txt\n+++ b/e2e-note.txt\n@@ -0,0 +1 @@\n+example change\n",
+    }
+
+    rendered = render_pull_request_detail(item)
+
+    assert rendered.startswith("# 24990 - [FEAT] DEMO-1234 example preview change")
+    assert "## Diff" in rendered
+    assert "@@ -0,0 +1 @@" in rendered
+    assert "+example change" in rendered
+
+
+def test_render_pull_request_detail_colorizes_diff_when_requested() -> None:
+    item = {
+        "id": 24990,
+        "title": "Example pull request",
+        "diff": "--- a/e2e-note.txt\n+++ b/e2e-note.txt\n@@ -0,0 +1 @@\n+example change\n",
+    }
+
+    rendered = render_pull_request_detail(item, colorize_diff=True)
+
+    assert rendered.startswith("# 24990 - Example pull request")
+    assert "## Diff" in rendered
+    assert "\x1b[" in rendered
+    assert "+example change" in rendered

@@ -165,7 +165,41 @@ def test_render_state_in_detail_mode_has_detail_header_and_back_hint() -> None:
 
     assert rendered.startswith("Detail")
     assert "Example issue summary" in rendered
-    assert "b/esc: back" in rendered
+    assert "b/esc back" in rendered
+
+
+def test_collection_browser_state_detail_scrolls_and_updates_footer() -> None:
+    source = InteractiveCollectionSource(
+        title="Demo",
+        page_size=1,
+        fetch_page=lambda start, limit: CollectionPage(
+            items=[{"id": 1, "title": "DEMO-1"}],
+            start=start,
+            limit=limit,
+            total=1,
+        ),
+        fetch_detail=lambda item: {
+            "id": item["id"],
+            "title": item["title"],
+            "description": "\n".join(f"Line {index}" for index in range(1, 8)),
+        },
+        render_item=lambda index, item: item["title"],
+        render_detail=lambda item: item["description"],
+    )
+    state = CollectionBrowserState(source)
+
+    state.load_initial()
+    state.open_selected_detail()
+    state.move_detail(2, detail_capacity=3)
+
+    rendered = _render_state(state, max_height=7)
+
+    assert state.detail_scroll == 2
+    assert "Line 1" not in rendered
+    assert "Line 3" in rendered
+    assert "Line 5" in rendered
+    assert "Line 6" not in rendered
+    assert "j/k scroll  n/p page  b/esc back  q quit" in rendered
 
 
 def test_truncate_line_adds_ellipsis_for_long_lines() -> None:

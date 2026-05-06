@@ -200,6 +200,21 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
     )
     assert fetched["id"] == pr_id
 
+    diff_payload = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "diff",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "--output",
+        "json",
+    )
+    assert diff_payload["id"] == pr_id
+    assert "diff" in diff_payload
+    assert branch_name in diff_payload["diff"] or "e2e-note.txt" in diff_payload["diff"]
+
     merged = run_json(
         live_env,
         "bitbucket",

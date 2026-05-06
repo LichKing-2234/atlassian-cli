@@ -1,4 +1,4 @@
-from atlassian_cli.output.tty import should_use_interactive_output
+from atlassian_cli.output.tty import should_use_color_output, should_use_interactive_output
 
 
 def test_should_use_interactive_output_requires_markdown_collection_and_tty() -> None:
@@ -20,6 +20,12 @@ def test_should_use_interactive_output_requires_markdown_collection_and_tty() ->
         )
         is False
     )
+
+
+def test_should_use_color_output_requires_markdown_and_tty() -> None:
+    assert should_use_color_output("markdown", stdout_isatty=lambda: True) is True
+    assert should_use_color_output("json", stdout_isatty=lambda: True) is False
+    assert should_use_color_output("markdown", stdout_isatty=lambda: False) is False
     assert (
         should_use_interactive_output(
             "markdown",
