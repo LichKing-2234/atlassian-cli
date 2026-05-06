@@ -72,6 +72,7 @@ The CLI now uses `markdown` as the default human-readable output mode.
 - Single-resource commands default to markdown detail output.
 - Collection commands default to an interactive browser in a TTY.
 - Collection commands fall back to markdown summary output outside a TTY.
+- Confluence page detail output renders storage HTML content into readable Markdown in `--output markdown`.
 - Use `--output json` or `--output yaml` for normalized machine-readable output.
 - Use `--output raw-json` to inspect the original provider response as JSON.
 - Use `--output raw-yaml` to inspect the original provider response as YAML.
