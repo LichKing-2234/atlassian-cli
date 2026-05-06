@@ -1,5 +1,8 @@
+import re
 from collections.abc import Mapping, Sequence
 from typing import Any
+
+from markdownify import markdownify as convert_html_to_markdown
 
 MAX_SUMMARY_LIST_ITEMS = 3
 DETAIL_BODY_FIELDS = {"description", "content"}
@@ -13,6 +16,10 @@ PREVIEW_FIELDS = (
     ("to_ref", "To"),
     ("updated", "Updated"),
     ("updated_date", "Updated"),
+)
+HTML_CONTENT_RE = re.compile(
+    r"<(?:p|br|a|table|thead|tbody|tr|th|td|ol|ul|li)\b|<(?:ac|ri):",
+    re.IGNORECASE,
 )
 
 
@@ -93,6 +100,25 @@ def excerpt_text(value: Any, *, max_lines: int = 3) -> str:
     if len(lines) <= max_lines:
         return "\n".join(lines)
     return "\n".join([*lines[: max_lines - 1], f"{lines[max_lines - 1]}..."])
+
+
+def _normalize_markdown_block(text: str) -> str:
+    lines = [line.rstrip() for line in text.splitlines()]
+    return "\n".join(lines).strip()
+
+
+def _render_detail_body(field: str, value: Any) -> str:
+    if field != "content":
+        return _inline_value(value)
+    if value in (None, ""):
+        return ""
+
+    text = str(value) if isinstance(value, str) else _inline_value(value)
+    if not HTML_CONTENT_RE.search(text):
+        return _normalize_markdown_block(text)
+
+    rendered = convert_html_to_markdown(text, heading_style="ATX")
+    return _normalize_markdown_block(rendered)
 
 
 def render_markdown_list_item(item: Mapping[str, Any]) -> str:
@@ -181,7 +207,7 @@ def render_markdown(value: Any) -> str:
             lines.append(f"- {label}: {text}")
 
     for field in DETAIL_BODY_FIELDS:
-        text = _inline_value(value.get(field))
+        text = _render_detail_body(field, value.get(field))
         if text:
             lines.extend(["", f"## {field.title()}", text])
 
