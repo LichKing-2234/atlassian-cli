@@ -89,6 +89,35 @@ def test_init_non_interactive_missing_required_values_fails_without_writing(
     assert not config_file.exists()
 
 
+def test_init_basic_missing_credential_mentions_token_and_password(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "jira",
+            "--config-file",
+            str(config_file),
+            "--deployment",
+            "server",
+            "--url",
+            "https://jira.example.com",
+            "--auth",
+            "basic",
+            "--username",
+            "example-user",
+        ],
+    )
+
+    assert result.exit_code != 0
+    plain_output = strip_ansi(result.output)
+    assert "Missing required option for non-interactive init:" in plain_output
+    assert "--token" in plain_output
+    assert "--password" in plain_output
+    assert not config_file.exists()
+
+
 def test_init_wizard_later_failure_does_not_write_partial_config(tmp_path: Path) -> None:
     config_file = tmp_path / "config.toml"
 

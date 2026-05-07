@@ -99,7 +99,11 @@ def _build_product_config(
     if resolved_auth is AuthMode.BASIC:
         resolved_username = resolved_username or _prompt_value("Username", "--username")
         if resolved_password is None and resolved_token is None:
-            resolved_token = _prompt_value("Token/password", "--token", hide_input=True)
+            resolved_token = _prompt_value(
+                "Token/password",
+                "--token or --password",
+                hide_input=True,
+            )
     elif resolved_token is None:
         resolved_token = _prompt_value("Token", "--token", hide_input=True)
 

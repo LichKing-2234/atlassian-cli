@@ -1,3 +1,4 @@
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -208,6 +209,120 @@ def test_write_product_configs_separates_tables_with_blank_lines(tmp_path: Path)
         'auth = "pat"\n'
         'token = "secret"\n'
     )
+
+
+def test_write_product_config_preserves_unknown_root_values_and_tables(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        rootNote = "example comment"
+
+        [headers]
+        X-Request-Source = "example-oauth"
+
+        [jira]
+        deployment = "server"
+        url = "https://jira.example.com"
+        auth = "basic"
+        username = "example-user"
+        token = "secret"
+
+        [tooling]
+        enabled = true
+
+        [tooling.nested]
+        owner = "Example Author"
+
+        [tooling.empty]
+        """.strip()
+    )
+
+    write_product_config(
+        config_file,
+        Product.CONFLUENCE,
+        ProductConfig(
+            deployment=Deployment.SERVER,
+            url="https://confluence.example.com",
+            auth=AuthMode.PAT,
+            token="secret",
+        ),
+    )
+
+    data = tomllib.loads(config_file.read_text())
+    assert data["rootNote"] == "example comment"
+    assert data["tooling"]["enabled"] is True
+    assert data["tooling"]["nested"]["owner"] == "Example Author"
+    assert data["tooling"]["empty"] == {}
+    assert data["headers"] == {"X-Request-Source": "example-oauth"}
+    assert data["jira"]["url"] == "https://jira.example.com"
+    assert data["confluence"]["url"] == "https://confluence.example.com"
+
+
+def test_write_product_config_preserves_unselected_product_tables_as_data(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [jira]
+        deployment = "server"
+        url = "https://jira.example.com"
+        auth = "basic"
+        username = "example-user"
+        token = "secret"
+        custom = "example response"
+
+        [jira.headers]
+        X-Trace = "example response"
+
+        [jira.extra]
+        reviewer = "reviewer-one"
+        """.strip()
+    )
+
+    write_product_config(
+        config_file,
+        Product.CONFLUENCE,
+        ProductConfig(
+            deployment=Deployment.SERVER,
+            url="https://confluence.example.com",
+            auth=AuthMode.PAT,
+            token="secret",
+        ),
+    )
+
+    data = tomllib.loads(config_file.read_text())
+    assert data["jira"]["custom"] == "example response"
+    assert data["jira"]["headers"] == {"X-Trace": "example response"}
+    assert data["jira"]["extra"] == {"reviewer": "reviewer-one"}
+    assert data["confluence"]["url"] == "https://confluence.example.com"
+
+
+def test_write_product_config_quotes_keys_that_are_not_toml_bare_keys(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+
+    write_product_config(
+        config_file,
+        Product.BITBUCKET,
+        ProductConfig(
+            deployment=Deployment.DC,
+            url="https://bitbucket.example.com",
+            auth=AuthMode.PAT,
+            token="secret",
+            headers={
+                "X.Trace": "trace-id",
+                "X Header": "header-value",
+            },
+        ),
+    )
+
+    text = config_file.read_text()
+    assert '"X.Trace" = "trace-id"' in text
+    assert '"X Header" = "header-value"' in text
+    assert load_config(config_file).product_config(Product.BITBUCKET).headers == {
+        "X.Trace": "trace-id",
+        "X Header": "header-value",
+    }
 
 
 def test_product_config_exists_detects_configured_product(tmp_path: Path) -> None:
