@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -9,6 +10,8 @@ from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
+
+import certifi
 
 REPO_OWNER = "LichKing-2234"
 REPO_NAME = "atlassian-cli"
@@ -114,13 +117,17 @@ def is_newer_version(candidate: str, current: str) -> bool:
     return compare_versions(candidate, current) > 0
 
 
+def _https_context() -> ssl.SSLContext:
+    return ssl.create_default_context(cafile=certifi.where())
+
+
 def fetch_latest_release(
     *,
     api_url: str = LATEST_RELEASE_API_URL,
     timeout: int = REQUEST_TIMEOUT_SECONDS,
 ) -> ReleaseInfo:
     try:
-        with urlopen(api_url, timeout=timeout) as response:
+        with urlopen(api_url, timeout=timeout, context=_https_context()) as response:
             payload = json.loads(response.read().decode("utf-8"))
     except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
         raise UpdateError(f"failed to fetch latest release: {exc}") from exc
@@ -183,7 +190,7 @@ def _download_install_script(
     timeout: int = REQUEST_TIMEOUT_SECONDS,
 ) -> str:
     try:
-        with urlopen(script_url, timeout=timeout) as response:
+        with urlopen(script_url, timeout=timeout, context=_https_context()) as response:
             return response.read().decode("utf-8")
     except (HTTPError, URLError, TimeoutError, OSError, UnicodeDecodeError) as exc:
         raise UpdateError(f"failed to download install script: {exc}") from exc

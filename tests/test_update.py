@@ -55,9 +55,10 @@ def test_compare_versions_handles_release_and_prerelease_ordering() -> None:
 
 
 def test_fetch_latest_release_parses_github_payload(monkeypatch) -> None:
-    def fake_urlopen(url, timeout):
+    def fake_urlopen(url, timeout, context):
         assert url == "https://example.invalid/latest"
         assert timeout == 10
+        assert context is not None
         return FakeResponse(
             {
                 "tag_name": "v0.2.0",
