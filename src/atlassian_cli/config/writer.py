@@ -41,7 +41,9 @@ def write_product_configs(
     data = _read_or_default(path)
     for product in updates:
         if _product_configured(data, product) and product not in force_products:
-            raise ConfigWriteError(f"[{product.value}] already exists. Use --force to overwrite it.")
+            raise ConfigWriteError(
+                f"[{product.value}] already exists. Use --force to overwrite it."
+            )
 
     loaded = LoadedConfig(
         headers=data.get("headers", {}),
@@ -112,7 +114,7 @@ def _render_table(name: str, values: dict[str, Any]) -> str:
     for key, value in values.items():
         if hasattr(value, "value"):
             value = value.value
-        lines.append(f'{key} = {_format_toml_string(str(value))}')
+        lines.append(f"{key} = {_format_toml_string(str(value))}")
     return "\n".join(lines) + "\n"
 
 

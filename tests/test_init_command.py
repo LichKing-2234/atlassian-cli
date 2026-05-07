@@ -87,15 +87,7 @@ def test_init_wizard_later_failure_does_not_write_partial_config(tmp_path: Path)
     result = runner.invoke(
         app,
         ["init", "--config-file", str(config_file)],
-        input=(
-            "y\n"
-            "server\n"
-            "https://jira.example.com\n"
-            "basic\n"
-            "example-user\n"
-            "secret\n"
-            "y\n"
-        ),
+        input=("y\nserver\nhttps://jira.example.com\nbasic\nexample-user\nsecret\ny\n"),
     )
 
     assert result.exit_code != 0
@@ -207,7 +199,9 @@ def test_init_without_product_prompts_for_products_in_order(tmp_path: Path) -> N
 
     assert result.exit_code == 0
     assert result.stdout.index("Configure jira?") < result.stdout.index("Configure confluence?")
-    assert result.stdout.index("Configure confluence?") < result.stdout.index("Configure bitbucket?")
+    assert result.stdout.index("Configure confluence?") < result.stdout.index(
+        "Configure bitbucket?"
+    )
     config = load_config(config_file)
     assert config.product_config(Product.JIRA) is not None
     assert config.product_config(Product.CONFLUENCE) is None
