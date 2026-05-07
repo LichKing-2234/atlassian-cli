@@ -322,3 +322,9 @@ def test_install_script_rejects_symlink_payload(tmp_path: Path) -> None:
 
     assert result.returncode != 0
     assert "symbolic link" in result.stderr.lower()
+
+
+def test_install_script_uses_curl_progress_bar_for_downloads() -> None:
+    script = INSTALL_SCRIPT.read_text()
+
+    assert "curl --fail --location --progress-bar" in script

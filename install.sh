@@ -84,6 +84,13 @@ resolve_tag() {
   printf '%s' "${tag}"
 }
 
+download_file() {
+  url="$1"
+  destination="$2"
+  log "Downloading ${url}"
+  curl --fail --location --progress-bar "${url}" -o "${destination}"
+}
+
 archive_name() {
   version="${1#v}"
   printf 'atlassian-cli_%s_%s_%s.tar.gz' "${version}" "${2}" "${3}"
@@ -222,8 +229,8 @@ main() {
   archive_path="${TMP_ROOT}/${archive}"
   checksums_path="${TMP_ROOT}/checksums.txt"
 
-  curl -fsSL "${INSTALL_RELEASE_DOWNLOAD_BASE}/${release_tag}/${archive}" -o "${archive_path}"
-  curl -fsSL "${INSTALL_RELEASE_DOWNLOAD_BASE}/${release_tag}/checksums.txt" -o "${checksums_path}"
+  download_file "${INSTALL_RELEASE_DOWNLOAD_BASE}/${release_tag}/${archive}" "${archive_path}"
+  download_file "${INSTALL_RELEASE_DOWNLOAD_BASE}/${release_tag}/checksums.txt" "${checksums_path}"
 
   expected_checksum="$(checksum_for_archive "${archive}" "${checksums_path}")"
   [ -n "${expected_checksum}" ] || die "missing checksum entry for ${archive}"
