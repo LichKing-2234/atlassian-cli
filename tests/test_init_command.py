@@ -181,3 +181,92 @@ def test_init_force_replaces_existing_product_in_non_interactive_mode(tmp_path: 
     assert jira.auth.value == "pat"
     assert jira.username is None
     assert jira.token == "new-secret"
+
+
+def test_init_without_product_prompts_for_products_in_order(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+
+    result = runner.invoke(
+        app,
+        ["init", "--config-file", str(config_file)],
+        input=(
+            "y\n"
+            "server\n"
+            "https://jira.example.com\n"
+            "basic\n"
+            "example-user\n"
+            "secret\n"
+            "n\n"
+            "y\n"
+            "dc\n"
+            "https://bitbucket.example.com\n"
+            "pat\n"
+            "secret\n"
+        ),
+    )
+
+    assert result.exit_code == 0
+    assert result.stdout.index("Configure jira?") < result.stdout.index("Configure confluence?")
+    assert result.stdout.index("Configure confluence?") < result.stdout.index("Configure bitbucket?")
+    config = load_config(config_file)
+    assert config.product_config(Product.JIRA) is not None
+    assert config.product_config(Product.CONFLUENCE) is None
+    assert config.product_config(Product.BITBUCKET) is not None
+
+
+def test_init_interactive_existing_product_decline_skips_without_writing(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    original = """
+    [jira]
+    deployment = "server"
+    url = "https://jira.example.com"
+    auth = "basic"
+    username = "example-user"
+    token = "secret"
+    """.strip()
+    config_file.write_text(original)
+
+    result = runner.invoke(
+        app,
+        ["init", "jira", "--config-file", str(config_file)],
+        input="n\n",
+    )
+
+    assert result.exit_code == 0
+    assert "Skipped [jira]." in result.stdout
+    assert config_file.read_text() == original
+
+
+def test_init_interactive_existing_product_confirm_overwrites(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [headers]
+        X-Request-Source = "example-oauth"
+
+        [jira]
+        deployment = "server"
+        url = "https://jira.example.com"
+        auth = "basic"
+        username = "example-user"
+        token = "secret"
+        """.strip()
+    )
+
+    result = runner.invoke(
+        app,
+        ["init", "jira", "--config-file", str(config_file)],
+        input="y\ndc\nhttps://jira-new.example.com\npat\nnew-secret\n",
+    )
+
+    assert result.exit_code == 0
+    config = load_config(config_file)
+    assert config.headers == {"X-Request-Source": "example-oauth"}
+    jira = config.product_config(Product.JIRA)
+    assert jira.deployment.value == "dc"
+    assert jira.url == "https://jira-new.example.com"
+    assert jira.auth.value == "pat"
+    assert jira.username is None
+    assert jira.token == "new-secret"
