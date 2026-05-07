@@ -64,12 +64,8 @@ jobs:
 
           VERSION="${TAG#v}"
           PYPROJECT_VERSION="$(
-            git show "${CHECKOUT_REF}:pyproject.toml" | python - <<'PY'
-            import sys
-            import tomllib
-
-            print(tomllib.load(sys.stdin.buffer)["project"]["version"])
-            PY
+            git show "${CHECKOUT_REF}:pyproject.toml" |
+              python -c 'import sys, tomllib; print(tomllib.load(sys.stdin.buffer)["project"]["version"])'
           )"
           [ "${VERSION}" = "${PYPROJECT_VERSION}" ] || {
             echo "tag version ${VERSION} does not match pyproject version ${PYPROJECT_VERSION}" >&2
