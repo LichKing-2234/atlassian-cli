@@ -56,6 +56,14 @@ def test_readme_mentions_semantic_alignment_and_output_breaking_change() -> None
     assert "raw-yaml" in readme
 
 
+def test_readme_mentions_init_command() -> None:
+    readme = Path("README.md").read_text()
+
+    assert "atlassian init" in readme
+    assert "atlassian init jira" in readme
+    assert "--force" in readme
+
+
 def test_contributing_mentions_new_live_e2e_env_overrides() -> None:
     contributing = Path("CONTRIBUTING.md").read_text()
 
