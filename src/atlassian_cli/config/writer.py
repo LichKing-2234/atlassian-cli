@@ -106,7 +106,7 @@ def _render_loaded_config(config: LoadedConfig) -> str:
         sections.append(_render_table(product.value, values))
         if headers:
             sections.append(_render_table(f"{product.value}.headers", headers))
-    return "\n".join(section.rstrip() for section in sections).rstrip() + "\n"
+    return "\n\n".join(section.rstrip() for section in sections).rstrip() + "\n"
 
 
 def _render_table(name: str, values: dict[str, Any]) -> str:

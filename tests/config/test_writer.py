@@ -170,6 +170,46 @@ def test_write_product_configs_writes_multiple_products_in_one_file(tmp_path: Pa
     assert config.product_config(Product.CONFLUENCE) is None
 
 
+def test_write_product_configs_separates_tables_with_blank_lines(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+
+    write_product_configs(
+        config_file,
+        {
+            Product.JIRA: ProductConfig(
+                deployment=Deployment.SERVER,
+                url="https://jira.example.com",
+                auth=AuthMode.BASIC,
+                username="example-user",
+                token="secret",
+            ),
+            Product.CONFLUENCE: ProductConfig(
+                deployment=Deployment.SERVER,
+                url="https://confluence.example.com",
+                auth=AuthMode.PAT,
+                token="secret",
+            ),
+        },
+    )
+
+    assert config_file.read_text() == (
+        "[headers]\n"
+        "\n"
+        "[jira]\n"
+        'deployment = "server"\n'
+        'url = "https://jira.example.com"\n'
+        'auth = "basic"\n'
+        'username = "example-user"\n'
+        'token = "secret"\n'
+        "\n"
+        "[confluence]\n"
+        'deployment = "server"\n'
+        'url = "https://confluence.example.com"\n'
+        'auth = "pat"\n'
+        'token = "secret"\n'
+    )
+
+
 def test_product_config_exists_detects_configured_product(tmp_path: Path) -> None:
     config_file = tmp_path / "config.toml"
     config_file.write_text(
