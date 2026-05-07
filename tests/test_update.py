@@ -5,6 +5,7 @@ from typer.testing import CliRunner
 
 import atlassian_cli.commands.update as update_command
 import atlassian_cli.update as update_module
+from atlassian_cli import __version__
 from atlassian_cli.cli import app
 from atlassian_cli.update import (
     InstallResult,
@@ -209,7 +210,7 @@ def test_update_check_outputs_latest_release_json(monkeypatch) -> None:
     result = runner.invoke(app, ["update", "check", "--output", "json"])
 
     assert result.exit_code == 0
-    assert '"current_version": "0.1.0"' in result.stdout
+    assert f'"current_version": "{__version__}"' in result.stdout
     assert '"latest_tag": "v0.2.0"' in result.stdout
     assert '"update_available": true' in result.stdout
 
@@ -265,7 +266,7 @@ def test_update_install_passes_selected_options(monkeypatch, tmp_path: Path) -> 
 
     assert result.exit_code == 0
     assert calls == {
-        "current_version": "0.1.0",
+        "current_version": __version__,
         "version": "0.2.0",
         "install_dir": install_dir,
         "force": True,
