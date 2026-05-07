@@ -5,6 +5,7 @@ import typer
 
 from atlassian_cli.auth.headers import parse_cli_headers
 from atlassian_cli.auth.models import AuthMode
+from atlassian_cli.commands.update import app as update_app
 from atlassian_cli.config.loader import load_config
 from atlassian_cli.config.models import (
     Deployment,
@@ -55,8 +56,10 @@ bitbucket_app.add_typer(bitbucket_pr_app, name="pr")
 app.add_typer(jira_app, name="jira")
 app.add_typer(confluence_app, name="confluence")
 app.add_typer(bitbucket_app, name="bitbucket")
+app.add_typer(update_app, name="update")
 
 DEFAULT_CONFIG_FILE = Path("~/.config/atlassian-cli/config.toml").expanduser()
+PRODUCT_COMMANDS = {product.value for product in Product}
 
 
 def _missing_product_message(config_file: Path, product: Product, *, created: bool) -> str:
@@ -79,6 +82,8 @@ def root_callback(
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     if ctx.invoked_subcommand is None:
+        return
+    if ctx.invoked_subcommand not in PRODUCT_COMMANDS:
         return
 
     product = Product(ctx.invoked_subcommand)

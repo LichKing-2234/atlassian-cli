@@ -28,6 +28,29 @@ You can also download a tarball from the GitHub Release page and run `atlassian/
 
 `darwin/arm64` binaries are unsigned in the first release version, so macOS may require a manual Gatekeeper allow step on first run.
 
+## Update
+
+Check for a newer GitHub Release:
+
+```bash
+atlassian update check
+```
+
+Install the latest release:
+
+```bash
+atlassian update install
+```
+
+Install a specific release, or choose a non-default install directory:
+
+```bash
+atlassian update install --version v0.1.0
+atlassian update install --install-dir ~/.local/bin
+```
+
+`atlassian update install` uses the same installer and checksum verification as the GitHub Release install command.
+
 ## Examples
 
 - `atlassian jira issue get DEMO-1`

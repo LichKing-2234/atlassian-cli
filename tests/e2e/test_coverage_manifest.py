@@ -6,12 +6,18 @@ from tests.e2e.coverage_manifest import COVERAGE_MANIFEST
 
 def discover_leaf_commands() -> set[str]:
     root = get_command(app)
-    commands: set[str] = set()
-    for product_name, product_cmd in root.commands.items():
-        for group_name, group_cmd in product_cmd.commands.items():
-            for leaf_name in getattr(group_cmd, "commands", {}):
-                commands.add(f"{product_name} {group_name} {leaf_name}")
-    return commands
+
+    def walk(command, parts: tuple[str, ...]) -> set[str]:
+        child_commands = getattr(command, "commands", {})
+        if not child_commands:
+            return {" ".join(parts)} if parts else set()
+
+        commands: set[str] = set()
+        for name, child in child_commands.items():
+            commands.update(walk(child, (*parts, name)))
+        return commands
+
+    return walk(root, ())
 
 
 def test_coverage_manifest_matches_cli_surface() -> None:
