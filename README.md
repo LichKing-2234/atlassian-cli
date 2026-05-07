@@ -51,6 +51,34 @@ atlassian update install --install-dir ~/.local/bin
 
 `atlassian update install` uses the same installer and checksum verification as the GitHub Release install command.
 
+## Configure
+
+Run the setup wizard:
+
+```bash
+atlassian init
+```
+
+Configure one product:
+
+```bash
+atlassian init jira
+```
+
+Use flags for non-interactive setup:
+
+```bash
+atlassian init bitbucket --deployment dc --url https://bitbucket.example.com --auth pat --token secret
+```
+
+Existing product config is not overwritten by default. Use `--force` when replacing a product block non-interactively:
+
+```bash
+atlassian init confluence --force --deployment server --url https://confluence.example.com --auth basic --username example-user --token secret
+```
+
+The default `~/.config/atlassian-cli/config.toml` file is still auto-created as a template on first product command when it does not already exist.
+
 ## Examples
 
 - `atlassian jira issue get DEMO-1`
