@@ -13,7 +13,9 @@ from urllib.request import urlopen
 REPO_OWNER = "LichKing-2234"
 REPO_NAME = "atlassian-cli"
 LATEST_RELEASE_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest"
-INSTALL_SCRIPT_URL = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/main/install.sh"
+INSTALL_SCRIPT_URL_TEMPLATE = (
+    f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{{tag}}/install.sh"
+)
 REQUEST_TIMEOUT_SECONDS = 10
 
 
@@ -187,21 +189,28 @@ def _download_install_script(
         raise UpdateError(f"failed to download install script: {exc}") from exc
 
 
+def install_script_url_for_tag(tag: str) -> str:
+    return INSTALL_SCRIPT_URL_TEMPLATE.format(tag=normalize_tag(tag))
+
+
 def run_install_script(
     *,
     version: str,
     install_dir: Path,
-    script_url: str = INSTALL_SCRIPT_URL,
+    script_url: str | None = None,
     env: dict[str, str] | None = None,
 ) -> InstallResult:
-    script = _download_install_script(script_url=script_url)
-    run_env = dict(os.environ if env is None else env)
-    run_env["INSTALL_VERSION"] = normalize_tag(version)
+    tag = normalize_tag(version)
+    script = _download_install_script(script_url=script_url or install_script_url_for_tag(tag))
+    run_env = dict(os.environ)
+    if env is not None:
+        run_env.update(env)
+    run_env["INSTALL_VERSION"] = tag
     run_env["INSTALL_DIR"] = str(install_dir.expanduser())
 
     with tempfile.TemporaryDirectory(prefix="atlassian-cli-update-") as tmp_dir:
         script_path = Path(tmp_dir) / "install.sh"
-        script_path.write_text(script)
+        script_path.write_text(script, encoding="utf-8")
         result = subprocess.run(
             ["sh", str(script_path)],
             env=run_env,
@@ -216,7 +225,6 @@ def run_install_script(
         detail = stderr or stdout or f"installer exited with status {result.returncode}"
         raise UpdateError(detail)
 
-    tag = normalize_tag(version)
     return InstallResult(
         version=tag,
         install_dir=install_dir.expanduser(),

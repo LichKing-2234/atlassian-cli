@@ -13,6 +13,7 @@ from atlassian_cli.update import (
     compare_versions,
     default_install_dir,
     fetch_latest_release,
+    install_script_url_for_tag,
     normalize_tag,
 )
 
@@ -36,6 +37,13 @@ class FakeResponse:
 def test_normalize_tag_accepts_tag_or_plain_version() -> None:
     assert normalize_tag("v0.2.0") == "v0.2.0"
     assert normalize_tag("0.2.0") == "v0.2.0"
+
+
+def test_install_script_url_is_pinned_to_target_tag() -> None:
+    assert (
+        install_script_url_for_tag("0.2.0")
+        == "https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/v0.2.0/install.sh"
+    )
 
 
 def test_compare_versions_handles_release_and_prerelease_ordering() -> None:
@@ -99,15 +107,52 @@ def test_default_install_dir_for_python_install_uses_local_bin(tmp_path: Path) -
     )
 
 
+def test_default_install_dir_for_frozen_build_uses_launcher_from_path(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    executable = tmp_path / "runtime" / "atlassian"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("")
+    launcher = tmp_path / "bin" / "atlassian"
+    launcher.parent.mkdir()
+    launcher.write_text("")
+
+    monkeypatch.setattr(update_module.shutil, "which", lambda name: str(launcher))
+
+    assert (
+        default_install_dir(environ={}, executable=str(executable), frozen=True) == launcher.parent
+    )
+
+
+def test_default_install_dir_for_frozen_build_without_launcher_uses_executable_dir(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    executable = tmp_path / "runtime" / "atlassian"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("")
+
+    monkeypatch.setattr(update_module.shutil, "which", lambda name: None)
+
+    assert (
+        default_install_dir(environ={}, executable=str(executable), frozen=True)
+        == executable.parent
+    )
+
+
 def test_run_install_script_sets_version_and_install_dir(tmp_path: Path, monkeypatch) -> None:
     install_dir = tmp_path / "bin"
     calls: dict = {}
+    download_calls: dict = {}
 
-    monkeypatch.setattr(
-        update_module,
-        "_download_install_script",
-        lambda script_url: "#!/bin/sh\necho install fixture\n",
-    )
+    monkeypatch.setenv("ATLASSIAN_TEST_PARENT_ENV", "preserved")
+
+    def fake_download_install_script(script_url):
+        download_calls["script_url"] = script_url
+        return "#!/bin/sh\necho install fixture\n"
+
+    monkeypatch.setattr(update_module, "_download_install_script", fake_download_install_script)
 
     def fake_run(args, env, capture_output, text, check):
         calls["args"] = args
@@ -115,7 +160,7 @@ def test_run_install_script_sets_version_and_install_dir(tmp_path: Path, monkeyp
         calls["capture_output"] = capture_output
         calls["text"] = text
         calls["check"] = check
-        assert Path(args[1]).read_text() == "#!/bin/sh\necho install fixture\n"
+        assert Path(args[1]).read_text(encoding="utf-8") == "#!/bin/sh\necho install fixture\n"
         return type(
             "Result",
             (),
@@ -134,7 +179,13 @@ def test_run_install_script_sets_version_and_install_dir(tmp_path: Path, monkeyp
         env={"PATH": "/bin"},
     )
 
+    assert (
+        download_calls["script_url"]
+        == "https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/v0.2.0/install.sh"
+    )
     assert calls["args"][0] == "sh"
+    assert calls["env"]["ATLASSIAN_TEST_PARENT_ENV"] == "preserved"
+    assert calls["env"]["PATH"] == "/bin"
     assert calls["env"]["INSTALL_VERSION"] == "v0.2.0"
     assert calls["env"]["INSTALL_DIR"] == str(install_dir)
     assert calls["capture_output"] is True
