@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -7,6 +8,11 @@ from atlassian_cli.config.loader import load_config
 from atlassian_cli.config.models import Product
 
 runner = CliRunner()
+ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_PATTERN.sub("", text)
 
 
 def test_init_single_product_interactive_writes_config(tmp_path: Path) -> None:
@@ -77,7 +83,9 @@ def test_init_non_interactive_missing_required_values_fails_without_writing(
     )
 
     assert result.exit_code != 0
-    assert "Missing required option for non-interactive init: --url" in result.output
+    plain_output = strip_ansi(result.output)
+    assert "Missing required option for non-interactive init:" in plain_output
+    assert "--url" in plain_output
     assert not config_file.exists()
 
 
@@ -91,8 +99,9 @@ def test_init_wizard_later_failure_does_not_write_partial_config(tmp_path: Path)
     )
 
     assert result.exit_code != 0
-    assert "Missing required option for non-interactive init:" in result.output
-    assert "--deployment" in result.output
+    plain_output = strip_ansi(result.output)
+    assert "Missing required option for non-interactive init:" in plain_output
+    assert "--deployment" in plain_output
     assert not config_file.exists()
 
 
@@ -130,7 +139,7 @@ def test_init_rejects_existing_product_without_force_in_non_interactive_mode(
     )
 
     assert result.exit_code != 0
-    assert "[jira] already exists" in result.output
+    assert "[jira] already exists" in strip_ansi(result.output)
     assert "https://jira-new.example.com" not in config_file.read_text()
 
 
