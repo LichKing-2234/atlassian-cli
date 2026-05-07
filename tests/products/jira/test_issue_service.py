@@ -1,3 +1,6 @@
+import pytest
+
+from atlassian_cli.core.errors import TransportError
 from atlassian_cli.output.interactive import CollectionPage
 from atlassian_cli.products.jira.services.issue import IssueService
 
@@ -307,6 +310,18 @@ def test_issue_service_get_passes_mcp_style_read_options() -> None:
             "update_history": False,
         }
     ]
+
+
+def test_issue_service_get_raises_clear_error_for_text_response() -> None:
+    class TextIssueProvider(FakeIssueProvider):
+        def get_issue(self, issue_key: str, **kwargs) -> str:
+            del issue_key, kwargs
+            return "<html>example response</html>"
+
+    service = IssueService(provider=TextIssueProvider())
+
+    with pytest.raises(TransportError, match="JiraIssue response"):
+        service.get("DEMO-1")
 
 
 def test_issue_service_search_returns_mcp_style_envelope() -> None:

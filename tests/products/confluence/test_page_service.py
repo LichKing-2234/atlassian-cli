@@ -1,3 +1,6 @@
+import pytest
+
+from atlassian_cli.core.errors import TransportError
 from atlassian_cli.products.confluence.services.page import PageService
 
 
@@ -172,6 +175,24 @@ def test_page_service_normalizes_page_payload() -> None:
         },
         "content": {"value": "## Runbook\n\nUse the checklist."},
     }
+
+
+def test_page_service_raises_clear_error_for_text_response() -> None:
+    class TextPageProvider(FakePageProvider):
+        def get_page(
+            self,
+            page_id: str,
+            *,
+            include_metadata: bool = True,
+            convert_to_markdown: bool = False,
+        ) -> str:
+            del page_id, include_metadata, convert_to_markdown
+            return "<html>example response</html>"
+
+    service = PageService(provider=TextPageProvider())
+
+    with pytest.raises(TransportError, match="ConfluencePage response"):
+        service.get("1234")
 
 
 def test_page_service_exposes_raw_page_payload() -> None:

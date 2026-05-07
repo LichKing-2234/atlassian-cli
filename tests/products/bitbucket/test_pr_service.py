@@ -1,3 +1,6 @@
+import pytest
+
+from atlassian_cli.core.errors import TransportError
 from atlassian_cli.output.interactive import CollectionPage
 from atlassian_cli.products.bitbucket.services.pr import PullRequestService
 
@@ -97,6 +100,18 @@ def test_pull_request_service_normalizes_payload() -> None:
         "participants": [{"user": {"displayName": "Code Owners"}}],
         "links": {"self": [{"href": "https://bitbucket.example.com/pr/42"}]},
     }
+
+
+def test_pull_request_service_raises_clear_error_for_text_response() -> None:
+    class TextPullRequestProvider(FakePullRequestProvider):
+        def get_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> str:
+            del project_key, repo_slug, pr_id
+            return "<html>example response</html>"
+
+    service = PullRequestService(provider=TextPullRequestProvider())
+
+    with pytest.raises(TransportError, match="BitbucketPullRequest response"):
+        service.get("DEMO", "example-repo", 42)
 
 
 def test_pull_request_service_list_keeps_full_payload_for_machine_output() -> None:
