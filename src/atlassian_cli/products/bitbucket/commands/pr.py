@@ -11,10 +11,12 @@ from atlassian_cli.products.bitbucket.browser import (
     render_pull_request_item,
     render_pull_request_preview,
 )
+from atlassian_cli.products.bitbucket.commands.pr_comment import app as pr_comment_app
 from atlassian_cli.products.bitbucket.services.pr import PullRequestService
 from atlassian_cli.products.factory import build_provider
 
 app = typer.Typer(help="Bitbucket pull request commands")
+app.add_typer(pr_comment_app, name="comment")
 
 
 def build_pr_service(context) -> PullRequestService:
