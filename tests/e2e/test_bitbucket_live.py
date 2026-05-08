@@ -215,6 +215,133 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
     assert "diff" in diff_payload
     assert branch_name in diff_payload["diff"] or "e2e-note.txt" in diff_payload["diff"]
 
+    added_comment = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "comment",
+        "add",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "example comment",
+        "--output",
+        "json",
+    )
+    comment_id = added_comment["id"]
+    comment_version = added_comment["version"]
+
+    comments = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "comment",
+        "list",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "--output",
+        "json",
+    )
+    assert any(item["id"] == comment_id for item in comments["results"])
+
+    fetched_comment = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "comment",
+        "get",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        comment_id,
+        "--output",
+        "json",
+    )
+    assert fetched_comment["id"] == comment_id
+
+    reply = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "comment",
+        "reply",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        comment_id,
+        "example response",
+        "--output",
+        "json",
+    )
+    assert reply["parent"]["id"] == comment_id
+
+    edited_comment = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "comment",
+        "edit",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        comment_id,
+        "example comment",
+        "--version",
+        str(comment_version),
+        "--output",
+        "json",
+    )
+    assert edited_comment["id"] == comment_id
+
+    deleted_reply = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "comment",
+        "delete",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        reply["id"],
+        "--version",
+        str(reply["version"]),
+        "--output",
+        "json",
+    )
+    assert deleted_reply["deleted"] is True
+
+    pr_build_status = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "build-status",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "--output",
+        "json",
+    )
+    assert pr_build_status["pull_request"]["id"] == pr_id
+    assert "overall_state" in pr_build_status
+    assert "commits" in pr_build_status
+
+    head_commit = fetched.get("from_ref", {}).get("latest_commit")
+    if not head_commit:
+        head_commit = sandbox.run("rev-parse", branch_name).stdout.strip()
+    commit_build_status = run_json(
+        live_env,
+        "bitbucket",
+        "commit",
+        "build-status",
+        head_commit,
+        "--output",
+        "json",
+    )
+    assert commit_build_status["commit"] == head_commit
+    assert "overall_state" in commit_build_status
+    assert "results" in commit_build_status
+
     merged = run_json(
         live_env,
         "bitbucket",
