@@ -12,6 +12,7 @@ from atlassian_cli.products.bitbucket.browser import (
     render_pull_request_preview,
 )
 from atlassian_cli.products.bitbucket.commands.pr_comment import app as pr_comment_app
+from atlassian_cli.products.bitbucket.services.build_status import BuildStatusService
 from atlassian_cli.products.bitbucket.services.pr import PullRequestService
 from atlassian_cli.products.factory import build_provider
 
@@ -21,6 +22,10 @@ app.add_typer(pr_comment_app, name="comment")
 
 def build_pr_service(context) -> PullRequestService:
     return PullRequestService(provider=build_provider(context))
+
+
+def build_build_status_service(context) -> BuildStatusService:
+    return BuildStatusService(provider=build_provider(context))
 
 
 @app.command("list")
@@ -107,6 +112,34 @@ def get_pull_request_diff(
         )
         return
 
+    typer.echo(render_output(payload, output=output))
+
+
+@app.command("build-status")
+def get_pull_request_build_status(
+    ctx: typer.Context,
+    project_key: str,
+    repo_slug: str,
+    pr_id: int,
+    latest_only: bool = typer.Option(False, "--latest-only"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_build_status_service(ctx.obj)
+    payload = (
+        service.for_pull_request_raw(
+            project_key,
+            repo_slug,
+            pr_id,
+            latest_only=latest_only,
+        )
+        if is_raw_output(output)
+        else service.for_pull_request(
+            project_key,
+            repo_slug,
+            pr_id,
+            latest_only=latest_only,
+        )
+    )
     typer.echo(render_output(payload, output=output))
 
 
