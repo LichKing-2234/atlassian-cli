@@ -65,9 +65,7 @@ def test_comment_service_get_add_reply_edit_and_delete() -> None:
         == "example response"
     )
     assert (
-        service.edit("DEMO", "example-repo", 42, "1001", "example comment", version=3)[
-            "version"
-        ]
+        service.edit("DEMO", "example-repo", 42, "1001", "example comment", version=3)["version"]
         == 4
     )
     assert service.delete("DEMO", "example-repo", 42, "1001", version=4) == {

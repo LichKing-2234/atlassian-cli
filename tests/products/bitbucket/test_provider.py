@@ -243,9 +243,9 @@ def test_bitbucket_provider_comment_methods_forward_to_sdk() -> None:
         )["version"]
         == 4
     )
-    assert provider.delete_pull_request_comment(
-        "DEMO", "example-repo", 42, "1001", version=4
-    ) is None
+    assert (
+        provider.delete_pull_request_comment("DEMO", "example-repo", 42, "1001", version=4) is None
+    )
     assert calls["get"] == ("DEMO", "example-repo", 42, "1001")
     assert calls["add"] == ("DEMO", "example-repo", 42, "example response", "1001")
     assert calls["update"] == ("DEMO", "example-repo", 42, "1001", "example comment", 3)

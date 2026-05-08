@@ -19,5 +19,7 @@ def get_commit_build_status(
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_build_status_service(ctx.obj)
-    payload = service.for_commit_raw(commit) if is_raw_output(output) else service.for_commit(commit)
+    payload = (
+        service.for_commit_raw(commit) if is_raw_output(output) else service.for_commit(commit)
+    )
     typer.echo(render_output(payload, output=output))
