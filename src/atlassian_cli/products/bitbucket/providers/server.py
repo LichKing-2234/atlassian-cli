@@ -95,6 +95,102 @@ class BitbucketServerProvider:
         response = self.client.get(url, headers={"Accept": "text/plain"}, advanced_mode=True)
         return response.text
 
+    def list_pull_request_comments(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        *,
+        start: int,
+        limit: int,
+    ) -> list[dict]:
+        url = self.client._url_pull_request_comments(project_key, repo_slug, pr_id)
+        return self._paged_items(
+            self.client.get(url, params={"start": start, "limit": limit}),
+            limit=limit,
+        )
+
+    def get_pull_request_comment(
+        self, project_key: str, repo_slug: str, pr_id: int, comment_id: str
+    ) -> dict:
+        return self.client.get_pull_request_comment(project_key, repo_slug, pr_id, comment_id)
+
+    def add_pull_request_comment(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        text: str,
+        *,
+        parent_id: str | None = None,
+    ) -> dict:
+        return self.client.add_pull_request_comment(
+            project_key,
+            repo_slug,
+            pr_id,
+            text,
+            parent_id=parent_id,
+        )
+
+    def update_pull_request_comment(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        comment_id: str,
+        text: str,
+        *,
+        version: int,
+    ) -> dict:
+        return self.client.update_pull_request_comment(
+            project_key,
+            repo_slug,
+            pr_id,
+            comment_id,
+            text,
+            version,
+        )
+
+    def delete_pull_request_comment(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        comment_id: str,
+        *,
+        version: int,
+    ) -> dict | None:
+        return self.client.delete_pull_request_comment(
+            project_key,
+            repo_slug,
+            pr_id,
+            comment_id,
+            version,
+        )
+
+    def list_pull_request_commits(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        *,
+        start: int,
+        limit: int | None,
+    ) -> list[dict]:
+        return self._paged_items(
+            self.client.get_pull_requests_commits(
+                project_key,
+                repo_slug,
+                pr_id,
+                start=start,
+                limit=limit,
+            ),
+            limit=limit,
+        )
+
+    def get_associated_build_statuses(self, commit: str) -> dict:
+        return self.client.get_associated_build_statuses(commit)
+
     def create_pull_request(self, project_key: str, repo_slug: str, payload: dict) -> dict:
         return self.client.create_pull_request(project_key, repo_slug, data=payload)
 
