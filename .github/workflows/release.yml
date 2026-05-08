@@ -152,20 +152,34 @@ jobs:
           ref: ${{ needs.prepare.outputs.checkout_ref }}
 
       - name: Set up Python
+        if: ${{ matrix.target_os != 'linux' }}
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
 
       - name: Install dependencies
+        if: ${{ matrix.target_os != 'linux' }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
 
-      - name: Build binary
+      - name: Build native binary
+        if: ${{ matrix.target_os != 'linux' }}
         run: |
           pyinstaller atlassian.spec --clean --noconfirm
           ./dist/atlassian/atlassian --help >/dev/null
+
+      - name: Build Linux binary
+        if: ${{ matrix.target_os == 'linux' }}
+        run: |
+          docker run --rm \
+            --platform linux/amd64 \
+            -e GITHUB_WORKSPACE=/workspace \
+            -v "${GITHUB_WORKSPACE}:/workspace" \
+            -w /workspace \
+            python:3.12-bullseye \
+            /bin/bash /workspace/.github/scripts/build-linux-compatible.sh
 
       - name: Package archive
         id: package
