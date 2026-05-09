@@ -113,9 +113,13 @@ def test_bitbucket_pr_comment_raw_output_uses_raw_service(monkeypatch) -> None:
 def test_bitbucket_pr_comment_edit_requires_version(monkeypatch) -> None:
     from atlassian_cli.products.bitbucket.commands import pr_comment as comment_module
 
-    monkeypatch.setattr(
-        comment_module, "build_comment_service", lambda *_args: FakeCommentService()
-    )
+    service_calls = []
+
+    def build_service(*_args):
+        service_calls.append("built")
+        return FakeCommentService()
+
+    monkeypatch.setattr(comment_module, "build_comment_service", build_service)
 
     result = runner.invoke(
         app,
@@ -134,5 +138,6 @@ def test_bitbucket_pr_comment_edit_requires_version(monkeypatch) -> None:
         ],
     )
 
-    assert result.exit_code != 0
-    assert "--version" in result.output
+    assert result.exit_code == 2
+    assert "Usage:" in result.output
+    assert service_calls == []
