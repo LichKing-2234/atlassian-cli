@@ -1,4 +1,5 @@
 import json
+import tomllib
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -19,6 +20,12 @@ from atlassian_cli.update import (
 )
 
 runner = CliRunner()
+
+
+def test_package_version_matches_pyproject() -> None:
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+
+    assert __version__ == pyproject["project"]["version"]
 
 
 class FakeResponse:
