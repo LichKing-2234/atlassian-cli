@@ -253,3 +253,173 @@ class BitbucketPullRequest(ApiModel):
             payload["to_ref"] = {"display_id": self.to_ref.display_id}
 
         return {key: value for key, value in payload.items() if value not in (None, "", {}, [])}
+
+
+class BitbucketCommentAnchor(ApiModel):
+    path: str | None = None
+    line: int | None = None
+    line_type: str | None = None
+
+    @classmethod
+    def from_api_response(
+        cls, data: dict[str, Any] | None, **kwargs: Any
+    ) -> "BitbucketCommentAnchor":
+        data = data or {}
+        return cls(
+            path=coerce_str(data.get("path")),
+            line=data.get("line"),
+            line_type=coerce_str(first_present(data.get("lineType"), data.get("line_type"))),
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        payload = {"path": self.path, "line": self.line, "line_type": self.line_type}
+        return {key: value for key, value in payload.items() if value not in (None, "", {}, [])}
+
+
+class BitbucketCommentParent(ApiModel):
+    id: str | None = None
+
+    @classmethod
+    def from_api_response(
+        cls, data: dict[str, Any] | None, **kwargs: Any
+    ) -> "BitbucketCommentParent":
+        data = data or {}
+        return cls(id=coerce_str(data.get("id")))
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        payload = {"id": self.id}
+        return {key: value for key, value in payload.items() if value not in (None, "")}
+
+
+class BitbucketPullRequestComment(ApiModel):
+    id: str
+    version: int | None = None
+    text: str | None = None
+    author: BitbucketUserRef | None = None
+    created_date: str | None = None
+    updated_date: str | None = None
+    parent: BitbucketCommentParent | None = None
+    anchor: BitbucketCommentAnchor | None = None
+
+    @classmethod
+    def from_api_response(
+        cls, data: dict[str, Any] | None, **kwargs: Any
+    ) -> "BitbucketPullRequestComment":
+        data = data or {}
+        author_data = data.get("author") if isinstance(data.get("author"), dict) else {}
+        if isinstance(author_data.get("user"), dict):
+            author_data = author_data["user"]
+        parent_data = data.get("parent") if isinstance(data.get("parent"), dict) else None
+        anchor_data = data.get("anchor") if isinstance(data.get("anchor"), dict) else None
+        return cls(
+            id=str(data.get("id", "")),
+            version=data.get("version"),
+            text=coerce_str(data.get("text")),
+            author=BitbucketUserRef.from_api_response(author_data) if author_data else None,
+            created_date=coerce_str(
+                first_present(data.get("createdDate"), data.get("created_date"))
+            ),
+            updated_date=coerce_str(
+                first_present(data.get("updatedDate"), data.get("updated_date"))
+            ),
+            parent=BitbucketCommentParent.from_api_response(parent_data) if parent_data else None,
+            anchor=BitbucketCommentAnchor.from_api_response(anchor_data) if anchor_data else None,
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "id": self.id,
+            "version": self.version,
+            "text": self.text,
+            "created_date": self.created_date,
+            "updated_date": self.updated_date,
+        }
+        if self.author:
+            payload["author"] = self.author.to_simplified_dict()
+        if self.parent:
+            payload["parent"] = self.parent.to_simplified_dict()
+        if self.anchor:
+            payload["anchor"] = self.anchor.to_simplified_dict()
+        return {key: value for key, value in payload.items() if value not in (None, "", {}, [])}
+
+
+class BitbucketBuildStatus(ApiModel):
+    key: str | None = None
+    name: str | None = None
+    state: str | None = None
+    url: str | None = None
+    description: str | None = None
+    date_added: str | None = None
+
+    @classmethod
+    def from_api_response(
+        cls, data: dict[str, Any] | None, **kwargs: Any
+    ) -> "BitbucketBuildStatus":
+        data = data or {}
+        return cls(
+            key=coerce_str(data.get("key")),
+            name=coerce_str(data.get("name")),
+            state=coerce_str(data.get("state")),
+            url=coerce_str(data.get("url")),
+            description=coerce_str(data.get("description")),
+            date_added=coerce_str(first_present(data.get("dateAdded"), data.get("date_added"))),
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        payload = {
+            "key": self.key,
+            "name": self.name,
+            "state": self.state,
+            "url": self.url,
+            "description": self.description,
+            "date_added": self.date_added,
+        }
+        return {key: value for key, value in payload.items() if value not in (None, "", {}, [])}
+
+
+class BitbucketCommitBuildStatusSummary(ApiModel):
+    commit: str
+    overall_state: str
+    results: list[dict[str, Any]] = Field(default_factory=list)
+
+    @classmethod
+    def from_api_response(
+        cls, data: dict[str, Any] | None, **kwargs: Any
+    ) -> "BitbucketCommitBuildStatusSummary":
+        data = data or {}
+        return cls(
+            commit=str(data.get("commit", "")),
+            overall_state=str(data.get("overall_state", "UNKNOWN")),
+            results=[item for item in data.get("results", []) if isinstance(item, dict)],
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        return {
+            "commit": self.commit,
+            "overall_state": self.overall_state,
+            "results": self.results,
+        }
+
+
+class BitbucketPullRequestBuildStatusSummary(ApiModel):
+    pull_request: dict[str, Any]
+    overall_state: str
+    commits: list[dict[str, Any]] = Field(default_factory=list)
+
+    @classmethod
+    def from_api_response(
+        cls, data: dict[str, Any] | None, **kwargs: Any
+    ) -> "BitbucketPullRequestBuildStatusSummary":
+        data = data or {}
+        return cls(
+            pull_request=data.get("pull_request", {}),
+            overall_state=str(data.get("overall_state", "UNKNOWN")),
+            commits=[item for item in data.get("commits", []) if isinstance(item, dict)],
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        return {
+            "pull_request": self.pull_request,
+            "overall_state": self.overall_state,
+            "commits": self.commits,
+        }

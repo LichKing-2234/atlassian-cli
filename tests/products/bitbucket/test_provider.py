@@ -173,3 +173,103 @@ def test_create_repo_rejects_non_git_scm_id() -> None:
         assert "Only 'git' is supported" in str(exc)
     else:
         raise AssertionError("expected ValueError for unsupported scm_id")
+
+
+def test_bitbucket_provider_list_pull_request_comments_uses_activity_stream() -> None:
+    calls = {}
+
+    class FakeClient:
+        def get_pull_requests_activities(self, project_key, repo_slug, pr_id, start=0, limit=None):
+            calls["args"] = (project_key, repo_slug, pr_id, start, limit)
+            return {
+                "values": [
+                    {"action": "OPENED"},
+                    {
+                        "action": "COMMENTED",
+                        "commentAction": "ADDED",
+                        "comment": {"id": 1001, "text": "example comment"},
+                    },
+                ]
+            }
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.list_pull_request_comments("DEMO", "example-repo", 42, start=0, limit=25)
+
+    assert result == [{"id": 1001, "text": "example comment"}]
+    assert calls["args"] == ("DEMO", "example-repo", 42, 0, 25)
+
+
+def test_bitbucket_provider_comment_methods_forward_to_sdk() -> None:
+    calls = {}
+
+    class FakeClient:
+        def get_pull_request_comment(self, project_key, repo_slug, pr_id, comment_id):
+            calls["get"] = (project_key, repo_slug, pr_id, comment_id)
+            return {"id": comment_id, "text": "example comment"}
+
+        def add_pull_request_comment(self, project_key, repo_slug, pr_id, text, parent_id=None):
+            calls["add"] = (project_key, repo_slug, pr_id, text, parent_id)
+            return {"id": 1001, "text": text}
+
+        def update_pull_request_comment(
+            self, project_key, repo_slug, pr_id, comment_id, comment, comment_version
+        ):
+            calls["update"] = (project_key, repo_slug, pr_id, comment_id, comment, comment_version)
+            return {"id": comment_id, "version": comment_version + 1, "text": comment}
+
+        def delete_pull_request_comment(
+            self, project_key, repo_slug, pr_id, comment_id, comment_version
+        ):
+            calls["delete"] = (project_key, repo_slug, pr_id, comment_id, comment_version)
+            return None
+
+    provider = build_provider_with_client(FakeClient())
+
+    assert provider.get_pull_request_comment("DEMO", "example-repo", 42, "1001")["id"] == "1001"
+    assert (
+        provider.add_pull_request_comment("DEMO", "example-repo", 42, "example comment")["text"]
+        == "example comment"
+    )
+    assert (
+        provider.add_pull_request_comment(
+            "DEMO", "example-repo", 42, "example response", parent_id="1001"
+        )["text"]
+        == "example response"
+    )
+    assert (
+        provider.update_pull_request_comment(
+            "DEMO", "example-repo", 42, "1001", "example comment", version=3
+        )["version"]
+        == 4
+    )
+    assert (
+        provider.delete_pull_request_comment("DEMO", "example-repo", 42, "1001", version=4) is None
+    )
+    assert calls["get"] == ("DEMO", "example-repo", 42, "1001")
+    assert calls["add"] == ("DEMO", "example-repo", 42, "example response", "1001")
+    assert calls["update"] == ("DEMO", "example-repo", 42, "1001", "example comment", 3)
+    assert calls["delete"] == ("DEMO", "example-repo", 42, "1001", 4)
+
+
+def test_bitbucket_provider_build_status_methods_forward_to_sdk() -> None:
+    calls = {}
+
+    class FakeClient:
+        def get_pull_requests_commits(self, project_key, repo_slug, pr_id, start=0, limit=None):
+            calls["commits"] = (project_key, repo_slug, pr_id, start, limit)
+            return {"values": [{"id": "abc123"}, {"id": "def456"}]}
+
+        def get_associated_build_statuses(self, commit):
+            calls["build"] = commit
+            return {"values": [{"key": "DEMO", "state": "SUCCESSFUL"}]}
+
+    provider = build_provider_with_client(FakeClient())
+
+    commits = provider.list_pull_request_commits("DEMO", "example-repo", 42, start=0, limit=25)
+    statuses = provider.get_associated_build_statuses("abc123")
+
+    assert commits == [{"id": "abc123"}, {"id": "def456"}]
+    assert statuses == {"values": [{"key": "DEMO", "state": "SUCCESSFUL"}]}
+    assert calls["commits"] == ("DEMO", "example-repo", 42, 0, 25)
+    assert calls["build"] == "abc123"

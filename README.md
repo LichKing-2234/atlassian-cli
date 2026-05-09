@@ -86,6 +86,10 @@ The default `~/.config/atlassian-cli/config.toml` file is still auto-created as 
 - `atlassian bitbucket repo get DEMO example-repo`
 - `atlassian bitbucket pr list DEMO example-repo`
 - `atlassian bitbucket pr diff DEMO example-repo 42`
+- `atlassian bitbucket pr comment list DEMO example-repo 42`
+- `atlassian bitbucket pr comment add DEMO example-repo 42 "example comment"`
+- `atlassian bitbucket pr build-status DEMO example-repo 42`
+- `atlassian bitbucket commit build-status abc123`
 - `atlassian bitbucket pr list DEMO example-repo --output json`
 
 ## Header injection
@@ -128,6 +132,8 @@ The CLI now uses `markdown` as the default human-readable output mode.
 - Use `--output json` or `--output yaml` for normalized machine-readable output.
 - Use `--output raw-json` to inspect the original provider response as JSON.
 - Use `--output raw-yaml` to inspect the original provider response as YAML.
+- Commands that compose multiple provider calls, such as `bitbucket pr build-status`,
+  group the unnormalized provider payloads in raw output.
 
 Examples:
 
@@ -136,6 +142,9 @@ Examples:
 - `atlassian confluence space list`
 - `atlassian bitbucket pr list DEMO example-repo`
 - `atlassian bitbucket pr diff DEMO example-repo 42`
+- `atlassian bitbucket pr comment list DEMO example-repo 42`
+- `atlassian bitbucket pr build-status DEMO example-repo 42`
+- `atlassian bitbucket commit build-status abc123`
 - `atlassian jira issue get DEMO-1 --output json`
 - `atlassian bitbucket pr list DEMO example-repo --output json`
 
@@ -160,6 +169,14 @@ Bitbucket pull request diff behavior:
 
 - `atlassian bitbucket pr diff DEMO example-repo 42` shows ANSI-colored diff output in a TTY.
 - The same command falls back to plain text when redirected or piped.
+
+Bitbucket pull request comments and build status behavior:
+
+- `atlassian bitbucket pr comment list DEMO example-repo 42` lists pull request comments.
+- `atlassian bitbucket pr comment edit DEMO example-repo 42 1001 "example comment" --version 3` requires the current comment version.
+- `atlassian bitbucket pr build-status DEMO example-repo 42` summarizes build statuses for pull request commits.
+- `atlassian bitbucket pr build-status DEMO example-repo 42 --latest-only` checks only the pull request head commit.
+- `atlassian bitbucket commit build-status abc123` checks a specific commit.
 
 ## Scope
 

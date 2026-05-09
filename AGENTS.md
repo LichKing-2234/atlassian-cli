@@ -16,5 +16,6 @@
 
 - If you change CLI behavior, command output, command wiring, or examples, update the matching tests and user-facing documentation in the same change.
 - If you add, remove, or rename CLI subcommands, update `tests/e2e/coverage_manifest.py` and the relevant live e2e coverage.
+- For new or changed CLI behavior with live e2e coverage, run the affected `tests/e2e/` live test path with `ATLASSIAN_E2E=1` before claiming the feature is complete. The feature-specific live e2e must pass; if the live environment is unavailable, report that blocker explicitly instead of calling the feature live-verified.
 - Before claiming completion, run repository verification with the project virtualenv: `ruff format --check .`, `python -m pytest -q`, and `ruff check README.md pyproject.toml src tests docs`.
 - If you are working from a git worktree, use the shared repository virtualenv when the worktree does not have its own `.venv`.
