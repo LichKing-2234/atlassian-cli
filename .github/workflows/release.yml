@@ -223,3 +223,54 @@ jobs:
           body_path: release-notes.md
           overwrite_files: true
           files: release-assets/checksums.txt
+
+  notify:
+    needs: [prepare, release]
+    if: ${{ always() && needs.prepare.result == 'success' && needs.release.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify WeCom release
+        env:
+          WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
+          RELEASE_URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${WECHAT_WEBHOOK_URL}" ]; then
+            echo "WECHAT_WEBHOOK_URL secret is required for release notifications" >&2
+            exit 1
+          fi
+
+          python - <<'PY' > wecom-payload.json
+          import json
+          import os
+
+          content = "\n".join(
+              [
+                  f"{os.environ['REPOSITORY']} {os.environ['TAG']} published.",
+                  f"Version: {os.environ['VERSION']}",
+                  f"Release: {os.environ['RELEASE_URL']}",
+              ]
+          )
+          print(
+              json.dumps(
+                  {
+                      "msgtype": "text",
+                      "text": {
+                          "content": content,
+                          "mentioned_list": ["@all"],
+                      },
+                  },
+                  ensure_ascii=False,
+              )
+          )
+          PY
+
+          curl -fsS \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            --data @wecom-payload.json \
+            "${WECHAT_WEBHOOK_URL}"

@@ -55,6 +55,20 @@ def test_release_workflow_publishes_generated_release_notes() -> None:
     assert all(step["with"]["body_path"] == "release-notes.md" for step in upload_steps)
 
 
+def test_release_workflow_notifies_wecom_after_publish() -> None:
+    workflow = yaml.safe_load(Path(".github/workflows/release.yml").read_text())
+
+    notify = workflow["jobs"]["notify"]
+    step = next(step for step in notify["steps"] if step["name"] == "Notify WeCom release")
+
+    assert notify["needs"] == ["prepare", "release"]
+    assert "needs.release.result == 'success'" in notify["if"]
+    assert step["env"]["WECHAT_WEBHOOK_URL"] == "${{ secrets.WECHAT_WEBHOOK_URL }}"
+    assert "WECHAT_WEBHOOK_URL secret is required" in step["run"]
+    assert '"mentioned_list": ["@all"]' in step["run"]
+    assert "curl -fsS" in step["run"]
+
+
 def test_generate_release_notes_script_outputs_changes_and_assets(tmp_path) -> None:
     script = Path(".github/scripts/generate_release_notes.py").resolve()
     repo = tmp_path / "repo"
