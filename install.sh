@@ -64,7 +64,7 @@ detect_arch() {
 ensure_supported_target() {
   target="${1}/${2}"
   case "${target}" in
-    linux/amd64 | darwin/arm64)
+    linux/amd64 | darwin/arm64 | darwin/amd64)
       ;;
     *)
       die "unsupported platform: ${target}"

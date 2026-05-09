@@ -15,6 +15,8 @@ def _write_release_fixture(
     tmp_path: Path,
     *,
     tag: str = "v0.1.0",
+    target_os: str = "linux",
+    target_arch: str = "amd64",
     checksum_mismatch: bool = False,
     symlink_payload: bool = False,
 ) -> tuple[Path, Path, str]:
@@ -31,7 +33,7 @@ def _write_release_fixture(
         binary_path.write_text("#!/bin/sh\necho fixture-atlassian\n")
         binary_path.chmod(binary_path.stat().st_mode | stat.S_IXUSR)
 
-    archive_name = "atlassian-cli_0.1.0_linux_amd64.tar.gz"
+    archive_name = f"atlassian-cli_0.1.0_{target_os}_{target_arch}.tar.gz"
     archive_path = release_dir / archive_name
     with tarfile.open(archive_path, "w:gz") as tar:
         tar.add(binary_path, arcname="atlassian")
@@ -50,6 +52,8 @@ def _write_bundle_release_fixture(
     tmp_path: Path,
     *,
     tag: str = "v0.1.0",
+    target_os: str = "linux",
+    target_arch: str = "amd64",
     unsafe_symlink: bool = False,
     hardlink_payload: bool = False,
 ) -> tuple[Path, Path, str]:
@@ -68,7 +72,7 @@ def _write_bundle_release_fixture(
     binary_path.write_text("#!/bin/sh\necho fixture-bundle-atlassian\n")
     binary_path.chmod(binary_path.stat().st_mode | stat.S_IXUSR)
 
-    archive_name = "atlassian-cli_0.1.0_linux_amd64.tar.gz"
+    archive_name = f"atlassian-cli_0.1.0_{target_os}_{target_arch}.tar.gz"
     archive_path = release_dir / archive_name
     with tarfile.open(archive_path, "w:gz") as tar:
         tar.add(bundle_dir, arcname="atlassian")
@@ -156,6 +160,37 @@ def test_install_script_installs_onedir_bundle_archive(tmp_path: Path) -> None:
         check=True,
     )
     assert run_result.stdout.strip() == "fixture-bundle-atlassian"
+
+
+def test_install_script_installs_latest_darwin_amd64_bundle(tmp_path: Path) -> None:
+    latest_json, downloads_root, _ = _write_bundle_release_fixture(
+        tmp_path,
+        target_os="darwin",
+        target_arch="amd64",
+    )
+    install_dir = tmp_path / "bin"
+
+    result = subprocess.run(
+        ["sh", str(INSTALL_SCRIPT)],
+        cwd=tmp_path,
+        env=os.environ
+        | {
+            "HOME": str(tmp_path / "home"),
+            "INSTALL_DIR": str(install_dir),
+            "INSTALL_RELEASE_API_URL": latest_json.resolve().as_uri(),
+            "INSTALL_RELEASE_DOWNLOAD_BASE": downloads_root.resolve().as_uri(),
+            "INSTALL_TEST_OS": "Darwin",
+            "INSTALL_TEST_ARCH": "x86_64",
+        },
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    installed_shim = install_dir / "atlassian"
+    assert installed_shim.exists()
+    assert os.access(installed_shim, os.X_OK)
+    assert (install_dir / ".atlassian-cli" / "atlassian" / "atlassian").exists()
 
 
 def test_install_script_rejects_bundle_symlink_outside_archive(tmp_path: Path) -> None:
@@ -259,8 +294,8 @@ def test_install_script_rejects_unsupported_platform(tmp_path: Path) -> None:
             "HOME": str(tmp_path / "home"),
             "INSTALL_DIR": str(tmp_path / "bin"),
             "INSTALL_VERSION": "v0.1.0",
-            "INSTALL_TEST_OS": "Darwin",
-            "INSTALL_TEST_ARCH": "x86_64",
+            "INSTALL_TEST_OS": "Linux",
+            "INSTALL_TEST_ARCH": "aarch64",
         },
         capture_output=True,
         text=True,

@@ -137,12 +137,23 @@ jobs:
           - runner: ubuntu-latest
             target_os: linux
             target_arch: amd64
-            publish_checksums: false
+            archive_format: tar.gz
           - runner: macos-latest
             target_os: darwin
             target_arch: arm64
-            publish_checksums: true
+            archive_format: tar.gz
+          - runner: macos-15-intel
+            target_os: darwin
+            target_arch: amd64
+            archive_format: tar.gz
+          - runner: windows-latest
+            target_os: windows
+            target_arch: amd64
+            archive_format: zip
     runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
     env:
       TAG: ${{ needs.prepare.outputs.tag }}
       VERSION: ${{ needs.prepare.outputs.version }}
@@ -169,8 +180,17 @@ jobs:
       - name: Build native binary
         if: ${{ matrix.target_os != 'linux' }}
         run: |
-          pyinstaller atlassian.spec --clean --noconfirm
-          ./dist/atlassian/atlassian --help >/dev/null
+          python -m PyInstaller atlassian.spec --clean --noconfirm
+          python - <<'PY'
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          executable = Path("dist") / "atlassian" / (
+              "atlassian.exe" if sys.platform == "win32" else "atlassian"
+          )
+          subprocess.run([str(executable), "--help"], check=True, stdout=subprocess.DEVNULL)
+          PY
 
       - name: Build Linux binary
         if: ${{ matrix.target_os == 'linux' }}
@@ -186,9 +206,11 @@ jobs:
       - name: Package archive
         id: package
         run: |
-          ARCHIVE_NAME="atlassian-cli_${VERSION}_${{ matrix.target_os }}_${{ matrix.target_arch }}.tar.gz"
-          tar -C dist -czf "${ARCHIVE_NAME}" atlassian
-          echo "archive_name=${ARCHIVE_NAME}" >> "${GITHUB_OUTPUT}"
+          python .github/scripts/package_release_archive.py \
+            --version "${VERSION}" \
+            --target-os "${{ matrix.target_os }}" \
+            --target-arch "${{ matrix.target_arch }}" \
+            --archive-format "${{ matrix.archive_format }}"
 
       - name: Generate release notes
         run: python .github/scripts/generate_release_notes.py "${TAG}" release-notes.md
@@ -204,18 +226,33 @@ jobs:
           overwrite_files: true
           files: ${{ steps.package.outputs.archive_name }}
 
+  checksums:
+    needs: [prepare, release]
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.prepare.outputs.tag }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+          fetch-depth: 0
+
+      - name: Generate release notes
+        run: python .github/scripts/generate_release_notes.py "${TAG}" release-notes.md
+
       - name: Build release checksums
-        if: ${{ matrix.publish_checksums }}
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
         run: |
+          set -euo pipefail
           mkdir -p release-assets
           gh release download "${TAG}" --repo "${GITHUB_REPOSITORY}" --pattern 'atlassian-cli_*.tar.gz' --dir release-assets
+          gh release download "${TAG}" --repo "${GITHUB_REPOSITORY}" --pattern 'atlassian-cli_*.zip' --dir release-assets
           cd release-assets
-          shasum -a 256 atlassian-cli_*.tar.gz > checksums.txt
+          sha256sum atlassian-cli_* > checksums.txt
 
       - name: Upload checksums
-        if: ${{ matrix.publish_checksums }}
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.RELEASE_TOKEN || github.token }}
@@ -225,8 +262,8 @@ jobs:
           files: release-assets/checksums.txt
 
   notify:
-    needs: [prepare, release]
-    if: ${{ always() && needs.prepare.result == 'success' && needs.release.result == 'success' }}
+    needs: [prepare, checksums]
+    if: ${{ always() && needs.prepare.result == 'success' && needs.checksums.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Notify WeCom release

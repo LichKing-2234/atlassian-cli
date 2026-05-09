@@ -52,6 +52,8 @@ def build_release_notes(tag: str) -> str:
         "",
         f"- `atlassian-cli_{version}_linux_amd64.tar.gz`",
         f"- `atlassian-cli_{version}_darwin_arm64.tar.gz`",
+        f"- `atlassian-cli_{version}_darwin_amd64.tar.gz`",
+        f"- `atlassian-cli_{version}_windows_amd64.zip`",
         "- `checksums.txt`",
         "",
     ]

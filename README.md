@@ -8,7 +8,7 @@ CLI for Atlassian Server and Data Center products.
 
 ## Install From GitHub Release
 
-Tagged releases publish standalone bundles for `linux/amd64` and `darwin/arm64`, plus `checksums.txt`.
+Tagged releases publish standalone bundles for `linux/amd64`, `darwin/arm64`, `darwin/amd64`, and `windows/amd64`, plus `checksums.txt`.
 
 Install the latest binary release:
 
@@ -22,11 +22,11 @@ Install a specific release:
 curl -fsSL https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/main/install.sh | env INSTALL_VERSION=v0.1.0 sh
 ```
 
-By default the installer writes an `atlassian` launcher to `~/.local/bin` and installs the runtime bundle under `~/.local/bin/.atlassian-cli`.
+By default the shell installer writes an `atlassian` launcher to `~/.local/bin` and installs the runtime bundle under `~/.local/bin/.atlassian-cli`. It supports Linux amd64 and macOS arm64/amd64.
 
-You can also download a tarball from the GitHub Release page and run `atlassian/atlassian` from the extracted bundle.
+You can also download a tarball or Windows zip from the GitHub Release page. Unix bundles run `atlassian/atlassian` from the extracted bundle; Windows bundles run `atlassian/atlassian.exe`.
 
-`darwin/arm64` binaries are unsigned in the first release version, so macOS may require a manual Gatekeeper allow step on first run.
+macOS binaries are unsigned in the first release version, so macOS may require a manual Gatekeeper allow step on first run.
 
 ## Update
 
