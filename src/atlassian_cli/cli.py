@@ -1,8 +1,10 @@
 import os
+import sys
 from pathlib import Path
 
 import typer
 
+from atlassian_cli import __version__
 from atlassian_cli.auth.headers import parse_cli_headers
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.commands.init import init_command
@@ -19,7 +21,7 @@ from atlassian_cli.config.resolver import resolve_runtime_context
 from atlassian_cli.config.template import ensure_default_config
 from atlassian_cli.core.context import LazyExecutionContext
 from atlassian_cli.core.errors import ConfigError
-from atlassian_cli.output.modes import OutputMode
+from atlassian_cli.output.modes import OutputMode, is_machine_output
 from atlassian_cli.products.bitbucket.commands.branch import app as bitbucket_branch_app
 from atlassian_cli.products.bitbucket.commands.commit import app as bitbucket_commit_app
 from atlassian_cli.products.bitbucket.commands.pr import app as bitbucket_pr_app
@@ -34,6 +36,7 @@ from atlassian_cli.products.jira.commands.field import app as jira_field_app
 from atlassian_cli.products.jira.commands.issue import app as jira_issue_app
 from atlassian_cli.products.jira.commands.project import app as jira_project_app
 from atlassian_cli.products.jira.commands.user import app as jira_user_app
+from atlassian_cli.update import check_for_update_notice
 
 app = typer.Typer(help="Atlassian Server/Data Center CLI")
 
@@ -64,12 +67,32 @@ app.add_typer(update_app, name="update")
 
 DEFAULT_CONFIG_FILE = Path("~/.config/atlassian-cli/config.toml").expanduser()
 PRODUCT_COMMANDS = {product.value for product in Product}
+AUTO_UPDATE_CHECK_EXCLUDED_COMMANDS = {"update"}
 
 
 def _missing_product_message(config_file: Path, product: Product, *, created: bool) -> str:
     if created:
         return f"Created {config_file}. Fill in [{product.value}] or pass --url."
     return f"Fill in [{product.value}] in {config_file} or pass --url."
+
+
+def _stderr_is_interactive() -> bool:
+    return sys.stderr.isatty()
+
+
+def _maybe_notify_update(ctx: typer.Context, *, output: OutputMode) -> None:
+    if ctx.invoked_subcommand is None or ctx.resilient_parsing:
+        return
+    if ctx.invoked_subcommand in AUTO_UPDATE_CHECK_EXCLUDED_COMMANDS:
+        return
+    if is_machine_output(output) or not _stderr_is_interactive():
+        return
+    try:
+        notice = check_for_update_notice(__version__)
+        if notice:
+            typer.echo(notice, err=True)
+    except Exception:
+        return
 
 
 @app.callback()
@@ -87,6 +110,7 @@ def root_callback(
 ) -> None:
     if ctx.invoked_subcommand is None:
         return
+    _maybe_notify_update(ctx, output=output)
     if ctx.invoked_subcommand not in PRODUCT_COMMANDS:
         return
 

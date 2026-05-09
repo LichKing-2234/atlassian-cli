@@ -30,6 +30,10 @@ You can also download a tarball from the GitHub Release page and run `atlassian/
 
 ## Update
 
+On interactive commands, the CLI checks for a newer GitHub Release at most once every 24 hours and prints an update notice to stderr when a newer release exists. It never installs updates automatically, and JSON/YAML command output is not modified.
+
+Set `ATLASSIAN_DISABLE_UPDATE_CHECK=1` to disable the automatic check.
+
 Check for a newer GitHub Release:
 
 ```bash

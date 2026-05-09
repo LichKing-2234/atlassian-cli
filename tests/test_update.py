@@ -280,3 +280,272 @@ def test_update_install_passes_selected_options(monkeypatch, tmp_path: Path) -> 
         "force": True,
     }
     assert "installed v0.2.0" in result.stdout
+
+
+def test_auto_update_notice_reports_newer_release_and_records_state(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    state_file = tmp_path / "update-check.json"
+
+    monkeypatch.setattr(
+        update_module,
+        "fetch_latest_release",
+        lambda timeout=2: ReleaseInfo(
+            tag="v0.2.0",
+            version="0.2.0",
+            url="https://github.com/DEMO/example-repo/releases/tag/v0.2.0",
+        ),
+    )
+
+    notice = update_module.check_for_update_notice(
+        "0.1.0",
+        state_path=state_file,
+        now=1000,
+        environ={},
+    )
+
+    assert notice is not None
+    assert "atlassian-cli 0.1.0 can be updated to v0.2.0." in notice
+    assert "Run: atlassian update install" in notice
+    state = json.loads(state_file.read_text(encoding="utf-8"))
+    assert state["last_checked_at"] == 1000
+    assert state["latest_tag"] == "v0.2.0"
+
+
+def test_auto_update_notice_skips_recent_check(monkeypatch, tmp_path: Path) -> None:
+    state_file = tmp_path / "update-check.json"
+    state_file.write_text(json.dumps({"last_checked_at": 1000}), encoding="utf-8")
+
+    def fail_fetch(**kwargs):
+        raise AssertionError("recent automatic checks must be throttled")
+
+    monkeypatch.setattr(update_module, "fetch_latest_release", fail_fetch)
+
+    notice = update_module.check_for_update_notice(
+        "0.1.0",
+        state_path=state_file,
+        now=1000 + 60,
+        environ={},
+    )
+
+    assert notice is None
+
+
+def test_auto_update_notice_does_not_throttle_future_state(monkeypatch, tmp_path: Path) -> None:
+    state_file = tmp_path / "update-check.json"
+    state_file.write_text(json.dumps({"last_checked_at": 2000}), encoding="utf-8")
+    calls = 0
+
+    def fake_fetch_latest_release(timeout=2):
+        nonlocal calls
+        calls += 1
+        return ReleaseInfo(tag="v0.2.0", version="0.2.0")
+
+    monkeypatch.setattr(update_module, "fetch_latest_release", fake_fetch_latest_release)
+
+    notice = update_module.check_for_update_notice(
+        "0.1.0",
+        state_path=state_file,
+        now=1000,
+        environ={},
+    )
+
+    assert calls == 1
+    assert notice is not None
+
+
+def test_auto_update_notice_respects_disable_env(monkeypatch, tmp_path: Path) -> None:
+    def fail_fetch(**kwargs):
+        raise AssertionError("disabled automatic checks must not fetch release metadata")
+
+    monkeypatch.setattr(update_module, "fetch_latest_release", fail_fetch)
+
+    notice = update_module.check_for_update_notice(
+        "0.1.0",
+        state_path=tmp_path / "update-check.json",
+        now=1000,
+        environ={"ATLASSIAN_DISABLE_UPDATE_CHECK": "1"},
+    )
+
+    assert notice is None
+
+
+def test_auto_update_notice_records_failures_without_reporting(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    state_file = tmp_path / "update-check.json"
+
+    def fail_fetch(**kwargs):
+        raise update_module.UpdateError("network unavailable")
+
+    monkeypatch.setattr(update_module, "fetch_latest_release", fail_fetch)
+
+    notice = update_module.check_for_update_notice(
+        "0.1.0",
+        state_path=state_file,
+        now=1000,
+        environ={},
+    )
+
+    assert notice is None
+    state = json.loads(state_file.read_text(encoding="utf-8"))
+    assert state["last_checked_at"] == 1000
+    assert state["last_error"] == "network unavailable"
+
+
+def test_auto_update_notice_suppresses_invalid_release_versions(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    state_file = tmp_path / "update-check.json"
+
+    monkeypatch.setattr(
+        update_module,
+        "fetch_latest_release",
+        lambda timeout=2: ReleaseInfo(tag="vbad", version="bad"),
+    )
+
+    notice = update_module.check_for_update_notice(
+        "0.1.0",
+        state_path=state_file,
+        now=1000,
+        environ={},
+    )
+
+    assert notice is None
+    state = json.loads(state_file.read_text(encoding="utf-8"))
+    assert state["last_checked_at"] == 1000
+    assert state["last_error"] == "unsupported version format: bad"
+
+
+def test_auto_update_notice_suppresses_unexpected_errors(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    state_file = tmp_path / "update-check.json"
+
+    def fail_fetch(**kwargs):
+        raise RuntimeError("unexpected failure")
+
+    monkeypatch.setattr(update_module, "fetch_latest_release", fail_fetch)
+
+    notice = update_module.check_for_update_notice(
+        "0.1.0",
+        state_path=state_file,
+        now=1000,
+        environ={},
+    )
+
+    assert notice is None
+    state = json.loads(state_file.read_text(encoding="utf-8"))
+    assert state["last_checked_at"] == 1000
+    assert state["last_error"] == "unexpected failure"
+
+
+def test_cli_emits_auto_update_notice_to_stderr_for_interactive_human_command(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    import atlassian_cli.cli as cli_module
+
+    monkeypatch.setattr(cli_module, "_stderr_is_interactive", lambda: True)
+    monkeypatch.setattr(
+        cli_module,
+        "check_for_update_notice",
+        lambda current_version: (
+            "atlassian-cli 0.1.7 can be updated to v0.2.0.\nRun: atlassian update install"
+        ),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "jira",
+            "--config-file",
+            str(tmp_path / "config.toml"),
+            "--deployment",
+            "server",
+            "--url",
+            "https://example.com",
+            "--auth",
+            "pat",
+            "--token",
+            "secret",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "atlassian-cli 0.1.7 can be updated to v0.2.0." in result.stderr
+    assert "Wrote [jira]" in result.stdout
+
+
+def test_cli_ignores_unexpected_auto_update_notice_errors(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    import atlassian_cli.cli as cli_module
+
+    monkeypatch.setattr(cli_module, "_stderr_is_interactive", lambda: True)
+
+    def fail_check(current_version):
+        raise RuntimeError("unexpected failure")
+
+    monkeypatch.setattr(cli_module, "check_for_update_notice", fail_check)
+
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "jira",
+            "--config-file",
+            str(tmp_path / "config.toml"),
+            "--deployment",
+            "server",
+            "--url",
+            "https://example.com",
+            "--auth",
+            "pat",
+            "--token",
+            "secret",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Wrote [jira]" in result.stdout
+
+
+def test_cli_skips_auto_update_notice_for_machine_output(monkeypatch, tmp_path: Path) -> None:
+    import atlassian_cli.cli as cli_module
+
+    monkeypatch.setattr(cli_module, "_stderr_is_interactive", lambda: True)
+
+    def fail_check(current_version):
+        raise AssertionError("machine output must not run automatic update checks")
+
+    monkeypatch.setattr(cli_module, "check_for_update_notice", fail_check)
+
+    result = runner.invoke(
+        app,
+        [
+            "--output",
+            "json",
+            "init",
+            "jira",
+            "--config-file",
+            str(tmp_path / "config.toml"),
+            "--deployment",
+            "server",
+            "--url",
+            "https://example.com",
+            "--auth",
+            "pat",
+            "--token",
+            "secret",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Wrote [jira]" in result.stdout

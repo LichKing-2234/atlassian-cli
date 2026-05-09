@@ -5,6 +5,7 @@ import ssl
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,9 @@ INSTALL_SCRIPT_URL_TEMPLATE = (
     f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{{tag}}/install.sh"
 )
 REQUEST_TIMEOUT_SECONDS = 10
+AUTO_UPDATE_CHECK_TIMEOUT_SECONDS = 2
+AUTO_UPDATE_CHECK_INTERVAL_SECONDS = 24 * 60 * 60
+AUTO_UPDATE_CHECK_DISABLE_ENV = "ATLASSIAN_DISABLE_UPDATE_CHECK"
 
 
 class UpdateError(RuntimeError):
@@ -153,6 +157,126 @@ def get_update_info(current_version: str) -> UpdateInfo:
         latest=latest,
         update_available=is_newer_version(latest.version, current_version),
     )
+
+
+def auto_update_check_state_path(
+    *,
+    environ: dict[str, str] | None = None,
+    home: Path | None = None,
+) -> Path:
+    env = os.environ if environ is None else environ
+    cache_home = env.get("XDG_CACHE_HOME")
+    base_dir = Path(cache_home).expanduser() if cache_home else (home or Path.home()) / ".cache"
+    return base_dir / "atlassian-cli" / "update-check.json"
+
+
+def _env_flag_enabled(value: str | None) -> bool:
+    return value is not None and value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _read_update_check_state(state_path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _write_update_check_state(state_path: Path, state: dict[str, Any]) -> None:
+    try:
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
+    except OSError:
+        return
+
+
+def _record_update_check_error(
+    state_path: Path | None,
+    *,
+    checked_at: int,
+    error: Exception,
+    extra_state: dict[str, Any] | None = None,
+) -> None:
+    if state_path is None:
+        return
+    state = {
+        "last_checked_at": checked_at,
+        "last_error": str(error),
+    }
+    if extra_state:
+        state.update(extra_state)
+    _write_update_check_state(state_path, state)
+
+
+def _recently_checked(
+    state: dict[str, Any],
+    *,
+    now: int,
+    interval_seconds: int,
+) -> bool:
+    if "last_checked_at" not in state:
+        return False
+    try:
+        last_checked_at = int(state["last_checked_at"])
+    except (TypeError, ValueError):
+        return False
+    if now < last_checked_at:
+        return False
+    return now - last_checked_at < interval_seconds
+
+
+def format_update_notice(current_version: str, latest: ReleaseInfo) -> str:
+    lines = [
+        f"atlassian-cli {current_version} can be updated to {latest.tag}.",
+        "Run: atlassian update install",
+    ]
+    if latest.url:
+        lines.append(f"Release: {latest.url}")
+    return "\n".join(lines)
+
+
+def check_for_update_notice(
+    current_version: str,
+    *,
+    state_path: Path | None = None,
+    now: int | None = None,
+    environ: dict[str, str] | None = None,
+    timeout: int = AUTO_UPDATE_CHECK_TIMEOUT_SECONDS,
+    interval_seconds: int = AUTO_UPDATE_CHECK_INTERVAL_SECONDS,
+) -> str | None:
+    env = os.environ if environ is None else environ
+    if _env_flag_enabled(env.get(AUTO_UPDATE_CHECK_DISABLE_ENV)):
+        return None
+
+    checked_at = int(time.time() if now is None else now)
+    path: Path | None = None
+    release_state: dict[str, Any] | None = None
+    try:
+        path = state_path or auto_update_check_state_path(environ=env)
+        previous_state = _read_update_check_state(path)
+        if _recently_checked(previous_state, now=checked_at, interval_seconds=interval_seconds):
+            return None
+
+        latest = fetch_latest_release(timeout=timeout)
+        release_state = {
+            "last_checked_at": checked_at,
+            "latest_tag": latest.tag,
+            "latest_version": latest.version,
+            "release_url": latest.url,
+        }
+        _write_update_check_state(path, release_state)
+        update_available = is_newer_version(latest.version, current_version)
+    except Exception as exc:
+        _record_update_check_error(
+            path,
+            checked_at=checked_at,
+            error=exc,
+            extra_state=release_state,
+        )
+        return None
+    if not update_available:
+        return None
+    return format_update_notice(current_version, latest)
 
 
 def default_install_dir(
