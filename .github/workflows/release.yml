@@ -102,6 +102,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.checkout_ref }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -150,6 +151,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.checkout_ref }}
+          fetch-depth: 0
 
       - name: Set up Python
         if: ${{ matrix.target_os != 'linux' }}
@@ -188,6 +190,9 @@ jobs:
           tar -C dist -czf "${ARCHIVE_NAME}" atlassian
           echo "archive_name=${ARCHIVE_NAME}" >> "${GITHUB_OUTPUT}"
 
+      - name: Generate release notes
+        run: python .github/scripts/generate_release_notes.py "${TAG}" release-notes.md
+
       - name: Upload platform archive
         uses: softprops/action-gh-release@v2
         with:
@@ -195,6 +200,7 @@ jobs:
           tag_name: ${{ needs.prepare.outputs.tag }}
           target_commitish: ${{ needs.prepare.outputs.commit_sha }}
           prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
+          body_path: release-notes.md
           overwrite_files: true
           files: ${{ steps.package.outputs.archive_name }}
 
@@ -214,5 +220,6 @@ jobs:
         with:
           token: ${{ secrets.RELEASE_TOKEN || github.token }}
           tag_name: ${{ needs.prepare.outputs.tag }}
+          body_path: release-notes.md
           overwrite_files: true
           files: release-assets/checksums.txt
