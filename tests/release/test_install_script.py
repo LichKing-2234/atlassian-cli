@@ -9,6 +9,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 INSTALL_SCRIPT = REPO_ROOT / "install.sh"
+INSTALL_PS1 = REPO_ROOT / "install.ps1"
 
 
 def _write_release_fixture(
@@ -191,6 +192,30 @@ def test_install_script_installs_latest_darwin_amd64_bundle(tmp_path: Path) -> N
     assert installed_shim.exists()
     assert os.access(installed_shim, os.X_OK)
     assert (install_dir / ".atlassian-cli" / "atlassian" / "atlassian").exists()
+
+
+def test_install_powershell_script_supports_windows_amd64_zip_releases() -> None:
+    script = INSTALL_PS1.read_text()
+
+    assert '$RepoOwner = "LichKing-2234"' in script
+    assert '$RepoName = "atlassian-cli"' in script
+    assert "atlassian-cli_${ReleaseVersion}_windows_amd64.zip" in script
+    assert "Invoke-RestMethod" in script
+    assert "Invoke-WebRequest" in script
+    assert "Get-FileHash" in script
+    assert "Expand-Archive" in script
+    assert "Assert-ZipLayout" in script
+    assert "atlassian.cmd" in script
+
+
+def test_readme_documents_powershell_installer_for_windows() -> None:
+    readme = (REPO_ROOT / "README.md").read_text()
+
+    assert "install.ps1" in readme
+    assert (
+        "irm https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/main/install.ps1 | iex"
+        in readme
+    )
 
 
 def test_install_script_rejects_bundle_symlink_outside_archive(tmp_path: Path) -> None:

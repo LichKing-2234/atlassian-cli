@@ -54,6 +54,13 @@ def test_install_script_url_is_pinned_to_target_tag() -> None:
     )
 
 
+def test_install_script_url_uses_powershell_installer_on_windows() -> None:
+    assert (
+        install_script_url_for_tag("0.2.0", platform="win32")
+        == "https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/v0.2.0/install.ps1"
+    )
+
+
 def test_compare_versions_handles_release_and_prerelease_ordering() -> None:
     assert compare_versions("0.2.0", "0.1.0") > 0
     assert compare_versions("0.2.0-rc.2", "0.2.0-rc.1") > 0
@@ -200,6 +207,64 @@ def test_run_install_script_sets_version_and_install_dir(tmp_path: Path, monkeyp
     assert calls["capture_output"] is True
     assert calls["text"] is True
     assert calls["check"] is False
+    assert result.version == "v0.2.0"
+    assert result.updated is True
+
+
+def test_run_install_script_uses_powershell_on_windows(tmp_path: Path, monkeypatch) -> None:
+    install_dir = tmp_path / "bin"
+    calls: dict = {}
+    download_calls: dict = {}
+
+    monkeypatch.setattr(update_module.sys, "platform", "win32")
+    monkeypatch.setattr(
+        update_module.shutil,
+        "which",
+        lambda name: f"C:/Windows/System32/{name}.exe" if name == "pwsh" else None,
+    )
+
+    def fake_download_install_script(script_url):
+        download_calls["script_url"] = script_url
+        return 'Write-Output "install fixture"\n'
+
+    monkeypatch.setattr(update_module, "_download_install_script", fake_download_install_script)
+
+    def fake_run(args, env, capture_output, text, check):
+        calls["args"] = args
+        calls["env"] = env
+        assert Path(args[-1]).read_text(encoding="utf-8") == 'Write-Output "install fixture"\n'
+        return type(
+            "Result",
+            (),
+            {
+                "returncode": 0,
+                "stdout": "installed v0.2.0 to fixture\n",
+                "stderr": "",
+            },
+        )()
+
+    monkeypatch.setattr(update_module.subprocess, "run", fake_run)
+
+    result = update_module.run_install_script(
+        version="0.2.0",
+        install_dir=install_dir,
+    )
+
+    assert (
+        download_calls["script_url"]
+        == "https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/v0.2.0/install.ps1"
+    )
+    assert calls["args"] == [
+        "C:/Windows/System32/pwsh.exe",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        calls["args"][-1],
+    ]
+    assert calls["args"][-1].endswith("install.ps1")
+    assert calls["env"]["INSTALL_VERSION"] == "v0.2.0"
+    assert calls["env"]["INSTALL_DIR"] == str(install_dir)
     assert result.version == "v0.2.0"
     assert result.updated is True
 

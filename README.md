@@ -10,21 +10,33 @@ CLI for Atlassian Server and Data Center products.
 
 Tagged releases publish standalone bundles for `linux/amd64`, `darwin/arm64`, `darwin/amd64`, and `windows/amd64`, plus `checksums.txt`.
 
-Install the latest binary release:
+Install the latest Linux or macOS binary release:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/main/install.sh | sh
 ```
 
-Install a specific release:
+Install a specific Linux or macOS release:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/main/install.sh | env INSTALL_VERSION=v0.1.0 sh
 ```
 
-By default the shell installer writes an `atlassian` launcher to `~/.local/bin` and installs the runtime bundle under `~/.local/bin/.atlassian-cli`. It supports Linux amd64 and macOS arm64/amd64.
+Install the latest Windows amd64 release from PowerShell:
 
-You can also download a tarball or Windows zip from the GitHub Release page. Unix bundles run `atlassian/atlassian` from the extracted bundle; Windows bundles run `atlassian/atlassian.exe`.
+```powershell
+irm https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/main/install.ps1 | iex
+```
+
+Install a specific Windows release:
+
+```powershell
+$env:INSTALL_VERSION = "v0.1.0"; irm https://raw.githubusercontent.com/LichKing-2234/atlassian-cli/main/install.ps1 | iex
+```
+
+By default the Unix shell installer writes an `atlassian` launcher to `~/.local/bin` and installs the runtime bundle under `~/.local/bin/.atlassian-cli`. It supports Linux amd64 and macOS arm64/amd64. The PowerShell installer writes `atlassian.cmd` to the same default install directory on Windows and installs the runtime bundle under `~/.local/bin/.atlassian-cli`.
+
+You can also download a tarball or Windows zip from the GitHub Release page. Unix bundles run `atlassian/atlassian` from the extracted bundle; Windows bundles run `atlassian/atlassian.exe`. If you do not use a Unix-like shell on Windows, download `atlassian-cli_<version>_windows_amd64.zip`, extract it, and run `atlassian/atlassian.exe`.
 
 macOS binaries are unsigned in the first release version, so macOS may require a manual Gatekeeper allow step on first run.
 

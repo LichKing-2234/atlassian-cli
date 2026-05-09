@@ -18,7 +18,7 @@ REPO_OWNER = "LichKing-2234"
 REPO_NAME = "atlassian-cli"
 LATEST_RELEASE_API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest"
 INSTALL_SCRIPT_URL_TEMPLATE = (
-    f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{{tag}}/install.sh"
+    f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{{tag}}/{{script_name}}"
 )
 REQUEST_TIMEOUT_SECONDS = 10
 AUTO_UPDATE_CHECK_TIMEOUT_SECONDS = 2
@@ -320,8 +320,36 @@ def _download_install_script(
         raise UpdateError(f"failed to download install script: {exc}") from exc
 
 
-def install_script_url_for_tag(tag: str) -> str:
-    return INSTALL_SCRIPT_URL_TEMPLATE.format(tag=normalize_tag(tag))
+def _is_windows_platform(platform: str | None = None) -> bool:
+    return (platform or sys.platform).startswith("win")
+
+
+def installer_script_name(*, platform: str | None = None) -> str:
+    return "install.ps1" if _is_windows_platform(platform) else "install.sh"
+
+
+def install_script_url_for_tag(tag: str, *, platform: str | None = None) -> str:
+    return INSTALL_SCRIPT_URL_TEMPLATE.format(
+        tag=normalize_tag(tag),
+        script_name=installer_script_name(platform=platform),
+    )
+
+
+def install_command_for_script(script_path: Path, *, platform: str | None = None) -> list[str]:
+    if not _is_windows_platform(platform):
+        return ["sh", str(script_path)]
+
+    powershell = shutil.which("pwsh") or shutil.which("powershell")
+    if not powershell:
+        raise UpdateError("missing required command: pwsh or powershell")
+    return [
+        powershell,
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(script_path),
+    ]
 
 
 def run_install_script(
@@ -332,7 +360,11 @@ def run_install_script(
     env: dict[str, str] | None = None,
 ) -> InstallResult:
     tag = normalize_tag(version)
-    script = _download_install_script(script_url=script_url or install_script_url_for_tag(tag))
+    platform = sys.platform
+    script_name = installer_script_name(platform=platform)
+    script = _download_install_script(
+        script_url=script_url or install_script_url_for_tag(tag, platform=platform)
+    )
     run_env = dict(os.environ)
     if env is not None:
         run_env.update(env)
@@ -340,10 +372,10 @@ def run_install_script(
     run_env["INSTALL_DIR"] = str(install_dir.expanduser())
 
     with tempfile.TemporaryDirectory(prefix="atlassian-cli-update-") as tmp_dir:
-        script_path = Path(tmp_dir) / "install.sh"
+        script_path = Path(tmp_dir) / script_name
         script_path.write_text(script, encoding="utf-8")
         result = subprocess.run(
-            ["sh", str(script_path)],
+            install_command_for_script(script_path, platform=platform),
             env=run_env,
             capture_output=True,
             text=True,
@@ -360,7 +392,8 @@ def run_install_script(
         version=tag,
         install_dir=install_dir.expanduser(),
         updated=True,
-        message=stdout or f"installed {tag} to {install_dir.expanduser()}/atlassian",
+        message=stdout
+        or f"installed {tag} to {install_dir.expanduser() / ('atlassian.cmd' if _is_windows_platform(platform) else 'atlassian')}",
         installer_stdout=stdout,
         installer_stderr=stderr,
     )
