@@ -104,11 +104,23 @@ class BitbucketServerProvider:
         start: int,
         limit: int,
     ) -> list[dict]:
-        url = self.client._url_pull_request_comments(project_key, repo_slug, pr_id)
-        return self._paged_items(
-            self.client.get(url, params={"start": start, "limit": limit}),
+        activities = self._paged_items(
+            self.client.get_pull_requests_activities(
+                project_key,
+                repo_slug,
+                pr_id,
+                start=start,
+                limit=limit,
+            ),
             limit=limit,
         )
+        return [
+            comment
+            for activity in activities
+            if isinstance(activity, dict)
+            for comment in [activity.get("comment")]
+            if isinstance(comment, dict)
+        ]
 
     def get_pull_request_comment(
         self, project_key: str, repo_slug: str, pr_id: int, comment_id: str

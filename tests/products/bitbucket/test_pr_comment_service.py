@@ -60,10 +60,9 @@ def test_comment_service_get_add_reply_edit_and_delete() -> None:
 
     assert service.get("DEMO", "example-repo", 42, "1001")["id"] == "1001"
     assert service.add("DEMO", "example-repo", 42, "example comment")["text"] == "example comment"
-    assert (
-        service.reply("DEMO", "example-repo", 42, "1001", "example response")["text"]
-        == "example response"
-    )
+    reply = service.reply("DEMO", "example-repo", 42, "1001", "example response")
+    assert reply["text"] == "example response"
+    assert reply["parent"] == {"id": "1001"}
     assert (
         service.edit("DEMO", "example-repo", 42, "1001", "example comment", version=3)["version"]
         == 4

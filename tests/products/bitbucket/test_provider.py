@@ -175,29 +175,29 @@ def test_create_repo_rejects_non_git_scm_id() -> None:
         raise AssertionError("expected ValueError for unsupported scm_id")
 
 
-def test_bitbucket_provider_list_pull_request_comments_uses_comments_endpoint() -> None:
+def test_bitbucket_provider_list_pull_request_comments_uses_activity_stream() -> None:
     calls = {}
 
     class FakeClient:
-        def _url_pull_request_comments(self, project_key, repo_slug, pr_id):
-            return (
-                f"rest/api/latest/projects/{project_key}/repos/{repo_slug}"
-                f"/pull-requests/{pr_id}/comments"
-            )
-
-        def get(self, url, params=None):
-            calls["args"] = (url, params)
-            return {"values": [{"id": 1001, "text": "example comment"}]}
+        def get_pull_requests_activities(self, project_key, repo_slug, pr_id, start=0, limit=None):
+            calls["args"] = (project_key, repo_slug, pr_id, start, limit)
+            return {
+                "values": [
+                    {"action": "OPENED"},
+                    {
+                        "action": "COMMENTED",
+                        "commentAction": "ADDED",
+                        "comment": {"id": 1001, "text": "example comment"},
+                    },
+                ]
+            }
 
     provider = build_provider_with_client(FakeClient())
 
     result = provider.list_pull_request_comments("DEMO", "example-repo", 42, start=0, limit=25)
 
     assert result == [{"id": 1001, "text": "example comment"}]
-    assert calls["args"] == (
-        "rest/api/latest/projects/DEMO/repos/example-repo/pull-requests/42/comments",
-        {"start": 0, "limit": 25},
-    )
+    assert calls["args"] == ("DEMO", "example-repo", 42, 0, 25)
 
 
 def test_bitbucket_provider_comment_methods_forward_to_sdk() -> None:

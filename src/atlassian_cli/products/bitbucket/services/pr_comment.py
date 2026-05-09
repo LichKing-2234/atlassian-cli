@@ -65,7 +65,7 @@ class PullRequestCommentService:
     def reply(
         self, project_key: str, repo_slug: str, pr_id: int, parent_id: str, text: str
     ) -> dict:
-        return BitbucketPullRequestComment.from_api_response(
+        payload = BitbucketPullRequestComment.from_api_response(
             self.provider.add_pull_request_comment(
                 project_key,
                 repo_slug,
@@ -74,6 +74,8 @@ class PullRequestCommentService:
                 parent_id=parent_id,
             )
         ).to_simplified_dict()
+        payload.setdefault("parent", {"id": str(parent_id)})
+        return payload
 
     def reply_raw(
         self, project_key: str, repo_slug: str, pr_id: int, parent_id: str, text: str

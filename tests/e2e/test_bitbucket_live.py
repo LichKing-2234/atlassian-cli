@@ -85,8 +85,9 @@ def test_bitbucket_repo_create_live(live_env) -> None:
         registry.run()
 
 
-def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
+def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) -> None:
     registry = CleanupRegistry()
+    request.addfinalizer(registry.run)
     target = resolve_bitbucket_repo_target(live_env)
     raw_repo = run_json(
         live_env,
@@ -245,6 +246,20 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
     )
     assert any(item["id"] == comment_id for item in comments["results"])
 
+    raw_comments = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "comment",
+        "list",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "--output",
+        "raw-json",
+    )
+    assert any(str(item["id"]) == str(comment_id) for item in raw_comments)
+
     fetched_comment = run_json(
         live_env,
         "bitbucket",
@@ -311,6 +326,10 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
     )
     assert deleted_reply["deleted"] is True
 
+    head_commit = fetched.get("from_ref", {}).get("latest_commit")
+    if not head_commit:
+        head_commit = sandbox.run("rev-parse", branch_name).stdout.strip()
+
     pr_build_status = run_json(
         live_env,
         "bitbucket",
@@ -326,9 +345,23 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path) -> None:
     assert "overall_state" in pr_build_status
     assert "commits" in pr_build_status
 
-    head_commit = fetched.get("from_ref", {}).get("latest_commit")
-    if not head_commit:
-        head_commit = sandbox.run("rev-parse", branch_name).stdout.strip()
+    raw_pr_build_status = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "build-status",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "--latest-only",
+        "--output",
+        "raw-json",
+    )
+    assert raw_pr_build_status["pull_request"]["id"] == pr_id
+    assert raw_pr_build_status["commits"][0]["commit"] == head_commit
+    assert "build_statuses" in raw_pr_build_status["commits"][0]
+    assert "overall_state" not in raw_pr_build_status
+
     commit_build_status = run_json(
         live_env,
         "bitbucket",
