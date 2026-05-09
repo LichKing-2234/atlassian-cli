@@ -72,6 +72,45 @@ def test_pull_request_build_status_latest_only_uses_head_commit() -> None:
     assert ("commits", "DEMO", "example-repo", 42, 0, None) not in provider.calls
 
 
+def test_pull_request_build_status_raw_preserves_status_payloads() -> None:
+    service = BuildStatusService(FakeBuildStatusProvider())
+
+    result = service.for_pull_request_raw("DEMO", "example-repo", 42)
+
+    assert result == {
+        "pull_request": {
+            "id": 42,
+            "project_key": "DEMO",
+            "repo_slug": "example-repo",
+        },
+        "commits": [
+            {
+                "commit": "abc123",
+                "build_statuses": {"values": [{"key": "DEMO", "state": "SUCCESSFUL"}]},
+            },
+            {
+                "commit": "def456",
+                "build_statuses": {"values": [{"key": "DEMO", "state": "FAILED"}]},
+            },
+        ],
+    }
+
+
+def test_pull_request_build_status_raw_latest_only_uses_head_commit() -> None:
+    provider = FakeBuildStatusProvider()
+    service = BuildStatusService(provider)
+
+    result = service.for_pull_request_raw("DEMO", "example-repo", 42, latest_only=True)
+
+    assert result["commits"] == [
+        {
+            "commit": "head123",
+            "build_statuses": {"values": [{"key": "DEMO", "state": "INPROGRESS"}]},
+        }
+    ]
+    assert ("commits", "DEMO", "example-repo", 42, 0, None) not in provider.calls
+
+
 def test_build_status_rejects_non_json_status_payload() -> None:
     class TextStatusProvider(FakeBuildStatusProvider):
         def get_associated_build_statuses(self, commit):

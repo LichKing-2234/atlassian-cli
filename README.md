@@ -132,6 +132,8 @@ The CLI now uses `markdown` as the default human-readable output mode.
 - Use `--output json` or `--output yaml` for normalized machine-readable output.
 - Use `--output raw-json` to inspect the original provider response as JSON.
 - Use `--output raw-yaml` to inspect the original provider response as YAML.
+- Commands that compose multiple provider calls, such as `bitbucket pr build-status`,
+  group the unnormalized provider payloads in raw output.
 
 Examples:
 

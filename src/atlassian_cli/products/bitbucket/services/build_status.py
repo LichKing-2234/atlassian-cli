@@ -84,12 +84,21 @@ class BuildStatusService:
         *,
         latest_only: bool = False,
     ) -> dict:
-        return self.for_pull_request(
-            project_key,
-            repo_slug,
-            pr_id,
-            latest_only=latest_only,
+        commits = (
+            self._latest_commit(project_key, repo_slug, pr_id)
+            if latest_only
+            else self._all_commits(project_key, repo_slug, pr_id)
         )
+        return {
+            "pull_request": {"id": pr_id, "project_key": project_key, "repo_slug": repo_slug},
+            "commits": [
+                {
+                    "commit": commit,
+                    "build_statuses": self.provider.get_associated_build_statuses(commit),
+                }
+                for commit in commits
+            ],
+        }
 
     def _commit_summary(self, commit: str, raw: object) -> dict:
         statuses = [
