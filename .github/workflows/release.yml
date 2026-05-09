@@ -311,7 +311,6 @@ jobs:
                       "msgtype": "text",
                       "text": {
                           "content": content,
-                          "mentioned_list": ["@all"],
                       },
                   },
                   ensure_ascii=False,

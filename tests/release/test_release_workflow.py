@@ -138,7 +138,8 @@ def test_release_workflow_notifies_wecom_after_publish() -> None:
     assert "WECHAT_WEBHOOK_URL secret is required" in step["run"]
     assert "gh release view" in step["run"]
     assert "release-notes.txt" in step["run"]
-    assert '"mentioned_list": ["@all"]' in step["run"]
+    assert "mentioned_list" not in step["run"]
+    assert "@all" not in step["run"]
     assert "curl -fsS" in step["run"]
 
 
