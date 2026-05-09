@@ -63,8 +63,11 @@ def test_release_workflow_notifies_wecom_after_publish() -> None:
 
     assert notify["needs"] == ["prepare", "release"]
     assert "needs.release.result == 'success'" in notify["if"]
+    assert step["env"]["GH_TOKEN"] == "${{ secrets.RELEASE_TOKEN || github.token }}"
     assert step["env"]["WECHAT_WEBHOOK_URL"] == "${{ secrets.WECHAT_WEBHOOK_URL }}"
     assert "WECHAT_WEBHOOK_URL secret is required" in step["run"]
+    assert "gh release view" in step["run"]
+    assert "release-notes.txt" in step["run"]
     assert '"mentioned_list": ["@all"]' in step["run"]
     assert "curl -fsS" in step["run"]
 

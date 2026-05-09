@@ -231,6 +231,7 @@ jobs:
     steps:
       - name: Notify WeCom release
         env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
           WECHAT_WEBHOOK_URL: ${{ secrets.WECHAT_WEBHOOK_URL }}
           TAG: ${{ needs.prepare.outputs.tag }}
           VERSION: ${{ needs.prepare.outputs.version }}
@@ -244,15 +245,27 @@ jobs:
             exit 1
           fi
 
+          gh release view "${TAG}" \
+            --repo "${REPOSITORY}" \
+            --json body \
+            --jq '.body // ""' > release-notes.txt
+
           python - <<'PY' > wecom-payload.json
           import json
           import os
+
+          release_notes = open("release-notes.txt", encoding="utf-8").read().strip()
+          if len(release_notes) > 1800:
+              release_notes = f"{release_notes[:1800]}\n...(truncated)"
 
           content = "\n".join(
               [
                   f"{os.environ['REPOSITORY']} {os.environ['TAG']} published.",
                   f"Version: {os.environ['VERSION']}",
                   f"Release: {os.environ['RELEASE_URL']}",
+                  "",
+                  "Release notes:",
+                  release_notes or "(empty)",
               ]
           )
           print(
