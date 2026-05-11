@@ -20,6 +20,13 @@ if (-not $ReleaseApiUrl) {
 if (-not $ReleaseDownloadBase) {
     $ReleaseDownloadBase = "https://github.com/$RepoOwner/$RepoName/releases/download"
 }
+$InstallRequestTimeoutSec = if ($env:INSTALL_CURL_MAX_TIME) {
+    [int]$env:INSTALL_CURL_MAX_TIME
+} elseif ($env:INSTALL_CURL_CONNECT_TIMEOUT) {
+    [int]$env:INSTALL_CURL_CONNECT_TIMEOUT
+} else {
+    120
+}
 
 function Fail([string]$Message) {
     throw "error: $Message"
@@ -59,7 +66,7 @@ function Resolve-ReleaseTag {
     }
 
     $Headers = @{ "User-Agent" = "$RepoName-installer" }
-    $Metadata = Invoke-RestMethod -Uri $ReleaseApiUrl -Headers $Headers
+    $Metadata = Invoke-RestMethod -Uri $ReleaseApiUrl -Headers $Headers -TimeoutSec $InstallRequestTimeoutSec
     if (-not $Metadata.tag_name) {
         Fail "failed to parse tag_name from release metadata"
     }
@@ -68,7 +75,7 @@ function Resolve-ReleaseTag {
 
 function Download-File([string]$Url, [string]$Destination) {
     Write-Host "Downloading $Url"
-    Invoke-WebRequest -Uri $Url -OutFile $Destination
+    Invoke-WebRequest -Uri $Url -OutFile $Destination -TimeoutSec $InstallRequestTimeoutSec
 }
 
 function Checksum-ForArchive([string]$ArchiveName, [string]$ChecksumsPath) {

@@ -208,6 +208,14 @@ def test_install_powershell_script_supports_windows_amd64_zip_releases() -> None
     assert "atlassian.cmd" in script
 
 
+def test_install_powershell_script_uses_timeout_for_downloads() -> None:
+    script = INSTALL_PS1.read_text()
+
+    assert '$InstallRequestTimeoutSec = if ($env:INSTALL_CURL_MAX_TIME)' in script
+    assert "Invoke-RestMethod -Uri $ReleaseApiUrl -Headers $Headers -TimeoutSec $InstallRequestTimeoutSec" in script
+    assert "Invoke-WebRequest -Uri $Url -OutFile $Destination -TimeoutSec $InstallRequestTimeoutSec" in script
+
+
 def test_readme_documents_powershell_installer_for_windows() -> None:
     readme = (REPO_ROOT / "README.md").read_text()
 
