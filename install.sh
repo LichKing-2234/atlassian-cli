@@ -6,6 +6,8 @@ REPO_NAME="atlassian-cli"
 INSTALL_DIR="${INSTALL_DIR:-${HOME}/.local/bin}"
 INSTALL_RELEASE_API_URL="${INSTALL_RELEASE_API_URL:-https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest}"
 INSTALL_RELEASE_DOWNLOAD_BASE="${INSTALL_RELEASE_DOWNLOAD_BASE:-https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download}"
+INSTALL_CURL_CONNECT_TIMEOUT="${INSTALL_CURL_CONNECT_TIMEOUT:-10}"
+INSTALL_CURL_MAX_TIME="${INSTALL_CURL_MAX_TIME:-120}"
 
 TMP_ROOT=""
 
@@ -78,7 +80,8 @@ resolve_tag() {
     return
   fi
 
-  metadata="$(curl -fsSL "${INSTALL_RELEASE_API_URL}")" || die "failed to resolve latest release"
+  metadata="$(curl -fsSL --connect-timeout "${INSTALL_CURL_CONNECT_TIMEOUT}" --max-time "${INSTALL_CURL_MAX_TIME}" "${INSTALL_RELEASE_API_URL}")" ||
+    die "failed to resolve latest release"
   tag="$(printf '%s' "${metadata}" | tr -d '\n' | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
   [ -n "${tag}" ] || die "failed to parse tag_name from release metadata"
   printf '%s' "${tag}"
@@ -88,7 +91,10 @@ download_file() {
   url="$1"
   destination="$2"
   log "Downloading ${url}"
-  curl --fail --location --progress-bar "${url}" -o "${destination}"
+  curl --fail --location --progress-bar \
+    --connect-timeout "${INSTALL_CURL_CONNECT_TIMEOUT}" \
+    --max-time "${INSTALL_CURL_MAX_TIME}" \
+    "${url}" -o "${destination}"
 }
 
 archive_name() {

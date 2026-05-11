@@ -388,3 +388,7 @@ def test_install_script_uses_curl_progress_bar_for_downloads() -> None:
     script = INSTALL_SCRIPT.read_text()
 
     assert "curl --fail --location --progress-bar" in script
+    assert 'INSTALL_CURL_CONNECT_TIMEOUT="${INSTALL_CURL_CONNECT_TIMEOUT:-10}"' in script
+    assert 'INSTALL_CURL_MAX_TIME="${INSTALL_CURL_MAX_TIME:-120}"' in script
+    assert '--connect-timeout "${INSTALL_CURL_CONNECT_TIMEOUT}"' in script
+    assert '--max-time "${INSTALL_CURL_MAX_TIME}"' in script
