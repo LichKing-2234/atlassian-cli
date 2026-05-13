@@ -1,3 +1,4 @@
+import os
 import subprocess
 
 import pytest
@@ -99,3 +100,26 @@ def test_run_header_command_raises_for_non_zero_exit(monkeypatch: pytest.MonkeyP
 
     with pytest.raises(ConfigError, match="exit code 7"):
         run_header_command("example-oauth token")
+
+
+def test_run_header_command_uses_cmd_shell_on_windows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[list[str]] = []
+
+    def fake_run(*args, **kwargs) -> subprocess.CompletedProcess[str]:
+        calls.append(args[0])
+        return subprocess.CompletedProcess(
+            args=args[0],
+            returncode=0,
+            stdout="oauth-token\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr(os, "name", "nt")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    output = run_header_command("example-oauth token")
+
+    assert output == "oauth-token\n"
+    assert calls == [["cmd.exe", "/d", "/s", "/c", "example-oauth token"]]

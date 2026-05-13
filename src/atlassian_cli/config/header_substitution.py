@@ -1,3 +1,4 @@
+import os
 import subprocess
 from collections.abc import Callable
 
@@ -6,9 +7,15 @@ from atlassian_cli.core.errors import ConfigError
 CommandRunner = Callable[[str], str]
 
 
+def _header_shell_command(command: str) -> list[str]:
+    if os.name == "nt":
+        return [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/s", "/c", command]
+    return ["/bin/sh", "-lc", command]
+
+
 def run_header_command(command: str) -> str:
     completed = subprocess.run(
-        ["/bin/sh", "-lc", command],
+        _header_shell_command(command),
         capture_output=True,
         text=True,
         check=False,

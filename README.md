@@ -134,6 +134,7 @@ accessToken = "$(example-oauth token)"
 - `atlassian bitbucket pr list DEMO example-repo`
 
 Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
+Command substitution runs through `/bin/sh` on Unix-like systems and `cmd.exe` on Windows.
 The default `~/.config/atlassian-cli/config.toml` file is auto-created as a template on first use.
 Only top-level `[jira]`, `[confluence]`, `[bitbucket]`, and `[headers]` are supported.
 
