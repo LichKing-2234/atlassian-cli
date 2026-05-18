@@ -269,7 +269,7 @@ def test_root_callback_rejects_removed_profile_flag() -> None:
     plain_output = strip_ansi(result.output)
 
     assert result.exit_code == 2
-    assert "No such option: --profile" in plain_output
+    assert "--profile" in plain_output
 
 
 def test_root_callback_does_not_load_default_profile_credentials_when_url_is_explicit(

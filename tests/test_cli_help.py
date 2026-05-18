@@ -98,10 +98,11 @@ def test_cli_rejects_removed_table_output_mode() -> None:
 
 def test_pr_list_help_mentions_markdown_output_mode() -> None:
     result = runner.invoke(app, ["bitbucket", "pr", "list", "--help"])
+    plain_output = result.output
 
     assert result.exit_code == 0
-    assert "markdown" in result.stdout
-    assert "table" not in result.stdout
-    assert "--state" in result.stdout
-    assert "MERGED" in result.stdout
-    assert "DECLINED" in result.stdout
+    assert "markdown" in plain_output
+    assert "table" not in plain_output
+    assert "--state" in plain_output
+    assert "MERGED" in plain_output
+    assert "DECLINED" in plain_output
