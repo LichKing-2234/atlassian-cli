@@ -42,6 +42,47 @@ def test_bitbucket_pr_list_outputs_results_envelope(monkeypatch) -> None:
     assert '"results"' in result.stdout
 
 
+def test_bitbucket_pr_list_passes_merged_state_to_service(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr as pr_module
+
+    calls: dict[str, object] = {}
+
+    class FakeService:
+        def list(self, project_key, repo_slug, state, start=0, limit=25):
+            calls["args"] = (project_key, repo_slug, state, start, limit)
+            return {
+                "results": [
+                    {"id": 42, "title": "Example pull request", "state": state},
+                ],
+                "start_at": start,
+                "max_results": limit,
+            }
+
+    monkeypatch.setattr(pr_module, "should_use_interactive_output", lambda *args, **kwargs: False)
+    monkeypatch.setattr(pr_module, "build_pr_service", lambda *_args, **_kwargs: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+            "--state",
+            "MERGED",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls["args"] == ("DEMO", "example-repo", "MERGED", 0, 25)
+    assert '"state": "MERGED"' in result.stdout
+
+
 def test_bitbucket_pr_list_json_keeps_full_payload(monkeypatch) -> None:
     from atlassian_cli.products.bitbucket.commands import pr as pr_module
 

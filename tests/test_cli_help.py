@@ -102,3 +102,6 @@ def test_pr_list_help_mentions_markdown_output_mode() -> None:
     assert result.exit_code == 0
     assert "markdown" in result.stdout
     assert "table" not in result.stdout
+    assert "--state" in result.stdout
+    assert "MERGED" in result.stdout
+    assert "DECLINED" in result.stdout

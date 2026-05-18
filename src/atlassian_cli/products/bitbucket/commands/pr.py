@@ -33,7 +33,11 @@ def list_pull_requests(
     ctx: typer.Context,
     project_key: str,
     repo_slug: str,
-    state: str = typer.Option("OPEN", "--state"),
+    state: str = typer.Option(
+        "OPEN",
+        "--state",
+        help="Pull request state to list, for example OPEN, MERGED, or DECLINED.",
+    ),
     start: int = typer.Option(0, "--start"),
     limit: int = typer.Option(25, "--limit"),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
