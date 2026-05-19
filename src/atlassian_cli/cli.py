@@ -138,9 +138,9 @@ def root_callback(
 
     def load_runtime_context():
         created_template = ensure_default_config(config_file, default_path=DEFAULT_CONFIG_FILE)
-        raw_config = load_raw_config_data(config_file) if config_file.exists() else {}
         env = dict(os.environ)
         try:
+            raw_config = load_raw_config_data(config_file) if config_file.exists() else {}
             default_headers = resolve_default_headers(raw_config, env=env)
         except ConfigError as exc:
             raise typer.BadParameter(str(exc), param_hint="--config-file") from exc

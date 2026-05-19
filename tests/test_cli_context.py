@@ -606,3 +606,39 @@ def test_root_callback_reports_invalid_interpolated_product_enum_as_usage_error(
     assert "Invalid config.toml configuration" in plain_output
     assert "[jira].deployment" in plain_output
     assert "server" in plain_output
+
+
+def test_root_callback_reports_removed_profiles_config_as_usage_error(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [profiles.demo]
+        product = "jira"
+        deployment = "server"
+        url = "https://jira.example.com"
+        auth = "basic"
+        username = "example-user"
+        token = "example-token"
+        """.strip()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "jira",
+            "issue",
+            "get",
+            "DEMO-1",
+        ],
+        env=ci_output_env(),
+    )
+    plain_output = strip_ansi(result.output)
+
+    assert result.exit_code == 2
+    assert "Invalid value for --config-file" in plain_output
+    assert "Profile-based config [profiles.*]" in plain_output
+    assert "removed." in plain_output
