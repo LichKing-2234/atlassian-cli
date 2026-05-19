@@ -137,13 +137,7 @@ def _build_env_template_table(product: Product) -> dict[str, Any]:
         "deployment": f"${{{prefix}_DEPLOYMENT}}",
         "url": f"${{{prefix}_URL}}",
         "auth": f"${{{prefix}_AUTH}}",
-        "username": f"${{{prefix}_USERNAME}}",
-        "password": f"${{{prefix}_PASSWORD}}",
         "token": f"${{{prefix}_TOKEN}}",
-        "headers": {
-            "Authorization": f"${{{prefix}_HEADER_AUTHORIZATION}}",
-            "accessToken": f"$(example-oauth token --host ${{{prefix}_URL}})",
-        },
     }
 
 

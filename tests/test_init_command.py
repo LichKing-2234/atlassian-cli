@@ -4,7 +4,8 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
-from atlassian_cli.config.loader import load_config
+from atlassian_cli.config.env_interpolation import resolve_active_product_input
+from atlassian_cli.config.loader import load_config, load_raw_config_data
 from atlassian_cli.config.models import Product
 
 runner = CliRunner()
@@ -84,8 +85,46 @@ def test_init_single_product_env_template_writes_placeholders(tmp_path: Path) ->
     assert 'deployment = "${ATLASSIAN_JIRA_DEPLOYMENT}"' in text
     assert 'url = "${ATLASSIAN_JIRA_URL}"' in text
     assert 'auth = "${ATLASSIAN_JIRA_AUTH}"' in text
-    assert 'username = "${ATLASSIAN_JIRA_USERNAME}"' in text
     assert 'token = "${ATLASSIAN_JIRA_TOKEN}"' in text
+    assert "username =" not in text
+    assert "password =" not in text
+    assert "[jira.headers]" not in text
+
+
+def test_init_single_product_env_template_resolves_with_minimal_pat_env(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "jira",
+            "--config-file",
+            str(config_file),
+            "--env-template",
+        ],
+    )
+
+    assert result.exit_code == 0
+    resolved = resolve_active_product_input(
+        load_raw_config_data(config_file),
+        product=Product.JIRA,
+        env={
+            "ATLASSIAN_JIRA_DEPLOYMENT": "server",
+            "ATLASSIAN_JIRA_URL": "https://jira.example.com",
+            "ATLASSIAN_JIRA_AUTH": "pat",
+            "ATLASSIAN_JIRA_TOKEN": "secret",
+        },
+    )
+
+    assert resolved.product_data == {
+        "deployment": "server",
+        "url": "https://jira.example.com",
+        "auth": "pat",
+        "token": "secret",
+    }
+    assert resolved.default_headers == {}
+    assert resolved.product_headers == {}
 
 
 def test_init_non_interactive_missing_required_values_fails_without_writing(
