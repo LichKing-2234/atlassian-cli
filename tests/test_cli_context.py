@@ -6,7 +6,6 @@ from typer.testing import CliRunner
 import atlassian_cli.cli as cli_module
 import atlassian_cli.config.header_substitution as header_substitution
 from atlassian_cli.cli import app
-from atlassian_cli.config.models import LoadedConfig
 
 runner = CliRunner()
 ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
@@ -179,6 +178,132 @@ def test_root_callback_uses_bitbucket_product_headers_without_profile(
     assert '"X-Request-Source": "config-default"' in result.stdout
 
 
+def test_root_callback_resolves_env_backed_product_fields_before_validation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [jira]
+        deployment = "${ATLASSIAN_DEPLOYMENT}"
+        url = "https://${ATLASSIAN_HOST}"
+        auth = "${ATLASSIAN_AUTH}"
+        username = "${ATLASSIAN_USERNAME}"
+        token = "${ATLASSIAN_TOKEN}"
+        """.strip()
+    )
+
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda context: type(
+            "FakeService",
+            (),
+            {
+                "get": lambda self, issue_key: {
+                    "key": issue_key,
+                    "url": context.url,
+                    "username": context.auth.username,
+                    "token": context.auth.token,
+                }
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "jira",
+            "issue",
+            "get",
+            "DEMO-1",
+            "--output",
+            "json",
+        ],
+        env={
+            **ci_output_env(),
+            "ATLASSIAN_DEPLOYMENT": "server",
+            "ATLASSIAN_HOST": "jira.example.com",
+            "ATLASSIAN_AUTH": "basic",
+            "ATLASSIAN_USERNAME": "example-user",
+            "ATLASSIAN_TOKEN": "example-token",
+        },
+    )
+
+    assert result.exit_code == 0
+    assert '"url": "https://jira.example.com"' in result.stdout
+    assert '"username": "example-user"' in result.stdout
+    assert '"token": "example-token"' in result.stdout
+
+
+def test_root_callback_only_resolves_active_product_block(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [jira]
+        deployment = "server"
+        url = "https://jira.example.com"
+        auth = "basic"
+        username = "${ATLASSIAN_USERNAME}"
+        token = "secret"
+
+        [confluence]
+        deployment = "${MISSING_CONFLUENCE_DEPLOYMENT}"
+        url = "https://confluence.example.com"
+        auth = "pat"
+        token = "wiki-token"
+        """.strip()
+    )
+
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda context: type(
+            "FakeService",
+            (),
+            {
+                "get": lambda self, issue_key: {
+                    "key": issue_key,
+                    "url": context.url,
+                    "username": context.auth.username,
+                }
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "jira",
+            "issue",
+            "get",
+            "DEMO-1",
+            "--output",
+            "json",
+        ],
+        env={
+            **ci_output_env(),
+            "ATLASSIAN_USERNAME": "example-user",
+        },
+    )
+
+    assert result.exit_code == 0
+    assert '"url": "https://jira.example.com"' in result.stdout
+    assert '"username": "example-user"' in result.stdout
+
+
 def test_root_callback_flag_headers_override_config_headers(
     tmp_path: Path,
     monkeypatch,
@@ -243,7 +368,7 @@ def test_root_callback_reports_created_template_for_missing_product_config(
 ) -> None:
     generated = Path("/tmp/generated-config.toml")
     monkeypatch.setattr(cli_module, "ensure_default_config", lambda path, default_path: True)
-    monkeypatch.setattr(cli_module, "load_config", lambda path: LoadedConfig())
+    monkeypatch.setattr(cli_module, "load_raw_config_data", lambda path: {})
 
     result = runner.invoke(
         app,

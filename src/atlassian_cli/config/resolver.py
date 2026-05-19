@@ -25,7 +25,7 @@ def resolve_runtime_context(
     )
     profile_headers = resolve_header_map(
         profile.headers,
-        source=f"[profiles.{profile.name}.headers]",
+        source=f"[{product.value}.headers]",
         runner=command_runner,
     )
     headers = {**config_headers, **profile_headers, **overrides.headers}

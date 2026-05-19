@@ -89,3 +89,35 @@ def test_flag_headers_override_config_headers() -> None:
         "accessToken": "flag-token",
         "X-Trace": "top-level-trace",
     }
+
+
+def test_product_headers_use_product_source_path(monkeypatch) -> None:
+    profile = ProfileConfig(
+        name="example-alias",
+        product=Product.JIRA,
+        deployment=Deployment.SERVER,
+        url="https://jira.example.com",
+        auth=AuthMode.BASIC,
+        username="example-user",
+        token="secret",
+        headers={"Authorization": "$(example-oauth token)"},
+    )
+    sources: list[str] = []
+
+    def fake_resolve_header_map(headers, *, source, runner):
+        sources.append(source)
+        return dict(headers)
+
+    monkeypatch.setattr(
+        "atlassian_cli.config.resolver.resolve_header_map",
+        fake_resolve_header_map,
+    )
+
+    resolve_runtime_context(
+        profile=profile,
+        env={},
+        default_headers={"X-Trace": "top-level-trace"},
+        overrides=RuntimeOverrides(url="https://jira.example.com"),
+    )
+
+    assert sources == ["[headers]", "[jira.headers]"]

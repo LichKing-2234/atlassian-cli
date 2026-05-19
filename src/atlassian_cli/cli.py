@@ -9,11 +9,17 @@ from atlassian_cli.auth.headers import parse_cli_headers
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.commands.init import init_command
 from atlassian_cli.commands.update import app as update_app
-from atlassian_cli.config.loader import load_config
+from atlassian_cli.config.env_interpolation import resolve_active_product_input
+from atlassian_cli.config.loader import (
+    load_config as _load_config_compat,
+)
+from atlassian_cli.config.loader import (
+    load_raw_config_data,
+)
 from atlassian_cli.config.models import (
     Deployment,
-    LoadedConfig,
     Product,
+    ProductConfig,
     ProfileConfig,
     RuntimeOverrides,
 )
@@ -68,6 +74,7 @@ app.add_typer(update_app, name="update")
 DEFAULT_CONFIG_FILE = Path("~/.config/atlassian-cli/config.toml").expanduser()
 PRODUCT_COMMANDS = {product.value for product in Product}
 AUTO_UPDATE_CHECK_EXCLUDED_COMMANDS = {"update"}
+load_config = _load_config_compat
 
 
 def _missing_product_message(config_file: Path, product: Product, *, created: bool) -> str:
@@ -122,14 +129,22 @@ def root_callback(
 
     def load_runtime_context():
         created_template = ensure_default_config(config_file, default_path=DEFAULT_CONFIG_FILE)
-        config = load_config(config_file) if config_file.exists() else LoadedConfig()
+        raw_config = load_raw_config_data(config_file) if config_file.exists() else {}
         if url is None:
-            product_config = config.product_config(product)
-            if product_config is None:
+            resolved_input = resolve_active_product_input(
+                raw_config,
+                product=product,
+                env=dict(os.environ),
+            )
+            if not resolved_input.product_data:
                 raise typer.BadParameter(
                     _missing_product_message(config_file, product, created=created_template)
                 )
             try:
+                product_config = ProductConfig(
+                    **resolved_input.product_data,
+                    headers=resolved_input.product_headers,
+                )
                 base_profile = product_config.to_profile_config(
                     product=product,
                     name=product.value,
@@ -154,7 +169,7 @@ def root_callback(
             return resolve_runtime_context(
                 profile=base_profile,
                 env=dict(os.environ),
-                default_headers=config.headers,
+                default_headers=resolved_input.default_headers if url is None else {},
                 overrides=RuntimeOverrides(
                     product=product,
                     deployment=deployment,
