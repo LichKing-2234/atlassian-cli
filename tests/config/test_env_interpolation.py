@@ -68,10 +68,26 @@ def test_resolve_active_product_input_only_resolves_active_product() -> None:
     assert resolved.product_headers == {}
 
 
-def test_resolve_active_product_input_reports_missing_variable_with_source_path() -> None:
+def test_resolve_active_product_input_reports_missing_variable_for_product_field() -> None:
     with pytest.raises(
         ConfigError,
-        match=r"Missing environment variable 'ATLASSIAN_TOKEN' for \[jira\]\.headers\.Authorization",
+        match=r"Missing environment variable ATLASSIAN_TOKEN for \[jira\]\.token",
+    ):
+        resolve_active_product_input(
+            {
+                "jira": {
+                    "token": "${ATLASSIAN_TOKEN}",
+                },
+            },
+            product=Product.JIRA,
+            env={},
+        )
+
+
+def test_resolve_active_product_input_reports_missing_variable_for_product_header() -> None:
+    with pytest.raises(
+        ConfigError,
+        match=r"Missing environment variable ATLASSIAN_TOKEN for \[jira\.headers\]\.Authorization",
     ):
         resolve_active_product_input(
             {
@@ -86,15 +102,42 @@ def test_resolve_active_product_input_reports_missing_variable_with_source_path(
         )
 
 
-def test_resolve_active_product_input_rejects_malformed_interpolation() -> None:
+@pytest.mark.parametrize(
+    ("value", "source"),
+    [
+        ("${ATLASSIAN_TOKEN", r"\[headers\]\.Authorization"),
+        ("${}", r"\[headers\]\.Authorization"),
+        ("${atl-token}", r"\[headers\]\.Authorization"),
+    ],
+)
+def test_resolve_active_product_input_rejects_malformed_interpolation(
+    value: str,
+    source: str,
+) -> None:
     with pytest.raises(
         ConfigError,
-        match=r"Malformed environment interpolation in \[headers\]\.Authorization",
+        match=rf"Malformed environment interpolation in {source}",
     ):
         resolve_active_product_input(
             {
                 "headers": {
-                    "Authorization": "${atl-token}",
+                    "Authorization": value,
+                },
+            },
+            product=Product.JIRA,
+            env={},
+        )
+
+
+def test_resolve_active_product_input_rejects_non_string_product_fields() -> None:
+    with pytest.raises(
+        ConfigError,
+        match=r"Invalid config\.toml configuration: \[jira\]\.token must be a string",
+    ):
+        resolve_active_product_input(
+            {
+                "jira": {
+                    "token": 42,
                 },
             },
             product=Product.JIRA,

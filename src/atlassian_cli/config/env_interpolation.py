@@ -2,6 +2,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from atlassian_cli.config.models import Product
 from atlassian_cli.core.errors import ConfigError
 
 _ENV_REFERENCE = re.compile(r"\$\{([^}]+)\}")
@@ -10,21 +11,38 @@ _VALID_ENV_NAME = re.compile(r"^[A-Z_][A-Z0-9_]*$")
 
 @dataclass(frozen=True)
 class ResolvedProductInput:
-    product_data: dict[str, Any]
+    product_data: dict[str, str]
     default_headers: dict[str, str]
     product_headers: dict[str, str]
 
 
 def interpolate_env_value(value: str, *, source: str, env: dict[str, str]) -> str:
-    def replace(match: re.Match[str]) -> str:
+    resolved: list[str] = []
+    current_index = 0
+    while True:
+        start_index = value.find("${", current_index)
+        if start_index == -1:
+            resolved.append(value[current_index:])
+            return "".join(resolved)
+
+        resolved.append(value[current_index:start_index])
+        end_index = value.find("}", start_index + 2)
+        if end_index == -1:
+            raise ConfigError(f"Malformed environment interpolation in {source}")
+
+        reference = value[start_index : end_index + 1]
+        match = _ENV_REFERENCE.fullmatch(reference)
+        if match is None:
+            raise ConfigError(f"Malformed environment interpolation in {source}")
+
         variable_name = match.group(1)
         if not _VALID_ENV_NAME.fullmatch(variable_name):
             raise ConfigError(f"Malformed environment interpolation in {source}")
         if variable_name not in env:
-            raise ConfigError(f"Missing environment variable '{variable_name}' for {source}")
-        return env[variable_name]
+            raise ConfigError(f"Missing environment variable {variable_name} for {source}")
 
-    return _ENV_REFERENCE.sub(replace, value)
+        resolved.append(env[variable_name])
+        current_index = end_index + 1
 
 
 def _resolve_string_map(
@@ -62,25 +80,25 @@ def resolve_default_headers(raw_config: dict[str, Any], *, env: dict[str, str]) 
 def resolve_active_product_input(
     raw_config: dict[str, Any],
     *,
-    product,
+    product: Product,
     env: dict[str, str],
 ) -> ResolvedProductInput:
     default_headers = resolve_default_headers(raw_config, env=env)
     product_table = _as_table(raw_config.get(product.value))
     product_headers = _resolve_string_map(
         _as_table(product_table.get("headers")),
-        source=f"[{product.value}].headers",
+        source=f"[{product.value}.headers]",
         env=env,
     )
-    product_data = {
-        field_name: (
-            interpolate_env_value(field_value, source=f"[{product.value}].{field_name}", env=env)
-            if isinstance(field_value, str)
-            else field_value
-        )
-        for field_name, field_value in product_table.items()
-        if field_name != "headers"
-    }
+    product_data = _resolve_string_map(
+        {
+            field_name: field_value
+            for field_name, field_value in product_table.items()
+            if field_name != "headers"
+        },
+        source=f"[{product.value}]",
+        env=env,
+    )
     return ResolvedProductInput(
         product_data=product_data,
         default_headers=default_headers,
