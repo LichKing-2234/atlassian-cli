@@ -451,9 +451,38 @@ def test_root_callback_reports_created_template_for_missing_product_config(
 
     assert result.exit_code == 2
     assert "Created" in plain_output
-    assert str(generated) in plain_output
-    assert "[jira] or pass --url." in plain_output
+    assert generated.name in plain_output
+    assert "[jira]" in plain_output
+    assert "--url." in plain_output
     assert "--url" in plain_output
+
+
+def test_root_callback_reports_created_template_for_empty_generated_product_block(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    generated = tmp_path / "config.toml"
+    monkeypatch.setattr(cli_module, "DEFAULT_CONFIG_FILE", generated)
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(generated),
+            "jira",
+            "issue",
+            "get",
+            "DEMO-1",
+        ],
+        env=ci_output_env(),
+    )
+    plain_output = strip_ansi(result.output)
+
+    assert result.exit_code == 2
+    assert "Created" in plain_output
+    assert generated.name in plain_output
+    assert "[jira]" in plain_output
+    assert "--url." in plain_output
 
 
 def test_root_callback_rejects_removed_profile_flag() -> None:
@@ -737,6 +766,47 @@ def test_root_callback_reports_explicit_url_auth_failure_as_generic_error_with_h
             str(config_file),
             "--url",
             "https://bitbucket.flag.local",
+            "--auth",
+            "pat",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
+        env=ci_output_env(),
+    )
+    plain_output = strip_ansi(result.output)
+
+    assert result.exit_code == 2
+    assert "Invalid value:" in plain_output
+    assert "Invalid value for --config-file" not in plain_output
+    assert "pat authentication requires a token" in plain_output.lower()
+
+
+def test_root_callback_reports_non_url_auth_override_failure_as_generic_error(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [headers]
+        X-Request-Source = "config-default"
+
+        [bitbucket]
+        deployment = "dc"
+        url = "https://bitbucket.example.com"
+        auth = "basic"
+        username = "example-user"
+        password = "secret"
+        """.strip()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
             "--auth",
             "pat",
             "bitbucket",

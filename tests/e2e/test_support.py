@@ -159,6 +159,42 @@ def test_run_cli_includes_config_file(monkeypatch, tmp_path) -> None:
     assert "PYTHONPATH" in calls["env"]
 
 
+def test_run_cli_reads_repo_dotenv_for_subprocess_env(monkeypatch, tmp_path) -> None:
+    calls: dict[str, object] = {}
+    repo_dotenv = tmp_path / ".env"
+    repo_dotenv.write_text(
+        "\n".join(
+            [
+                "ATLASSIAN_DEPLOYMENT=server",
+                "ATLASSIAN_HOST=jira.example.com",
+            ]
+        )
+    )
+
+    def fake_run(command, **kwargs):
+        calls["command"] = command
+        calls["env"] = kwargs["env"]
+        return subprocess.CompletedProcess(command, 0, stdout='{"ok": true}', stderr="")
+
+    monkeypatch.setattr("tests.e2e.support.env.DOTENV_FILE", repo_dotenv)
+    monkeypatch.delenv("ATLASSIAN_DEPLOYMENT", raising=False)
+    monkeypatch.delenv("ATLASSIAN_HOST", raising=False)
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    live_env = LiveEnv(
+        config_file=tmp_path / "config.toml",
+        jira_project="DEMO",
+        confluence_space="~example-user",
+        bitbucket_project="DEMO",
+        bitbucket_create_project="DEMO",
+        bitbucket_repo="example-repo",
+    )
+
+    run_cli(live_env, "jira", "project", "list", "--output", "json")
+
+    assert calls["env"]["ATLASSIAN_DEPLOYMENT"] == "server"
+    assert calls["env"]["ATLASSIAN_HOST"] == "jira.example.com"
+
+
 def test_build_live_context_reads_product_config(tmp_path, monkeypatch) -> None:
     config_file = tmp_path / "config.toml"
     config_file.write_text(

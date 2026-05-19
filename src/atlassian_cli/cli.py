@@ -139,6 +139,9 @@ def root_callback(
     def load_runtime_context():
         created_template = ensure_default_config(config_file, default_path=DEFAULT_CONFIG_FILE)
         env = dict(os.environ)
+        uses_cli_auth_overrides = any(
+            value is not None for value in (auth, username, password, token)
+        )
         try:
             raw_config = load_raw_config_data(config_file) if config_file.exists() else {}
             default_headers = resolve_default_headers(raw_config, env=env)
@@ -156,6 +159,11 @@ def root_callback(
                     product=product,
                     env=env,
                 )
+                if created_template and not resolved_input.product_data:
+                    raise typer.BadParameter(
+                        _missing_product_message(config_file, product, created=created_template),
+                        param_hint="--config-file",
+                    )
                 product_config = ProductConfig(
                     **resolved_input.product_data,
                     headers=resolved_input.product_headers,
@@ -203,7 +211,9 @@ def root_callback(
                 ),
             )
         except ConfigError as exc:
-            if url is None or isinstance(exc, ConfigHeaderResolutionError):
+            if isinstance(exc, ConfigHeaderResolutionError):
+                raise typer.BadParameter(str(exc), param_hint="--config-file") from exc
+            if url is None and not uses_cli_auth_overrides:
                 raise typer.BadParameter(str(exc), param_hint="--config-file") from exc
             raise typer.BadParameter(str(exc)) from exc
 
