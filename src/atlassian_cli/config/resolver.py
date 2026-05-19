@@ -1,6 +1,11 @@
 from atlassian_cli.auth.resolver import resolve_auth
 from atlassian_cli.config.header_substitution import resolve_header_map
 from atlassian_cli.core.context import ExecutionContext
+from atlassian_cli.core.errors import ConfigError
+
+
+class ConfigHeaderResolutionError(ConfigError):
+    pass
 
 
 def resolve_runtime_context(
@@ -18,11 +23,14 @@ def resolve_runtime_context(
     password = overrides.password or env.get("ATLASSIAN_PASSWORD") or profile.password
     token = overrides.token or env.get("ATLASSIAN_TOKEN") or profile.token
     auth = overrides.auth or profile.auth
-    config_headers = resolve_header_map(
-        default_headers or {},
-        source="[headers]",
-        runner=command_runner,
-    )
+    try:
+        config_headers = resolve_header_map(
+            default_headers or {},
+            source="[headers]",
+            runner=command_runner,
+        )
+    except ConfigError as exc:
+        raise ConfigHeaderResolutionError(str(exc)) from exc
     profile_headers = resolve_header_map(
         profile.headers,
         source=f"[{product.value}.headers]",

@@ -717,3 +717,39 @@ def test_root_callback_reports_explicit_url_header_failure_as_config_file_error(
     assert result.exit_code == 2
     assert "Invalid value for --config-file" in plain_output
     assert "Header command failed with exit code 1" in plain_output
+
+
+def test_root_callback_reports_explicit_url_auth_failure_as_generic_error_with_headers_present(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [headers]
+        X-Request-Source = "config-default"
+        """.strip()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "--url",
+            "https://bitbucket.flag.local",
+            "--auth",
+            "pat",
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
+        env=ci_output_env(),
+    )
+    plain_output = strip_ansi(result.output)
+
+    assert result.exit_code == 2
+    assert "Invalid value:" in plain_output
+    assert "Invalid value for --config-file" not in plain_output
+    assert "pat authentication requires a token" in plain_output.lower()

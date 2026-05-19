@@ -23,7 +23,7 @@ from atlassian_cli.config.models import (
     ProfileConfig,
     RuntimeOverrides,
 )
-from atlassian_cli.config.resolver import resolve_runtime_context
+from atlassian_cli.config.resolver import ConfigHeaderResolutionError, resolve_runtime_context
 from atlassian_cli.config.template import ensure_default_config
 from atlassian_cli.core.context import LazyExecutionContext
 from atlassian_cli.core.errors import ConfigError
@@ -139,10 +139,8 @@ def root_callback(
     def load_runtime_context():
         created_template = ensure_default_config(config_file, default_path=DEFAULT_CONFIG_FILE)
         env = dict(os.environ)
-        has_config_headers = False
         try:
             raw_config = load_raw_config_data(config_file) if config_file.exists() else {}
-            has_config_headers = bool(raw_config.get("headers"))
             default_headers = resolve_default_headers(raw_config, env=env)
         except ConfigError as exc:
             raise typer.BadParameter(str(exc), param_hint="--config-file") from exc
@@ -205,7 +203,7 @@ def root_callback(
                 ),
             )
         except ConfigError as exc:
-            if url is None or has_config_headers:
+            if url is None or isinstance(exc, ConfigHeaderResolutionError):
                 raise typer.BadParameter(str(exc), param_hint="--config-file") from exc
             raise typer.BadParameter(str(exc)) from exc
 
