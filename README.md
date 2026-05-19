@@ -101,6 +101,7 @@ The default `~/.config/atlassian-cli/config.toml` file is still auto-created as 
 - `atlassian confluence page get 1234`
 - `atlassian bitbucket repo get DEMO example-repo`
 - `atlassian bitbucket pr list DEMO example-repo`
+- `atlassian bitbucket pr list DEMO example-repo --state MERGED`
 - `atlassian bitbucket pr diff DEMO example-repo 42`
 - `atlassian bitbucket pr comment list DEMO example-repo 42`
 - `atlassian bitbucket pr comment add DEMO example-repo 42 "example comment"`
@@ -145,6 +146,7 @@ The CLI now uses `markdown` as the default human-readable output mode.
 - Single-resource commands default to markdown detail output.
 - Collection commands default to an interactive browser in a TTY.
 - Collection commands fall back to markdown summary output outside a TTY.
+- `bitbucket pr list --state` supports Bitbucket pull request states such as `OPEN`, `MERGED`, and `DECLINED`.
 - Confluence page detail output renders storage HTML content into readable Markdown in `--output markdown`.
 - Use `--output json` or `--output yaml` for normalized machine-readable output.
 - Use `--output raw-json` to inspect the original provider response as JSON.

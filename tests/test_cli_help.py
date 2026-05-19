@@ -1,9 +1,24 @@
+import re
+
 from typer.testing import CliRunner
 
 import atlassian_cli.config.header_substitution as header_substitution
 from atlassian_cli.cli import app
 
 runner = CliRunner()
+ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def ci_output_env() -> dict[str, str]:
+    return {
+        "CI": "true",
+        "GITHUB_ACTIONS": "true",
+        "TERM": "xterm-256color",
+    }
+
+
+def strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_PATTERN.sub("", text)
 
 
 def test_root_help_displays_products() -> None:
@@ -97,8 +112,16 @@ def test_cli_rejects_removed_table_output_mode() -> None:
 
 
 def test_pr_list_help_mentions_markdown_output_mode() -> None:
-    result = runner.invoke(app, ["bitbucket", "pr", "list", "--help"])
+    result = runner.invoke(
+        app,
+        ["bitbucket", "pr", "list", "--help"],
+        env=ci_output_env(),
+    )
+    plain_output = strip_ansi(result.output)
 
     assert result.exit_code == 0
-    assert "markdown" in result.stdout
-    assert "table" not in result.stdout
+    assert "markdown" in plain_output
+    assert "table" not in plain_output
+    assert "--state" in plain_output
+    assert "MERGED" in plain_output
+    assert "DECLINED" in plain_output
