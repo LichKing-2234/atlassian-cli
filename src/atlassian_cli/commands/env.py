@@ -45,6 +45,13 @@ def _export_line(name: str, value: Any) -> str:
     return f"export {name}={_shell_quote('' if rendered is None else str(rendered))}"
 
 
+def _header_export_name(prefix: str, header_name: str) -> str:
+    normalized_name = _normalize_header_name(header_name)
+    if not normalized_name:
+        raise ConfigError(f"Header name normalizes to empty export suffix: {header_name}")
+    return f"{prefix}{normalized_name}"
+
+
 def _append_export_line(lines: list[str], seen_names: set[str], name: str, value: Any) -> None:
     if name in seen_names:
         raise ConfigError(f"Duplicate export name: {name}")
@@ -67,7 +74,7 @@ def env_command(ctx: typer.Context) -> None:
             _append_export_line(
                 lines,
                 seen_names,
-                f"ATLASSIAN_HEADER_{_normalize_header_name(header_name)}",
+                _header_export_name("ATLASSIAN_HEADER_", header_name),
                 header_value,
             )
 
@@ -95,7 +102,7 @@ def env_command(ctx: typer.Context) -> None:
                 _append_export_line(
                     lines,
                     seen_names,
-                    f"{prefix}_HEADER_{_normalize_header_name(header_name)}",
+                    _header_export_name(f"{prefix}_HEADER_", header_name),
                     header_value,
                 )
     except ConfigError as exc:

@@ -152,3 +152,23 @@ def test_env_command_fails_on_normalized_header_name_collision_without_partial_s
     plain_output = " ".join(result.output.split())
     assert "Duplicate export name" in plain_output
     assert "ATLASSIAN_HEADER_X_FOO_BAR" in plain_output
+
+
+def test_env_command_rejects_header_names_that_normalize_to_empty_without_partial_stdout(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [headers]
+        "Ä" = "secret"
+        """.strip()
+    )
+
+    result = runner.invoke(app, ["--config-file", str(config_file), "env"])
+
+    assert result.exit_code != 0
+    assert result.stdout == ""
+    plain_output = " ".join(result.output.split())
+    assert "Header name normalizes to empty export suffix" in plain_output
+    assert "Ä" in plain_output
