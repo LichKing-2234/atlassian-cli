@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from atlassian_cli import __version__
 from atlassian_cli.auth.headers import parse_cli_headers
 from atlassian_cli.auth.models import AuthMode
+from atlassian_cli.commands.env import env_command
 from atlassian_cli.commands.init import init_command
 from atlassian_cli.commands.update import app as update_app
 from atlassian_cli.config.env_interpolation import (
@@ -69,6 +70,7 @@ app.add_typer(jira_app, name="jira")
 app.add_typer(confluence_app, name="confluence")
 app.add_typer(bitbucket_app, name="bitbucket")
 app.command("init")(init_command)
+app.command("env")(env_command)
 app.add_typer(update_app, name="update")
 
 DEFAULT_CONFIG_FILE = Path("~/.config/atlassian-cli/config.toml").expanduser()

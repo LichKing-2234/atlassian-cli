@@ -54,6 +54,7 @@ COVERAGE_MANIFEST = {
     "bitbucket pr create": "test_bitbucket_branch_and_pr_round_trip_live",
     "bitbucket pr merge": "test_bitbucket_branch_and_pr_round_trip_live",
     "init": "test_init_single_product_non_interactive_writes_config",
+    "env": "test_env_command_exports_all_configured_product_values_and_headers",
     "update check": "test_update_check_outputs_latest_release_json",
     "update install": "test_update_install_passes_selected_options",
 }

@@ -21,7 +21,7 @@ def strip_ansi(text: str) -> str:
     return ANSI_ESCAPE_PATTERN.sub("", text)
 
 
-def test_root_help_displays_products() -> None:
+def test_root_help_displays_products_and_local_config_commands() -> None:
     result = runner.invoke(app, ["--help"])
 
     assert result.exit_code == 0
@@ -29,6 +29,7 @@ def test_root_help_displays_products() -> None:
     assert "confluence" in result.stdout
     assert "bitbucket" in result.stdout
     assert "init" in result.stdout
+    assert "env" in result.stdout
     assert "update" in result.stdout
     assert "--profile" not in result.stdout
 
