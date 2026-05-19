@@ -363,6 +363,70 @@ def test_root_callback_flag_headers_override_config_headers(
     assert '"accessToken": "flag-token"' in result.stdout
 
 
+def test_root_callback_explicit_url_still_uses_top_level_headers(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [headers]
+        X-Request-Source = "${ATLASSIAN_SOURCE}"
+
+        [jira]
+        deployment = "server"
+        url = "https://jira.product.local"
+        auth = "basic"
+        username = "example-user"
+        token = "secret"
+        """.strip()
+    )
+
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    monkeypatch.setattr(
+        issue_module,
+        "build_issue_service",
+        lambda context: type(
+            "FakeService",
+            (),
+            {
+                "get": lambda self, issue_key: {
+                    "key": issue_key,
+                    "profile": context.profile,
+                    "url": context.url,
+                    "request_source": context.auth.headers.get("X-Request-Source"),
+                }
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "--url",
+            "https://jira.flag.local",
+            "jira",
+            "issue",
+            "get",
+            "DEMO-1",
+            "--output",
+            "json",
+        ],
+        env={
+            **ci_output_env(),
+            "ATLASSIAN_SOURCE": "config-default",
+        },
+    )
+
+    assert result.exit_code == 0
+    assert '"profile": "inline-jira"' in result.stdout
+    assert '"url": "https://jira.flag.local"' in result.stdout
+    assert '"request_source": "config-default"' in result.stdout
+
+
 def test_root_callback_reports_created_template_for_missing_product_config(
     monkeypatch,
 ) -> None:
@@ -385,7 +449,9 @@ def test_root_callback_reports_created_template_for_missing_product_config(
     plain_output = strip_ansi(result.output)
 
     assert result.exit_code == 2
-    assert f"Created {generated}. Fill in [jira] or pass" in plain_output
+    assert "Created" in plain_output
+    assert str(generated) in plain_output
+    assert "[jira] or pass --url." in plain_output
     assert "--url" in plain_output
 
 
@@ -497,3 +563,46 @@ def test_root_callback_reports_missing_pat_token_as_usage_error() -> None:
 
     assert result.exit_code == 2
     assert "pat authentication requires a token" in plain_output.lower()
+
+
+def test_root_callback_reports_invalid_interpolated_product_enum_as_usage_error(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [jira]
+        deployment = "${ATLASSIAN_DEPLOYMENT}"
+        url = "https://${ATLASSIAN_HOST}"
+        auth = "${ATLASSIAN_AUTH}"
+        username = "${ATLASSIAN_USERNAME}"
+        token = "${ATLASSIAN_TOKEN}"
+        """.strip()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "jira",
+            "issue",
+            "get",
+            "DEMO-1",
+        ],
+        env={
+            **ci_output_env(),
+            "ATLASSIAN_DEPLOYMENT": "invalid",
+            "ATLASSIAN_HOST": "jira.example.com",
+            "ATLASSIAN_AUTH": "basic",
+            "ATLASSIAN_USERNAME": "example-user",
+            "ATLASSIAN_TOKEN": "example-token",
+        },
+    )
+    plain_output = strip_ansi(result.output)
+
+    assert result.exit_code == 2
+    assert "Invalid value for --config-file" in plain_output
+    assert "Invalid config.toml configuration" in plain_output
+    assert "[jira].deployment" in plain_output
+    assert "server" in plain_output
