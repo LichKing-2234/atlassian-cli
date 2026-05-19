@@ -642,3 +642,36 @@ def test_root_callback_reports_removed_profiles_config_as_usage_error(
     assert "Invalid value for --config-file" in plain_output
     assert "Profile-based config [profiles.*]" in plain_output
     assert "removed." in plain_output
+
+
+def test_root_callback_reports_config_runtime_auth_failure_as_usage_error(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [bitbucket]
+        deployment = "dc"
+        url = "https://bitbucket.example.com"
+        auth = "pat"
+        """.strip()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+        ],
+        env=ci_output_env(),
+    )
+    plain_output = strip_ansi(result.output)
+
+    assert result.exit_code == 2
+    assert "Invalid value for --config-file" in plain_output
+    assert "pat authentication requires a token" in plain_output.lower()

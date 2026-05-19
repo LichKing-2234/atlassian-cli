@@ -203,6 +203,8 @@ def root_callback(
                 ),
             )
         except ConfigError as exc:
+            if url is None:
+                raise typer.BadParameter(str(exc), param_hint="--config-file") from exc
             raise typer.BadParameter(str(exc)) from exc
 
     ctx.obj = LazyExecutionContext(load_runtime_context)
