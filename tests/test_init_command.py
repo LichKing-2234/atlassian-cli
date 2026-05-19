@@ -65,6 +65,29 @@ def test_init_single_product_non_interactive_writes_config(tmp_path: Path) -> No
     assert bitbucket.token == "secret"
 
 
+def test_init_single_product_env_template_writes_placeholders(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "jira",
+            "--config-file",
+            str(config_file),
+            "--env-template",
+        ],
+    )
+
+    assert result.exit_code == 0
+    text = config_file.read_text()
+    assert 'deployment = "${ATLASSIAN_JIRA_DEPLOYMENT}"' in text
+    assert 'url = "${ATLASSIAN_JIRA_URL}"' in text
+    assert 'auth = "${ATLASSIAN_JIRA_AUTH}"' in text
+    assert 'username = "${ATLASSIAN_JIRA_USERNAME}"' in text
+    assert 'token = "${ATLASSIAN_JIRA_TOKEN}"' in text
+
+
 def test_init_non_interactive_missing_required_values_fails_without_writing(
     tmp_path: Path,
 ) -> None:
@@ -246,6 +269,28 @@ def test_init_without_product_prompts_for_products_in_order(tmp_path: Path) -> N
     assert config.product_config(Product.BITBUCKET) is not None
 
 
+def test_init_env_template_without_product_prompts_for_products_in_order(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+
+    result = runner.invoke(
+        app,
+        ["init", "--config-file", str(config_file), "--env-template"],
+        input="y\nn\ny\n",
+    )
+
+    assert result.exit_code == 0
+    assert result.stdout.index("Configure jira?") < result.stdout.index("Configure confluence?")
+    assert result.stdout.index("Configure confluence?") < result.stdout.index(
+        "Configure bitbucket?"
+    )
+    text = config_file.read_text()
+    assert 'url = "${ATLASSIAN_JIRA_URL}"' in text
+    assert "[confluence]" not in text
+    assert 'url = "${ATLASSIAN_BITBUCKET_URL}"' in text
+
+
 def test_init_interactive_existing_product_decline_skips_without_writing(
     tmp_path: Path,
 ) -> None:
@@ -268,6 +313,28 @@ def test_init_interactive_existing_product_decline_skips_without_writing(
 
     assert result.exit_code == 0
     assert "Skipped [jira]." in result.stdout
+    assert config_file.read_text() == original
+
+
+def test_init_env_template_preserves_overwrite_protection(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+    original = """
+    [jira]
+    deployment = "server"
+    url = "https://jira.example.com"
+    auth = "basic"
+    username = "example-user"
+    token = "secret"
+    """.strip()
+    config_file.write_text(original)
+
+    result = runner.invoke(
+        app,
+        ["init", "jira", "--config-file", str(config_file), "--env-template"],
+    )
+
+    assert result.exit_code != 0
+    assert "[jira] already exists" in strip_ansi(result.output)
     assert config_file.read_text() == original
 
 

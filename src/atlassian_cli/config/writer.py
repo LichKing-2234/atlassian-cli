@@ -38,9 +38,33 @@ def write_product_config(
     write_product_configs(path, {product: product_config}, force_products=force_products)
 
 
+def write_product_table(
+    path: Path,
+    product: Product,
+    product_data: dict[str, Any],
+    *,
+    force: bool = False,
+) -> None:
+    force_products = {product} if force else set()
+    write_product_tables(path, {product: product_data}, force_products=force_products)
+
+
 def write_product_configs(
     path: Path,
     updates: dict[Product, ProductConfig],
+    *,
+    force_products: set[Product] | None = None,
+) -> None:
+    table_updates = {
+        product: _product_config_to_data(product_config)
+        for product, product_config in updates.items()
+    }
+    write_product_tables(path, table_updates, force_products=force_products)
+
+
+def write_product_tables(
+    path: Path,
+    updates: dict[Product, dict[str, Any]],
     *,
     force_products: set[Product] | None = None,
 ) -> None:
@@ -52,12 +76,12 @@ def write_product_configs(
                 f"[{product.value}] already exists. Use --force to overwrite it."
             )
 
-    _atomic_write(path, _render_config_data(_merge_product_updates(data, updates)))
+    _atomic_write(path, _render_config_data(_merge_product_tables(data, updates)))
 
 
-def _merge_product_updates(
+def _merge_product_tables(
     data: dict[str, Any],
-    updates: dict[Product, ProductConfig],
+    updates: dict[Product, dict[str, Any]],
 ) -> dict[str, Any]:
     merged = dict(data)
     if not isinstance(merged.get("headers"), dict):
@@ -65,7 +89,7 @@ def _merge_product_updates(
 
     for product in Product:
         if product in updates:
-            merged[product.value] = _product_config_to_data(updates[product])
+            merged[product.value] = dict(updates[product])
         elif not _product_configured(data, product):
             merged.pop(product.value, None)
     return merged
