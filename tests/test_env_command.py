@@ -43,7 +43,9 @@ def test_env_command_exports_all_configured_product_values_and_headers(tmp_path:
     assert result.exit_code == 0
     assert "export ATLASSIAN_JIRA_DEPLOYMENT='server'" in result.stdout
     assert "export ATLASSIAN_JIRA_URL='https://jira.example.com'" in result.stdout
+    assert "export ATLASSIAN_JIRA_AUTH='basic'" in result.stdout
     assert "export ATLASSIAN_JIRA_USERNAME='example-user'" in result.stdout
+    assert "export ATLASSIAN_JIRA_TOKEN='secret'" in result.stdout
     assert "export ATLASSIAN_HEADER_X_REQUEST_SOURCE='env-source'" in result.stdout
     assert "export ATLASSIAN_JIRA_HEADER_AUTHORIZATION='Bearer bearer-token'" in result.stdout
 
@@ -90,3 +92,24 @@ def test_env_command_fails_without_partial_stdout(tmp_path: Path) -> None:
     plain_output = " ".join(result.output.split())
     assert "Missing environment variable ATLASSIAN_JIRA_URL" in plain_output
     assert "[jira].url" in plain_output
+
+
+def test_env_command_converts_config_load_errors_to_bad_parameter(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [profiles.prod_jira]
+        product = "jira"
+        deployment = "server"
+        url = "https://jira.example.com"
+        auth = "basic"
+        """.strip()
+    )
+
+    result = runner.invoke(app, ["--config-file", str(config_file), "env"])
+
+    assert result.exit_code != 0
+    assert result.stdout == ""
+    plain_output = " ".join(result.output.split())
+    assert "Profile-based config" in plain_output
+    assert "[profiles.*]" in plain_output

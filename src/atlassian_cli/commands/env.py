@@ -50,10 +50,10 @@ def _export_line(name: str, value: Any) -> str:
 def env_command(ctx: typer.Context) -> None:
     config_file = Path(ctx.find_root().params["config_file"])
     env = dict(os.environ)
-    raw_config = load_raw_config_data(config_file) if config_file.exists() else {}
     lines: list[str] = []
 
     try:
+        raw_config = load_raw_config_data(config_file) if config_file.exists() else {}
         for header_name, header_value in resolve_header_map(
             resolve_default_headers(raw_config, env=env),
             source="[headers]",
