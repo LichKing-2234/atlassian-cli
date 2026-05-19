@@ -1,6 +1,9 @@
 import pytest
 
-from atlassian_cli.config.env_interpolation import resolve_active_product_input
+from atlassian_cli.config.env_interpolation import (
+    interpolate_env_value,
+    resolve_active_product_input,
+)
 from atlassian_cli.config.models import Product
 from atlassian_cli.core.errors import ConfigError
 
@@ -12,18 +15,21 @@ def test_resolve_active_product_input_interpolates_product_fields_and_headers() 
                 "X-Request-Source": "${ATLASSIAN_SOURCE}",
             },
             "jira": {
-                "deployment": "server",
+                "deployment": "${ATLASSIAN_DEPLOYMENT}",
                 "url": "https://${ATLASSIAN_HOST}",
-                "auth": "basic",
+                "auth": "${ATLASSIAN_AUTH}",
                 "username": "${ATLASSIAN_USER}",
                 "password": "${ATLASSIAN_PASSWORD}",
                 "headers": {
                     "Authorization": "Bearer ${ATLASSIAN_TOKEN}",
+                    "accessToken": "$(example-oauth token --host ${ATLASSIAN_HOST})",
                 },
             },
         },
         product=Product.JIRA,
         env={
+            "ATLASSIAN_DEPLOYMENT": "server",
+            "ATLASSIAN_AUTH": "basic",
             "ATLASSIAN_SOURCE": "config-default",
             "ATLASSIAN_HOST": "jira.example.com",
             "ATLASSIAN_USER": "example-user",
@@ -44,6 +50,7 @@ def test_resolve_active_product_input_interpolates_product_fields_and_headers() 
     }
     assert resolved.product_headers == {
         "Authorization": "Bearer example-token",
+        "accessToken": "$(example-oauth token --host jira.example.com)",
     }
 
 
@@ -102,6 +109,17 @@ def test_resolve_active_product_input_reports_missing_variable_for_product_heade
         )
 
 
+def test_interpolate_env_value_keeps_surrounding_text_intact() -> None:
+    assert (
+        interpolate_env_value(
+            "$(example-oauth token --host ${ATLASSIAN_HOST})",
+            source="[headers].accessToken",
+            env={"ATLASSIAN_HOST": "jira.example.com"},
+        )
+        == "$(example-oauth token --host jira.example.com)"
+    )
+
+
 @pytest.mark.parametrize(
     ("value", "source"),
     [
@@ -124,6 +142,29 @@ def test_resolve_active_product_input_rejects_malformed_interpolation(
                     "Authorization": value,
                 },
             },
+            product=Product.JIRA,
+            env={},
+        )
+
+
+@pytest.mark.parametrize(
+    ("raw_config", "source"),
+    [
+        ({"headers": "not-a-table"}, r"\[headers\]"),
+        ({"jira": "not-a-table"}, r"\[jira\]"),
+        ({"jira": {"headers": "not-a-table"}}, r"\[jira\.headers\]"),
+    ],
+)
+def test_resolve_active_product_input_reports_bad_table_shape_with_source(
+    raw_config: dict[str, object],
+    source: str,
+) -> None:
+    with pytest.raises(
+        ConfigError,
+        match=rf"Invalid config\.toml configuration: {source} must be a TOML table",
+    ):
+        resolve_active_product_input(
+            raw_config,
             product=Product.JIRA,
             env={},
         )

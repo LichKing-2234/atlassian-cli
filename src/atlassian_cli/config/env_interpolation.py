@@ -61,17 +61,17 @@ def _resolve_string_map(
     return resolved
 
 
-def _as_table(value: Any) -> dict[str, Any]:
+def _as_table(value: Any, *, source: str) -> dict[str, Any]:
     if value is None:
         return {}
     if not isinstance(value, dict):
-        raise ConfigError("Invalid config.toml configuration: expected TOML table")
+        raise ConfigError(f"Invalid config.toml configuration: {source} must be a TOML table")
     return value
 
 
 def resolve_default_headers(raw_config: dict[str, Any], *, env: dict[str, str]) -> dict[str, str]:
     return _resolve_string_map(
-        _as_table(raw_config.get("headers")),
+        _as_table(raw_config.get("headers"), source="[headers]"),
         source="[headers]",
         env=env,
     )
@@ -84,9 +84,9 @@ def resolve_active_product_input(
     env: dict[str, str],
 ) -> ResolvedProductInput:
     default_headers = resolve_default_headers(raw_config, env=env)
-    product_table = _as_table(raw_config.get(product.value))
+    product_table = _as_table(raw_config.get(product.value), source=f"[{product.value}]")
     product_headers = _resolve_string_map(
-        _as_table(product_table.get("headers")),
+        _as_table(product_table.get("headers"), source=f"[{product.value}.headers]"),
         source=f"[{product.value}.headers]",
         env=env,
     )
