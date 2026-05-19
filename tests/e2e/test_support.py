@@ -211,6 +211,52 @@ def test_build_live_context_reads_env_backed_product_config(tmp_path, monkeypatc
     assert context.auth.token == "example-token"
 
 
+def test_build_live_context_reads_env_backed_product_config_from_repo_dotenv(
+    tmp_path, monkeypatch
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [jira]
+        deployment = "${ATLASSIAN_DEPLOYMENT}"
+        url = "https://${ATLASSIAN_HOST}"
+        auth = "${ATLASSIAN_AUTH}"
+        username = "${ATLASSIAN_USERNAME}"
+        token = "${ATLASSIAN_TOKEN}"
+        """.strip()
+    )
+    repo_dotenv = tmp_path / ".env"
+    repo_dotenv.write_text(
+        "\n".join(
+            [
+                "ATLASSIAN_E2E=1",
+                f"ATLASSIAN_CONFIG_FILE={config_file}",
+                "ATLASSIAN_DEPLOYMENT=server",
+                "ATLASSIAN_HOST=jira.example.com",
+                "ATLASSIAN_AUTH=basic",
+                "ATLASSIAN_USERNAME=example-user",
+                "ATLASSIAN_TOKEN=example-token",
+            ]
+        )
+    )
+    monkeypatch.setattr("tests.e2e.support.env.DOTENV_FILE", repo_dotenv)
+    monkeypatch.delenv("ATLASSIAN_E2E", raising=False)
+    monkeypatch.delenv("ATLASSIAN_CONFIG_FILE", raising=False)
+    monkeypatch.delenv("ATLASSIAN_DEPLOYMENT", raising=False)
+    monkeypatch.delenv("ATLASSIAN_HOST", raising=False)
+    monkeypatch.delenv("ATLASSIAN_AUTH", raising=False)
+    monkeypatch.delenv("ATLASSIAN_USERNAME", raising=False)
+    monkeypatch.delenv("ATLASSIAN_TOKEN", raising=False)
+
+    env = load_live_env()
+    context = build_live_context(Product.JIRA, env)
+
+    assert context.product is Product.JIRA
+    assert context.url == "https://jira.example.com"
+    assert context.auth.username == "example-user"
+    assert context.auth.token == "example-token"
+
+
 class FakeJiraProvider:
     class Client:
         def issue_createmeta(self, project_key, expand):

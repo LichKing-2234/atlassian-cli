@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 import atlassian_cli.cli as cli_module
 import atlassian_cli.config.header_substitution as header_substitution
 from atlassian_cli.cli import app
+from atlassian_cli.core.errors import ConfigError
 
 runner = CliRunner()
 ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
@@ -675,3 +676,44 @@ def test_root_callback_reports_config_runtime_auth_failure_as_usage_error(
     assert result.exit_code == 2
     assert "Invalid value for --config-file" in plain_output
     assert "pat authentication requires a token" in plain_output.lower()
+
+
+def test_root_callback_reports_explicit_url_header_failure_as_config_file_error(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [headers]
+        Authorization = "$(example-oauth token)"
+        """.strip()
+    )
+
+    monkeypatch.setattr(
+        header_substitution,
+        "run_header_command",
+        lambda command: (_ for _ in ()).throw(
+            ConfigError("Header command failed with exit code 1: example-oauth token")
+        ),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "--url",
+            "https://jira.flag.local",
+            "jira",
+            "issue",
+            "get",
+            "DEMO-1",
+        ],
+        env=ci_output_env(),
+    )
+    plain_output = strip_ansi(result.output)
+
+    assert result.exit_code == 2
+    assert "Invalid value for --config-file" in plain_output
+    assert "Header command failed with exit code 1" in plain_output
