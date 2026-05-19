@@ -20,21 +20,19 @@ PRODUCT_FIELDS = ("deployment", "url", "auth", "username", "password", "token")
 def _normalize_header_name(name: str) -> str:
     normalized: list[str] = []
     previous_was_underscore = False
-    for index, char in enumerate(name):
-        if char.isalnum():
-            if (
-                char.isupper()
-                and index
-                and name[index - 1].islower()
-                and not previous_was_underscore
-            ):
+    previous_was_lowercase = False
+    for char in name:
+        if char.isascii() and char.isalnum():
+            if char.isupper() and previous_was_lowercase and not previous_was_underscore:
                 normalized.append("_")
             normalized.append(char.upper())
             previous_was_underscore = False
+            previous_was_lowercase = char.islower()
         else:
-            if not previous_was_underscore:
+            if normalized and not previous_was_underscore:
                 normalized.append("_")
             previous_was_underscore = True
+            previous_was_lowercase = False
     return "".join(normalized).strip("_")
 
 
@@ -47,10 +45,18 @@ def _export_line(name: str, value: Any) -> str:
     return f"export {name}={_shell_quote('' if rendered is None else str(rendered))}"
 
 
+def _append_export_line(lines: list[str], seen_names: set[str], name: str, value: Any) -> None:
+    if name in seen_names:
+        raise ConfigError(f"Duplicate export name: {name}")
+    seen_names.add(name)
+    lines.append(_export_line(name, value))
+
+
 def env_command(ctx: typer.Context) -> None:
     config_file = Path(ctx.find_root().params["config_file"])
     env = dict(os.environ)
     lines: list[str] = []
+    seen_names: set[str] = set()
 
     try:
         raw_config = load_raw_config_data(config_file) if config_file.exists() else {}
@@ -58,11 +64,11 @@ def env_command(ctx: typer.Context) -> None:
             resolve_default_headers(raw_config, env=env),
             source="[headers]",
         ).items():
-            lines.append(
-                _export_line(
-                    f"ATLASSIAN_HEADER_{_normalize_header_name(header_name)}",
-                    header_value,
-                )
+            _append_export_line(
+                lines,
+                seen_names,
+                f"ATLASSIAN_HEADER_{_normalize_header_name(header_name)}",
+                header_value,
             )
 
         for product in Product:
@@ -76,16 +82,21 @@ def env_command(ctx: typer.Context) -> None:
             for field in PRODUCT_FIELDS:
                 value = getattr(product_config, field)
                 if value is not None:
-                    lines.append(_export_line(f"{prefix}_{field.upper()}", value))
+                    _append_export_line(
+                        lines,
+                        seen_names,
+                        f"{prefix}_{field.upper()}",
+                        value,
+                    )
             for header_name, header_value in resolve_header_map(
                 resolved.product_headers,
                 source=f"[{product.value}.headers]",
             ).items():
-                lines.append(
-                    _export_line(
-                        f"{prefix}_HEADER_{_normalize_header_name(header_name)}",
-                        header_value,
-                    )
+                _append_export_line(
+                    lines,
+                    seen_names,
+                    f"{prefix}_HEADER_{_normalize_header_name(header_name)}",
+                    header_value,
                 )
     except ConfigError as exc:
         raise typer.BadParameter(str(exc)) from exc

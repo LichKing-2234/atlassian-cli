@@ -113,3 +113,42 @@ def test_env_command_converts_config_load_errors_to_bad_parameter(tmp_path: Path
     plain_output = " ".join(result.output.split())
     assert "Profile-based config" in plain_output
     assert "[profiles.*]" in plain_output
+
+
+def test_env_command_normalizes_non_ascii_header_names_to_ascii_safe_exports(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [headers]
+        "X-Äuth-Token" = "secret"
+        """.strip()
+    )
+
+    result = runner.invoke(app, ["--config-file", str(config_file), "env"])
+
+    assert result.exit_code == 0
+    assert "export ATLASSIAN_HEADER_X_UTH_TOKEN='secret'" in result.stdout
+    assert "ATLASSIAN_HEADER_X_ÄUTH_TOKEN" not in result.stdout
+
+
+def test_env_command_fails_on_normalized_header_name_collision_without_partial_stdout(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [headers]
+        X-Foo-Bar = "one"
+        X_Foo_Bar = "two"
+        """.strip()
+    )
+
+    result = runner.invoke(app, ["--config-file", str(config_file), "env"])
+
+    assert result.exit_code != 0
+    assert result.stdout == ""
+    plain_output = " ".join(result.output.split())
+    assert "Duplicate export name" in plain_output
+    assert "ATLASSIAN_HEADER_X_FOO_BAR" in plain_output
