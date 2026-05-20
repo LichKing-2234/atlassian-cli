@@ -111,6 +111,18 @@ def test_readme_scopes_update_install_to_binary_installs() -> None:
     assert "package-managed installs" in readme
 
 
+def test_readme_mentions_pyoxidizer_backed_binary_release_path() -> None:
+    readme = Path("README.md").read_text().lower()
+
+    assert "pyoxidizer" in readme
+
+
+def test_readme_mentions_package_managers_should_upgrade_package_installs() -> None:
+    readme = Path("README.md").read_text().lower()
+
+    assert "uv tool upgrade" in readme
+
+
 def test_contributing_mentions_new_live_e2e_env_overrides() -> None:
     contributing = Path("CONTRIBUTING.md").read_text()
 

@@ -1,8 +1,9 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from pydantic import Field
 
+from atlassian_cli.compat import UTC
 from atlassian_cli.models.base import ApiModel
 from atlassian_cli.models.common import coerce_str, first_present, nested_get
 

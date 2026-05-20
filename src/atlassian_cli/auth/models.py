@@ -1,6 +1,6 @@
-from enum import StrEnum
-
 from pydantic import BaseModel, Field
+
+from atlassian_cli.compat import StrEnum
 
 
 class AuthMode(StrEnum):

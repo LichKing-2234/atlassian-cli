@@ -1,9 +1,9 @@
-import tomllib
 from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
 
+from atlassian_cli.compat import tomllib
 from atlassian_cli.config.models import LoadedConfig
 from atlassian_cli.core.errors import ConfigError
 

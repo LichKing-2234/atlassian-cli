@@ -8,7 +8,7 @@ CLI for Atlassian Server and Data Center products.
 
 ## Binary Install From GitHub Release
 
-Tagged releases publish standalone bundles for `linux/amd64`, `darwin/arm64`, `darwin/amd64`, and `windows/amd64`, plus `checksums.txt`.
+Tagged releases publish PyOxidizer-based standalone bundles for `linux/amd64`, `darwin/arm64`, `darwin/amd64`, and `windows/amd64`, plus `checksums.txt`.
 
 Install the latest Linux or macOS binary release:
 
@@ -63,7 +63,7 @@ uv tool install \
   https://github.com/LichKing-2234/atlassian-cli/releases/download/v0.1.12/atlassian_cli-0.1.12-py3-none-any.whl
 ```
 
-This package-managed path is separate from the standalone binary install path above.
+This package-managed path is separate from the standalone PyOxidizer binary install path above.
 
 ## Update
 
@@ -90,7 +90,11 @@ atlassian update install --version v0.1.0
 atlassian update install --install-dir ~/.local/bin
 ```
 
-`atlassian update install` uses the same installer and checksum verification as the binary install command. Package-managed installs such as `uv tool install` should be upgraded through the package manager instead of `atlassian update install`.
+`atlassian update install` uses the same installer and checksum verification as the binary install command. Package-managed installs such as `uv tool install` should be upgraded through the package manager instead of `atlassian update install`, for example:
+
+```bash
+uv tool upgrade atlassian-cli
+```
 
 ## Configure
 
