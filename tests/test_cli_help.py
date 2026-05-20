@@ -24,16 +24,17 @@ def strip_ansi(text: str) -> str:
 
 def test_root_help_displays_products_and_local_config_commands() -> None:
     result = runner.invoke(app, ["--help"])
+    plain_output = strip_ansi(result.output)
 
     assert result.exit_code == 0
-    assert "jira" in result.stdout
-    assert "confluence" in result.stdout
-    assert "bitbucket" in result.stdout
-    assert "init" in result.stdout
-    assert "env" in result.stdout
-    assert "update" in result.stdout
-    assert "--version" in result.stdout
-    assert "--profile" not in result.stdout
+    assert "jira" in plain_output
+    assert "confluence" in plain_output
+    assert "bitbucket" in plain_output
+    assert "init" in plain_output
+    assert "env" in plain_output
+    assert "update" in plain_output
+    assert "show version and exit" in plain_output.lower()
+    assert "--profile" not in plain_output
 
 
 def test_root_version_outputs_package_version() -> None:
