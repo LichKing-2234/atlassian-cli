@@ -3,10 +3,10 @@ import json
 import os
 import re
 import tempfile
-import tomllib
 from pathlib import Path
 from typing import Any
 
+from atlassian_cli.compat import tomllib
 from atlassian_cli.config.models import Product, ProductConfig
 from atlassian_cli.config.template import DEFAULT_CONFIG_TEMPLATE
 from atlassian_cli.core.errors import ConfigError

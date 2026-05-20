@@ -1,8 +1,7 @@
-from enum import StrEnum
-
 from pydantic import BaseModel, Field, StrictStr
 
 from atlassian_cli.auth.models import AuthMode
+from atlassian_cli.compat import StrEnum
 from atlassian_cli.core.errors import ConfigError
 from atlassian_cli.output.modes import OutputMode
 

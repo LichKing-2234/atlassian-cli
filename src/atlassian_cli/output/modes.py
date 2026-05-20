@@ -1,4 +1,4 @@
-from enum import StrEnum
+from atlassian_cli.compat import StrEnum
 
 
 class OutputMode(StrEnum):
