@@ -95,6 +95,53 @@ atlassian init confluence --force --deployment server --url https://confluence.e
 
 The default `~/.config/atlassian-cli/config.toml` file is still auto-created as a template on first product command when it does not already exist.
 
+## Environment-Backed Config
+
+For shared or automation-friendly setups, generate an environment-backed config template:
+
+```bash
+atlassian init jira --env-template
+```
+
+That writes commented placeholders you can keep in `config.toml` and fill through environment variables:
+
+```toml
+[jira]
+deployment = "${ATLASSIAN_JIRA_DEPLOYMENT}"
+url = "${ATLASSIAN_JIRA_URL}"
+auth = "${ATLASSIAN_JIRA_AUTH}"
+username = "${ATLASSIAN_JIRA_USERNAME}"
+token = "${ATLASSIAN_JIRA_TOKEN}"
+
+[jira.headers]
+accessToken = "$(example-oauth token --host ${ATLASSIAN_JIRA_URL})"
+
+[bitbucket]
+deployment = "${ATLASSIAN_BITBUCKET_DEPLOYMENT}"
+url = "${ATLASSIAN_BITBUCKET_URL}"
+auth = "${ATLASSIAN_BITBUCKET_AUTH}"
+token = "${ATLASSIAN_BITBUCKET_TOKEN}"
+
+[bitbucket.headers]
+accessToken = "$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})"
+```
+
+Use `${...}` for environment-variable interpolation and `$(...)` for trusted local command substitution. In the example above, `${ATLASSIAN_JIRA_URL}` comes from your shell environment, while `$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})` runs a local command after interpolation.
+
+To inspect the resolved values that the CLI will use, run:
+
+```bash
+atlassian env
+```
+
+To load those exports into your current shell session:
+
+```bash
+eval "$(atlassian env)"
+```
+
+`atlassian env` prints shell-safe `export` lines for configured products and headers. This makes it easier to audit an environment-backed config before running product commands.
+
 ## Examples
 
 - `atlassian jira issue get DEMO-1`
