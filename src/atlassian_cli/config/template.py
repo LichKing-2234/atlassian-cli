@@ -1,7 +1,7 @@
 from pathlib import Path
 
 DEFAULT_CONFIG_TEMPLATE = """[headers]
-# accessToken = "${ATLASSIAN_GLOBAL_ACCESS_TOKEN}"
+# X-Request-Source = "${ATLASSIAN_HEADER_X_REQUEST_SOURCE}"
 
 [jira]
 # deployment = "${ATLASSIAN_JIRA_DEPLOYMENT}"
@@ -13,7 +13,7 @@ DEFAULT_CONFIG_TEMPLATE = """[headers]
 
 [jira.headers]
 # Authorization = "${ATLASSIAN_JIRA_HEADER_AUTHORIZATION}"
-# accessToken = "$(example-oauth token --host ${ATLASSIAN_JIRA_URL})"
+# X-Request-Source = "example-cli"
 
 [confluence]
 # deployment = "${ATLASSIAN_CONFLUENCE_DEPLOYMENT}"
@@ -25,7 +25,7 @@ DEFAULT_CONFIG_TEMPLATE = """[headers]
 
 [confluence.headers]
 # Authorization = "${ATLASSIAN_CONFLUENCE_HEADER_AUTHORIZATION}"
-# accessToken = "$(example-oauth token --host ${ATLASSIAN_CONFLUENCE_URL})"
+# X-Request-Source = "example-cli"
 
 [bitbucket]
 # deployment = "${ATLASSIAN_BITBUCKET_DEPLOYMENT}"
@@ -37,7 +37,7 @@ DEFAULT_CONFIG_TEMPLATE = """[headers]
 
 [bitbucket.headers]
 # Authorization = "${ATLASSIAN_BITBUCKET_HEADER_AUTHORIZATION}"
-# accessToken = "$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})"
+# X-Request-Source = "example-cli"
 """
 
 

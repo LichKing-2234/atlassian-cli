@@ -120,7 +120,7 @@ username = "${ATLASSIAN_JIRA_USERNAME}"
 token = "${ATLASSIAN_JIRA_TOKEN}"
 
 [jira.headers]
-accessToken = "$(example-oauth token --host ${ATLASSIAN_JIRA_URL})"
+Authorization = "Bearer $(example-oauth token --host ${ATLASSIAN_JIRA_URL})"
 
 [bitbucket]
 deployment = "${ATLASSIAN_BITBUCKET_DEPLOYMENT}"
@@ -129,7 +129,7 @@ auth = "${ATLASSIAN_BITBUCKET_AUTH}"
 token = "${ATLASSIAN_BITBUCKET_TOKEN}"
 
 [bitbucket.headers]
-accessToken = "$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})"
+Authorization = "Bearer $(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})"
 ```
 
 Use `${...}` for environment-variable interpolation and `$(...)` for trusted local command substitution. In the example above, `${ATLASSIAN_JIRA_URL}` comes from your shell environment, while `$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})` runs a local command after interpolation.
@@ -146,7 +146,7 @@ To load those exports into your current shell session:
 eval "$(atlassian env)"
 ```
 
-`atlassian env` prints shell-safe `export` lines for configured products and headers. This makes it easier to audit an environment-backed config before running product commands, and the CLI can consume exported header variables such as `ATLASSIAN_HEADER_ACCESS_TOKEN` or `ATLASSIAN_BITBUCKET_HEADER_ACCESS_TOKEN` directly on another machine without editing `config.toml`.
+`atlassian env` prints shell-safe `export` lines for configured products and headers. This makes it easier to audit an environment-backed config before running product commands, and the CLI can consume exported header variables such as `ATLASSIAN_HEADER_X_REQUEST_SOURCE` or `ATLASSIAN_BITBUCKET_HEADER_AUTHORIZATION` directly on another machine without editing `config.toml`.
 
 When `atlassian init --env-template` runs on a machine with a local `sshd` config, it also tries to add `AcceptEnv ATLASSIAN_*` so future SSH sessions can receive exported Atlassian variables. If the file cannot be updated directly, the command prints the manual `AcceptEnv` step and reload command instead.
 
@@ -184,7 +184,7 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.example.com --header 'accessToken: ...' bitbucket pr list DEMO example-repo`
+- `atlassian --url https://bitbucket.example.com --header 'Authorization: Bearer ...' bitbucket pr list DEMO example-repo`
 
 Config file example:
 
@@ -198,7 +198,7 @@ url = "https://bitbucket.example.com"
 auth = "pat"
 
 [bitbucket.headers]
-accessToken = "$(example-oauth token)"
+Authorization = "Bearer $(example-oauth token)"
 ```
 
 - `atlassian bitbucket pr list DEMO example-repo`

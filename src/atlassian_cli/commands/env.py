@@ -80,12 +80,12 @@ def env_command(ctx: typer.Context) -> None:
 
         for product in Product:
             resolved = resolve_active_product_input(raw_config, product=product, env=env)
+            prefix = f"ATLASSIAN_{product.value.upper()}"
             if not resolved.product_data:
                 continue
             product_config = ProductConfig(
                 **resolved.product_data, headers=resolved.product_headers
             )
-            prefix = f"ATLASSIAN_{product.value.upper()}"
             for field in PRODUCT_FIELDS:
                 value = getattr(product_config, field)
                 if value is not None:

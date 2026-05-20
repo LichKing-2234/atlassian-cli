@@ -79,7 +79,7 @@ def test_env_command_fails_without_partial_stdout(tmp_path: Path) -> None:
         """
         [jira]
         deployment = "server"
-        url = "${ATLASSIAN_JIRA_URL}"
+        url = "${MISSING_TEST_JIRA_URL}"
         auth = "basic"
         token = "secret"
         """.strip()
@@ -90,7 +90,7 @@ def test_env_command_fails_without_partial_stdout(tmp_path: Path) -> None:
     assert result.exit_code != 0
     assert result.stdout == ""
     plain_output = " ".join(result.output.split())
-    assert "Missing environment variable ATLASSIAN_JIRA_URL" in plain_output
+    assert "Missing environment variable MISSING_TEST_JIRA_URL" in plain_output
     assert "[jira].url" in plain_output
 
 
