@@ -6,7 +6,7 @@ CLI for Atlassian Server and Data Center products.
 
 `python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'`
 
-## Install From GitHub Release
+## Binary Install From GitHub Release
 
 Tagged releases publish standalone bundles for `linux/amd64`, `darwin/arm64`, `darwin/amd64`, and `windows/amd64`, plus `checksums.txt`.
 
@@ -46,6 +46,25 @@ Verify the installed version:
 atlassian --version
 ```
 
+## Python Package Install From GitHub Release
+
+GitHub Release assets also include a wheel and sdist for Python-managed installs.
+
+Install from a downloaded wheel:
+
+```bash
+uv tool install ./atlassian_cli-0.1.12-py3-none-any.whl
+```
+
+Install directly from a versioned GitHub Release wheel URL:
+
+```bash
+uv tool install \
+  https://github.com/LichKing-2234/atlassian-cli/releases/download/v0.1.12/atlassian_cli-0.1.12-py3-none-any.whl
+```
+
+This package-managed path is separate from the standalone binary install path above.
+
 ## Update
 
 On interactive commands, the CLI checks for a newer GitHub Release at most once every 24 hours and prints an update notice to stderr when a newer release exists. It never installs updates automatically, and JSON/YAML command output is not modified.
@@ -58,20 +77,20 @@ Check for a newer GitHub Release:
 atlassian update check
 ```
 
-Install the latest release:
+For binary installs, install the latest release:
 
 ```bash
 atlassian update install
 ```
 
-Install a specific release, or choose a non-default install directory:
+For binary installs, install a specific release, or choose a non-default install directory:
 
 ```bash
 atlassian update install --version v0.1.0
 atlassian update install --install-dir ~/.local/bin
 ```
 
-`atlassian update install` uses the same installer and checksum verification as the GitHub Release install command.
+`atlassian update install` uses the same installer and checksum verification as the binary install command. Package-managed installs such as `uv tool install` should be upgraded through the package manager instead of `atlassian update install`.
 
 ## Configure
 
