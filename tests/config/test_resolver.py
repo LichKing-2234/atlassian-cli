@@ -31,6 +31,26 @@ def test_flag_values_override_env_and_profile() -> None:
     assert context.product is Product.JIRA
 
 
+def test_product_specific_username_env_fills_missing_profile_username() -> None:
+    profile = ProfileConfig(
+        name="prod-confluence",
+        product=Product.CONFLUENCE,
+        deployment=Deployment.SERVER,
+        url="https://confluence.example.com",
+        auth=AuthMode.BASIC,
+        username=None,
+        token="secret",
+    )
+
+    context = resolve_runtime_context(
+        profile=profile,
+        env={"ATLASSIAN_CONFLUENCE_USERNAME": "env-user"},
+        overrides=RuntimeOverrides(url="https://confluence.example.com"),
+    )
+
+    assert context.auth.username == "env-user"
+
+
 def test_profile_headers_override_top_level_headers() -> None:
     profile = ProfileConfig(
         name="prod-bitbucket",

@@ -1,5 +1,6 @@
 from atlassian_cli.auth.resolver import resolve_auth
 from atlassian_cli.config.header_substitution import resolve_header_map
+from atlassian_cli.config.models import Product
 from atlassian_cli.core.context import ExecutionContext
 from atlassian_cli.core.errors import ConfigError
 
@@ -30,6 +31,10 @@ def _headers_from_env(env: dict[str, str], *, prefix: str) -> dict[str, str]:
     return headers
 
 
+def _product_env_value(env: dict[str, str], product: Product, suffix: str) -> str | None:
+    return env.get(f"ATLASSIAN_{product.value.upper()}_{suffix}")
+
+
 def resolve_runtime_context(
     *,
     profile,
@@ -41,9 +46,24 @@ def resolve_runtime_context(
     product = overrides.product or profile.product
     deployment = overrides.deployment or profile.deployment
     url = overrides.url or env.get("ATLASSIAN_URL") or profile.url
-    username = overrides.username or env.get("ATLASSIAN_USERNAME") or profile.username
-    password = overrides.password or env.get("ATLASSIAN_PASSWORD") or profile.password
-    token = overrides.token or env.get("ATLASSIAN_TOKEN") or profile.token
+    username = (
+        overrides.username
+        or _product_env_value(env, product, "USERNAME")
+        or env.get("ATLASSIAN_USERNAME")
+        or profile.username
+    )
+    password = (
+        overrides.password
+        or _product_env_value(env, product, "PASSWORD")
+        or env.get("ATLASSIAN_PASSWORD")
+        or profile.password
+    )
+    token = (
+        overrides.token
+        or _product_env_value(env, product, "TOKEN")
+        or env.get("ATLASSIAN_TOKEN")
+        or profile.token
+    )
     auth = overrides.auth or profile.auth
     try:
         config_headers = resolve_header_map(

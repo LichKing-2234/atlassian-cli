@@ -148,6 +148,22 @@ eval "$(atlassian env)"
 
 `atlassian env` prints shell-safe `export` lines for configured products and headers. This makes it easier to audit an environment-backed config before running product commands, and the CLI can consume exported header variables such as `ATLASSIAN_HEADER_ACCESS_TOKEN` or `ATLASSIAN_BITBUCKET_HEADER_ACCESS_TOKEN` directly on another machine without editing `config.toml`.
 
+When `atlassian init --env-template` runs on a machine with a local `sshd` config, it also tries to add `AcceptEnv ATLASSIAN_*` so future SSH sessions can receive exported Atlassian variables. If the file cannot be updated directly, the command prints the manual `AcceptEnv` step and reload command instead.
+
+On the SSH client side, add a matching `SendEnv` rule for any host that should receive those variables:
+
+```sshconfig
+Host example-host
+  SendEnv ATLASSIAN_*
+```
+
+With both sides configured, you can export locally and connect with the same environment on the remote machine:
+
+```bash
+eval "$(atlassian env)"
+ssh example-user@example-host
+```
+
 ## Examples
 
 - `atlassian jira issue get DEMO-1`

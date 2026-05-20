@@ -6,6 +6,11 @@ import typer
 
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.config.models import Deployment, Product, ProductConfig
+from atlassian_cli.config.ssh_accept_env import (
+    ATLASSIAN_ACCEPT_ENV_PATTERN,
+    SshAcceptEnvSetupResult,
+    ensure_local_ssh_accept_env,
+)
 from atlassian_cli.config.writer import (
     ConfigWriteError,
     product_config_exists,
@@ -83,6 +88,8 @@ def init_command(
 
     for selected_product in template_updates or updates:
         typer.echo(f"Wrote [{selected_product.value}] to {config_file}")
+    if env_template:
+        _emit_ssh_accept_env_setup_message(ensure_local_ssh_accept_env())
 
 
 def _confirm_overwrite(product: Product) -> bool:
@@ -137,8 +144,40 @@ def _build_env_template_table(product: Product) -> dict[str, Any]:
         "deployment": f"${{{prefix}_DEPLOYMENT}}",
         "url": f"${{{prefix}_URL}}",
         "auth": f"${{{prefix}_AUTH}}",
+        "username": f"${{{prefix}_USERNAME}}",
         "token": f"${{{prefix}_TOKEN}}",
     }
+
+
+def _emit_ssh_accept_env_setup_message(result: SshAcceptEnvSetupResult) -> None:
+    if result.status == "updated":
+        typer.echo(
+            f"Configured local sshd AcceptEnv {ATLASSIAN_ACCEPT_ENV_PATTERN} in {result.path}"
+        )
+        if result.reloaded:
+            typer.echo("Reloaded sshd to apply it.")
+        elif result.reload_command:
+            typer.echo(f"Reload sshd to apply it: {result.reload_command}")
+        return
+
+    if result.status == "permission_denied":
+        typer.echo(
+            "Could not update local sshd AcceptEnv automatically. "
+            f"Add AcceptEnv {ATLASSIAN_ACCEPT_ENV_PATTERN} to {result.path}.",
+            err=True,
+        )
+        if result.reload_command:
+            typer.echo(f"Reload sshd to apply it: {result.reload_command}", err=True)
+        return
+
+    if result.status == "write_failed":
+        typer.echo(
+            "Could not update local sshd AcceptEnv automatically. "
+            f"{result.error or 'Unknown error.'}",
+            err=True,
+        )
+        if result.reload_command:
+            typer.echo(f"Reload sshd to apply it: {result.reload_command}", err=True)
 
 
 def _prompt_enum(label: str, enum_type, option_name: str):

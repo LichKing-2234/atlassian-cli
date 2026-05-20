@@ -81,6 +81,8 @@ def test_readme_mentions_env_backed_config_workflow() -> None:
     assert "environment-backed config" in readme.lower()
     assert "$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})" in readme
     assert "ATLASSIAN_HEADER_ACCESS_TOKEN" in readme
+    assert "AcceptEnv ATLASSIAN_*" in readme
+    assert "SendEnv ATLASSIAN_*" in readme
 
 
 def test_readme_mentions_version_flag() -> None:
