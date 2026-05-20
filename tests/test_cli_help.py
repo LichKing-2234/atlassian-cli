@@ -3,6 +3,7 @@ import re
 from typer.testing import CliRunner
 
 import atlassian_cli.config.header_substitution as header_substitution
+from atlassian_cli import __version__
 from atlassian_cli.cli import app
 
 runner = CliRunner()
@@ -31,7 +32,15 @@ def test_root_help_displays_products_and_local_config_commands() -> None:
     assert "init" in result.stdout
     assert "env" in result.stdout
     assert "update" in result.stdout
+    assert "--version" in result.stdout
     assert "--profile" not in result.stdout
+
+
+def test_root_version_outputs_package_version() -> None:
+    result = runner.invoke(app, ["--version"])
+
+    assert result.exit_code == 0
+    assert result.stdout.strip() == __version__
 
 
 def test_root_help_lists_default_alignment_command_groups() -> None:

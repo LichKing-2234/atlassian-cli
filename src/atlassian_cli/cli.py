@@ -80,6 +80,13 @@ AUTO_UPDATE_CHECK_EXCLUDED_COMMANDS = {"update"}
 load_config = _load_config_compat
 
 
+def _version_callback(value: bool) -> None:
+    if not value:
+        return
+    typer.echo(__version__)
+    raise typer.Exit()
+
+
 def _missing_product_message(config_file: Path, product: Product, *, created: bool) -> str:
     if created:
         return f"Created {config_file}. Fill in [{product.value}] or pass --url."
@@ -117,6 +124,13 @@ def _maybe_notify_update(ctx: typer.Context, *, output: OutputMode) -> None:
 def root_callback(
     ctx: typer.Context,
     config_file: Path = typer.Option(DEFAULT_CONFIG_FILE, "--config-file"),
+    version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        help="Show version and exit.",
+    ),
     deployment: Deployment | None = typer.Option(None, "--deployment"),
     url: str | None = typer.Option(None, "--url"),
     username: str | None = typer.Option(None, "--username"),

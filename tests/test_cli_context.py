@@ -179,6 +179,63 @@ def test_root_callback_uses_bitbucket_product_headers_without_profile(
     assert '"X-Request-Source": "config-default"' in result.stdout
 
 
+def test_root_callback_uses_env_header_variables_without_manual_config_headers(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [bitbucket]
+        deployment = "dc"
+        url = "https://bitbucket.example.com"
+        auth = "pat"
+        token = "repo-token"
+        """.strip()
+    )
+
+    from atlassian_cli.products.bitbucket.commands import project as project_module
+
+    monkeypatch.setattr(
+        project_module,
+        "build_project_service",
+        lambda context: type(
+            "FakeService",
+            (),
+            {
+                "list": lambda self, start, limit: [
+                    {
+                        "accessToken": context.auth.headers.get("accessToken"),
+                        "requestSource": context.auth.headers.get("X-Request-Source"),
+                    }
+                ]
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "bitbucket",
+            "project",
+            "list",
+            "--output",
+            "json",
+        ],
+        env={
+            **ci_output_env(),
+            "ATLASSIAN_BITBUCKET_HEADER_ACCESS_TOKEN": "product-token",
+            "ATLASSIAN_HEADER_X_REQUEST_SOURCE": "request-source",
+        },
+    )
+
+    assert result.exit_code == 0
+    assert '"accessToken": "product-token"' in result.stdout
+    assert '"requestSource": "request-source"' in result.stdout
+
+
 def test_root_callback_resolves_env_backed_product_fields_before_validation(
     tmp_path: Path,
     monkeypatch,

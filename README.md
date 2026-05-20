@@ -40,6 +40,12 @@ You can also download a tarball or Windows zip from the GitHub Release page. Uni
 
 macOS binaries are unsigned in the first release version, so macOS may require a manual Gatekeeper allow step on first run.
 
+Verify the installed version:
+
+```bash
+atlassian --version
+```
+
 ## Update
 
 On interactive commands, the CLI checks for a newer GitHub Release at most once every 24 hours and prints an update notice to stderr when a newer release exists. It never installs updates automatically, and JSON/YAML command output is not modified.
@@ -140,7 +146,7 @@ To load those exports into your current shell session:
 eval "$(atlassian env)"
 ```
 
-`atlassian env` prints shell-safe `export` lines for configured products and headers. This makes it easier to audit an environment-backed config before running product commands.
+`atlassian env` prints shell-safe `export` lines for configured products and headers. This makes it easier to audit an environment-backed config before running product commands, and the CLI can consume exported header variables such as `ATLASSIAN_HEADER_ACCESS_TOKEN` or `ATLASSIAN_BITBUCKET_HEADER_ACCESS_TOKEN` directly on another machine without editing `config.toml`.
 
 ## Examples
 
