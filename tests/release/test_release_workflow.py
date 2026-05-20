@@ -35,7 +35,9 @@ def test_release_workflow_builds_python_package_assets() -> None:
     package_job = workflow["jobs"]["python-package"]
     steps = package_job["steps"]
     build_step = next(step for step in steps if step["name"] == "Build python package assets")
-    upload_step = next(step for step in steps if step.get("uses") == "softprops/action-gh-release@v2")
+    upload_step = next(
+        step for step in steps if step.get("uses") == "softprops/action-gh-release@v2"
+    )
 
     assert package_job["needs"] == ["prepare", "verify"]
     assert "python -m build" in build_step["run"]
