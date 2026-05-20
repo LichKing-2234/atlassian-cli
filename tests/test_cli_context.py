@@ -132,7 +132,7 @@ def test_root_callback_uses_bitbucket_product_headers_without_profile(
         token = "repo-token"
 
         [bitbucket.headers]
-        Authorization = "Bearer $(example-oauth token)"
+        Authorization = "Bearer $(example-token-helper)"
         """.strip()
     )
 
@@ -319,7 +319,7 @@ def test_root_callback_flag_headers_override_config_headers(
         token = "repo-token"
 
         [bitbucket.headers]
-        Authorization = "Bearer $(example-oauth token)"
+        Authorization = "Bearer $(example-token-helper)"
         """.strip()
     )
 
@@ -715,7 +715,7 @@ def test_root_callback_reports_explicit_url_header_failure_as_config_file_error(
     config_file.write_text(
         """
         [headers]
-        Authorization = "$(example-oauth token)"
+        Authorization = "$(example-token-helper)"
         """.strip()
     )
 
@@ -723,7 +723,7 @@ def test_root_callback_reports_explicit_url_header_failure_as_config_file_error(
         header_substitution,
         "run_header_command",
         lambda command: (_ for _ in ()).throw(
-            ConfigError("Header command failed with exit code 1: example-oauth token")
+            ConfigError("Header command failed with exit code 1: example-token-helper")
         ),
     )
 

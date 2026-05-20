@@ -39,7 +39,7 @@ def test_load_config_reads_top_level_product_sections(tmp_path: Path) -> None:
         token = "secret"
 
         [jira.headers]
-        accessToken = "$(example-oauth token)"
+        Authorization = "Bearer $(example-token-helper)"
 
         [bitbucket]
         deployment = "dc"
@@ -54,7 +54,7 @@ def test_load_config_reads_top_level_product_sections(tmp_path: Path) -> None:
     assert config.headers == {"X-Request-Source": "config-default"}
     assert config.product_config(Product.JIRA).url == "https://jira.example.com"
     assert config.product_config(Product.JIRA).headers == {
-        "accessToken": "$(example-oauth token)",
+        "Authorization": "Bearer $(example-token-helper)",
     }
     assert config.product_config(Product.BITBUCKET).auth is AuthMode.PAT
 
@@ -71,7 +71,7 @@ def test_load_config_rejects_non_string_header_values(tmp_path: Path) -> None:
     config_file.write_text(
         """
         [headers]
-        accessToken = 42
+        Authorization = 42
         """.strip()
     )
 
@@ -113,7 +113,7 @@ def test_load_raw_config_data_preserves_unresolved_placeholders_and_tables(
         auth = "${ATLASSIAN_AUTH}"
 
         [jira.headers]
-        accessToken = "$(example-oauth token --host ${ATLASSIAN_HOST})"
+        Authorization = "Bearer $(example-token-helper --host ${ATLASSIAN_HOST})"
         """.strip()
     )
 
@@ -128,7 +128,7 @@ def test_load_raw_config_data_preserves_unresolved_placeholders_and_tables(
             "url": "https://${ATLASSIAN_HOST}",
             "auth": "${ATLASSIAN_AUTH}",
             "headers": {
-                "accessToken": "$(example-oauth token --host ${ATLASSIAN_HOST})",
+                "Authorization": "Bearer $(example-token-helper --host ${ATLASSIAN_HOST})",
             },
         },
     }

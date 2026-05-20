@@ -22,7 +22,7 @@ def test_resolve_active_product_input_interpolates_product_fields_and_headers() 
                 "password": "${ATLASSIAN_PASSWORD}",
                 "headers": {
                     "Authorization": "Bearer ${ATLASSIAN_TOKEN}",
-                    "accessToken": "$(example-oauth token --host ${ATLASSIAN_HOST})",
+                    "X-Request-Source": "$(example-token-helper --host ${ATLASSIAN_HOST})",
                 },
             },
         },
@@ -50,7 +50,7 @@ def test_resolve_active_product_input_interpolates_product_fields_and_headers() 
     }
     assert resolved.product_headers == {
         "Authorization": "Bearer example-token",
-        "accessToken": "$(example-oauth token --host jira.example.com)",
+        "X-Request-Source": "$(example-token-helper --host jira.example.com)",
     }
 
 
@@ -112,11 +112,11 @@ def test_resolve_active_product_input_reports_missing_variable_for_product_heade
 def test_interpolate_env_value_keeps_surrounding_text_intact() -> None:
     assert (
         interpolate_env_value(
-            "$(example-oauth token --host ${ATLASSIAN_HOST})",
-            source="[headers].accessToken",
+            "$(example-token-helper --host ${ATLASSIAN_HOST})",
+            source="[headers].X-Request-Source",
             env={"ATLASSIAN_HOST": "jira.example.com"},
         )
-        == "$(example-oauth token --host jira.example.com)"
+        == "$(example-token-helper --host jira.example.com)"
     )
 
 

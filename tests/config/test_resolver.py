@@ -40,7 +40,7 @@ def test_profile_headers_override_top_level_headers() -> None:
         auth=AuthMode.PAT,
         token="legacy-token",
         headers={
-            "accessToken": "$(example-oauth token --profile prod-bitbucket)",
+            "Authorization": "Bearer $(example-token-helper --profile prod-bitbucket)",
             "X-Request-Source": "profile-default",
         },
     )
@@ -57,7 +57,7 @@ def test_profile_headers_override_top_level_headers() -> None:
     )
 
     assert context.auth.headers == {
-        "accessToken": "profile-token",
+        "Authorization": "Bearer profile-token",
         "X-Request-Source": "profile-default",
         "X-Trace": "top-level-trace",
     }
@@ -71,7 +71,7 @@ def test_flag_headers_override_config_headers() -> None:
         url="https://bitbucket.example.com",
         auth=AuthMode.PAT,
         token="legacy-token",
-        headers={"accessToken": "$(example-oauth token)"},
+        headers={"Authorization": "Bearer $(example-token-helper)"},
     )
 
     context = resolve_runtime_context(
@@ -80,13 +80,13 @@ def test_flag_headers_override_config_headers() -> None:
         default_headers={"X-Trace": "top-level-trace"},
         overrides=RuntimeOverrides(
             url="https://bitbucket.example.com",
-            headers={"accessToken": "flag-token"},
+            headers={"Authorization": "Bearer flag-token"},
         ),
         command_runner=lambda command: "profile-token",
     )
 
     assert context.auth.headers == {
-        "accessToken": "flag-token",
+        "Authorization": "Bearer flag-token",
         "X-Trace": "top-level-trace",
     }
 
@@ -100,7 +100,7 @@ def test_product_headers_use_product_source_path(monkeypatch) -> None:
         auth=AuthMode.BASIC,
         username="example-user",
         token="secret",
-        headers={"Authorization": "$(example-oauth token)"},
+        headers={"Authorization": "Bearer $(example-token-helper)"},
     )
     sources: list[str] = []
 

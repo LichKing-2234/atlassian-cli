@@ -497,7 +497,7 @@ def test_init_interactive_existing_product_confirm_overwrites(tmp_path: Path) ->
     config_file.write_text(
         """
         [headers]
-        X-Request-Source = "example-oauth"
+        X-Request-Source = "example-cli"
 
         [jira]
         deployment = "server"
@@ -516,7 +516,7 @@ def test_init_interactive_existing_product_confirm_overwrites(tmp_path: Path) ->
 
     assert result.exit_code == 0
     config = load_config(config_file)
-    assert config.headers == {"X-Request-Source": "example-oauth"}
+    assert config.headers == {"X-Request-Source": "example-cli"}
     jira = config.product_config(Product.JIRA)
     assert jira.deployment.value == "dc"
     assert jira.url == "https://jira-new.example.com"

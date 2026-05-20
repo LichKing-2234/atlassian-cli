@@ -46,7 +46,7 @@ def test_write_product_config_preserves_headers_and_other_products(tmp_path: Pat
     config_file.write_text(
         """
         [headers]
-        X-Request-Source = "example-oauth"
+        X-Request-Source = "example-cli"
 
         [jira]
         deployment = "server"
@@ -75,7 +75,7 @@ def test_write_product_config_preserves_headers_and_other_products(tmp_path: Pat
     )
 
     config = load_config(config_file)
-    assert config.headers == {"X-Request-Source": "example-oauth"}
+    assert config.headers == {"X-Request-Source": "example-cli"}
     assert config.product_config(Product.JIRA).url == "https://jira.example.com"
     assert config.product_config(Product.BITBUCKET).url == "https://bitbucket.example.com"
     assert config.product_config(Product.CONFLUENCE).url == "https://confluence.example.com"
@@ -219,7 +219,7 @@ def test_write_product_config_preserves_unknown_root_values_and_tables(tmp_path:
         rootNote = "example comment"
 
         [headers]
-        X-Request-Source = "example-oauth"
+        X-Request-Source = "example-cli"
 
         [jira]
         deployment = "server"
@@ -254,7 +254,7 @@ def test_write_product_config_preserves_unknown_root_values_and_tables(tmp_path:
     assert data["tooling"]["enabled"] is True
     assert data["tooling"]["nested"]["owner"] == "Example Author"
     assert data["tooling"]["empty"] == {}
-    assert data["headers"] == {"X-Request-Source": "example-oauth"}
+    assert data["headers"] == {"X-Request-Source": "example-cli"}
     assert data["jira"]["url"] == "https://jira.example.com"
     assert data["confluence"]["url"] == "https://confluence.example.com"
 

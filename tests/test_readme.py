@@ -80,7 +80,7 @@ def test_readme_mentions_env_backed_config_workflow() -> None:
     assert 'eval "$(atlassian env)"' in readme
     assert "environment-backed config" in readme.lower()
     assert (
-        'Authorization = "Bearer $(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})"'
+        'Authorization = "Bearer $(example-token-helper --host ${ATLASSIAN_BITBUCKET_URL})"'
         in readme
     )
     assert "ATLASSIAN_HEADER_X_REQUEST_SOURCE" in readme

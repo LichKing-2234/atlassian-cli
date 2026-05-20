@@ -120,7 +120,7 @@ username = "${ATLASSIAN_JIRA_USERNAME}"
 token = "${ATLASSIAN_JIRA_TOKEN}"
 
 [jira.headers]
-Authorization = "Bearer $(example-oauth token --host ${ATLASSIAN_JIRA_URL})"
+Authorization = "Bearer $(example-token-helper --host ${ATLASSIAN_JIRA_URL})"
 
 [bitbucket]
 deployment = "${ATLASSIAN_BITBUCKET_DEPLOYMENT}"
@@ -129,10 +129,10 @@ auth = "${ATLASSIAN_BITBUCKET_AUTH}"
 token = "${ATLASSIAN_BITBUCKET_TOKEN}"
 
 [bitbucket.headers]
-Authorization = "Bearer $(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})"
+Authorization = "Bearer $(example-token-helper --host ${ATLASSIAN_BITBUCKET_URL})"
 ```
 
-Use `${...}` for environment-variable interpolation and `$(...)` for trusted local command substitution. In the example above, `${ATLASSIAN_JIRA_URL}` comes from your shell environment, while `$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})` runs a local command after interpolation.
+Use `${...}` for environment-variable interpolation and `$(...)` for trusted local command substitution. In the example above, `${ATLASSIAN_JIRA_URL}` comes from your shell environment, while `$(example-token-helper --host ${ATLASSIAN_BITBUCKET_URL})` runs a local command after interpolation.
 
 To inspect the resolved values that the CLI will use, run:
 
@@ -190,7 +190,7 @@ Config file example:
 
 ```toml
 [headers]
-X-Request-Source = "example-oauth"
+X-Request-Source = "example-cli"
 
 [bitbucket]
 deployment = "dc"
@@ -198,7 +198,7 @@ url = "https://bitbucket.example.com"
 auth = "pat"
 
 [bitbucket.headers]
-Authorization = "Bearer $(example-oauth token)"
+Authorization = "Bearer $(example-token-helper)"
 ```
 
 - `atlassian bitbucket pr list DEMO example-repo`

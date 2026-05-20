@@ -181,13 +181,13 @@ def test_bitbucket_provider_uses_token_auth_for_pat_without_username(monkeypatch
         username=None,
         password=None,
         token="pat-token",
-        headers={"accessToken": "oauth-token"},
+        headers={"Authorization": "Bearer oauth-token"},
     )
 
     assert "username" not in captured or captured["username"] is None
     assert "password" not in captured or captured["password"] is None
     assert captured["token"] == "pat-token"
-    assert captured["patched"] == {"accessToken": "oauth-token"}
+    assert captured["patched"] == {"Authorization": "Bearer oauth-token"}
 
 
 def test_jira_provider_uses_token_auth_for_pat_without_username(monkeypatch) -> None:
