@@ -43,8 +43,3 @@ jobs:
 
       - name: Build package
         run: python -m build
-
-      - name: Build release binary smoke test
-        run: |
-          pyinstaller atlassian.spec --clean --noconfirm
-          ./dist/atlassian/atlassian --help >/dev/null

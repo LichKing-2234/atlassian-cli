@@ -95,6 +95,22 @@ def test_readme_mentions_version_flag() -> None:
     assert "atlassian --version" in readme
 
 
+def test_readme_mentions_uv_tool_install_from_release_assets() -> None:
+    readme = Path("README.md").read_text()
+
+    assert "uv tool install" in readme
+    assert ".whl" in readme
+    assert "GitHub Release" in readme
+
+
+def test_readme_scopes_update_install_to_binary_installs() -> None:
+    readme = Path("README.md").read_text().lower()
+
+    assert "binary install" in readme
+    assert "atlassian update install" in readme
+    assert "package-managed installs" in readme
+
+
 def test_contributing_mentions_new_live_e2e_env_overrides() -> None:
     contributing = Path("CONTRIBUTING.md").read_text()
 

@@ -29,6 +29,31 @@ def test_release_workflow_builds_expected_platform_matrix() -> None:
     }
 
 
+def test_release_workflow_builds_python_package_assets() -> None:
+    workflow = yaml.safe_load(Path(".github/workflows/release.yml").read_text())
+
+    package_job = workflow["jobs"]["python-package"]
+    steps = package_job["steps"]
+    build_step = next(step for step in steps if step["name"] == "Build python package assets")
+    upload_step = next(
+        step for step in steps if step.get("uses") == "softprops/action-gh-release@v2"
+    )
+
+    assert package_job["needs"] == ["prepare", "verify"]
+    assert "python -m build" in build_step["run"]
+    assert upload_step["with"]["files"] == "dist/*"
+
+
+def test_ci_workflow_builds_python_packages_without_pyinstaller_smoke() -> None:
+    workflow = yaml.safe_load(Path(".github/workflows/ci.yml").read_text())
+    steps = workflow["jobs"]["verify"]["steps"]
+    names = [step["name"] for step in steps]
+
+    assert "Build package" in names
+    assert "Build release binary smoke test" not in names
+    assert "Build PyOxidizer smoke test" not in names
+
+
 def test_release_workflow_uses_bash_for_cross_platform_release_steps() -> None:
     workflow = yaml.safe_load(Path(".github/workflows/release.yml").read_text())
     release = workflow["jobs"]["release"]
@@ -98,6 +123,7 @@ def test_release_workflow_builds_checksums_after_all_platform_archives() -> None
     assert checksums["runs-on"] == "ubuntu-latest"
     assert "atlassian-cli_*.tar.gz" in build_step["run"]
     assert "atlassian-cli_*.zip" in build_step["run"]
+    assert "atlassian_cli-" not in build_step["run"]
     assert "sha256sum atlassian-cli_* > checksums.txt" in build_step["run"]
     assert upload_step["with"]["files"] == "release-assets/checksums.txt"
 
