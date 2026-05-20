@@ -295,8 +295,8 @@ def default_install_dir(
     executable_path = Path(executable or sys.executable).resolve()
     is_frozen = getattr(sys, "frozen", False) if frozen is None else frozen
 
-    bundle_parts = executable_path.parts
-    if len(bundle_parts) >= 4 and bundle_parts[-3:] == (".atlassian-cli", "atlassian", "atlassian"):
+    if _is_binary_bundle_executable(executable_path):
+        bundle_parts = executable_path.parts
         return Path(*bundle_parts[:-3])
 
     if is_frozen:
@@ -306,6 +306,26 @@ def default_install_dir(
         return executable_path.parent
 
     return (home or Path.home()) / ".local" / "bin"
+
+
+def _is_binary_bundle_executable(executable_path: Path) -> bool:
+    bundle_parts = executable_path.parts
+    if len(bundle_parts) < 4:
+        return False
+    if bundle_parts[-3:-1] != (".atlassian-cli", "atlassian"):
+        return False
+    return bundle_parts[-1] in {"atlassian", "atlassian.exe"}
+
+
+def _is_binary_install(
+    *,
+    executable: str | None = None,
+    frozen: bool | None = None,
+) -> bool:
+    executable_path = Path(executable or sys.executable).resolve()
+    is_frozen = getattr(sys, "frozen", False) if frozen is None else frozen
+
+    return _is_binary_bundle_executable(executable_path) or is_frozen
 
 
 def _download_install_script(
@@ -406,6 +426,13 @@ def install_update(
     install_dir: Path | None = None,
     force: bool = False,
 ) -> InstallResult:
+    if not _is_binary_install():
+        raise UpdateError(
+            "atlassian update install only supports standalone binary installs. "
+            "For package-managed installs, upgrade through your package manager, "
+            "for example `uv tool upgrade atlassian-cli`."
+        )
+
     destination = install_dir.expanduser() if install_dir is not None else default_install_dir()
     if version is not None:
         return run_install_script(version=version, install_dir=destination)

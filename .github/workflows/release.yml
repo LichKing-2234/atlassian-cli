@@ -203,43 +203,29 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        if: ${{ matrix.target_os != 'linux' }}
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
 
       - name: Install dependencies
-        if: ${{ matrix.target_os != 'linux' }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev]'
 
-      - name: Build native binary
-        if: ${{ matrix.target_os != 'linux' }}
-        run: |
-          python -m PyInstaller atlassian.spec --clean --noconfirm
-          python - <<'PY'
-          import subprocess
-          import sys
-          from pathlib import Path
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
 
-          executable = Path("dist") / "atlassian" / (
-              "atlassian.exe" if sys.platform == "win32" else "atlassian"
-          )
-          subprocess.run([str(executable), "--help"], check=True, stdout=subprocess.DEVNULL)
-          PY
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.84.1
 
-      - name: Build Linux binary
-        if: ${{ matrix.target_os == 'linux' }}
+      - name: Build standalone artifact
         run: |
-          docker run --rm \
-            --platform linux/amd64 \
-            -e GITHUB_WORKSPACE=/workspace \
-            -v "${GITHUB_WORKSPACE}:/workspace" \
-            -w /workspace \
-            python:3.12-bullseye \
-            /bin/bash /workspace/.github/scripts/build-linux-compatible.sh
+          python .github/scripts/build-pyoxidizer-artifact.py \
+            --target-os "${{ matrix.target_os }}" \
+            --target-arch "${{ matrix.target_arch }}" \
+            --version "${VERSION}" \
+            --archive-format "${{ matrix.archive_format }}"
 
       - name: Package archive
         id: package
