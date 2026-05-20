@@ -43,3 +43,26 @@ jobs:
 
       - name: Build package
         run: python -m build
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@1.84.1
+
+      - name: Build PyOxidizer smoke test
+        run: |
+          VERSION="$(
+            python - <<'PY'
+          import pathlib
+          import tomllib
+
+          print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])
+          PY
+          )"
+          python .github/scripts/build-pyoxidizer-artifact.py \
+            --target-os linux \
+            --target-arch amd64 \
+            --version "${VERSION}" \
+            --archive-format tar.gz
+          ./dist/atlassian/atlassian --help >/dev/null

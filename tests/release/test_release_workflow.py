@@ -51,7 +51,7 @@ def test_ci_workflow_builds_python_packages_without_pyinstaller_smoke() -> None:
 
     assert "Build package" in names
     assert "Build release binary smoke test" not in names
-    assert "Build PyOxidizer smoke test" not in names
+    assert "Build PyOxidizer smoke test" in names
 
 
 def test_release_workflow_uses_bash_for_cross_platform_release_steps() -> None:
@@ -61,40 +61,22 @@ def test_release_workflow_uses_bash_for_cross_platform_release_steps() -> None:
     assert release["defaults"]["run"]["shell"] == "bash"
 
 
-def test_release_workflow_builds_linux_binary_in_older_glibc_container() -> None:
+def test_pyoxidizer_config_exists() -> None:
+    assert Path("pyoxidizer.bzl").exists()
+
+
+def test_release_workflow_builds_standalone_artifact_with_pyoxidizer() -> None:
     workflow = yaml.safe_load(Path(".github/workflows/release.yml").read_text())
     steps = workflow["jobs"]["release"]["steps"]
 
-    linux_build = next(step for step in steps if step["name"] == "Build Linux binary")
+    build = next(step for step in steps if step["name"] == "Build standalone artifact")
+    step_names = [step["name"] for step in steps]
 
-    assert linux_build["if"] == "${{ matrix.target_os == 'linux' }}"
-    assert "docker run --rm" in linux_build["run"]
-    assert "--platform linux/amd64" in linux_build["run"]
-    assert "python:3.12-bullseye" in linux_build["run"]
-    assert "/workspace/.github/scripts/build-linux-compatible.sh" in linux_build["run"]
-
-
-def test_release_workflow_uses_host_python_only_for_non_linux_binaries() -> None:
-    workflow = yaml.safe_load(Path(".github/workflows/release.yml").read_text())
-    steps = workflow["jobs"]["release"]["steps"]
-
-    host_python_steps = [
-        step
-        for step in steps
-        if step["name"] in {"Set up Python", "Install dependencies", "Build native binary"}
-    ]
-
-    assert host_python_steps
-    assert all(step["if"] == "${{ matrix.target_os != 'linux' }}" for step in host_python_steps)
-
-
-def test_release_workflow_invokes_pyinstaller_through_python_module() -> None:
-    workflow = yaml.safe_load(Path(".github/workflows/release.yml").read_text())
-    steps = workflow["jobs"]["release"]["steps"]
-
-    build = next(step for step in steps if step["name"] == "Build native binary")
-
-    assert "python -m PyInstaller atlassian.spec --clean --noconfirm" in build["run"]
+    assert "Set up uv" in step_names
+    assert "Set up Rust" in step_names
+    assert ".github/scripts/build-pyoxidizer-artifact.py" in build["run"]
+    assert "pyoxidizer" in build["run"].lower()
+    assert "PyInstaller" not in build["run"]
 
 
 def test_release_workflow_packages_release_archives_with_shared_script() -> None:
@@ -128,13 +110,18 @@ def test_release_workflow_builds_checksums_after_all_platform_archives() -> None
     assert upload_step["with"]["files"] == "release-assets/checksums.txt"
 
 
-def test_linux_build_script_uses_python312_and_smoke_tests_binary() -> None:
-    script = Path(".github/scripts/build-linux-compatible.sh").read_text()
+def test_build_pyoxidizer_artifact_helper_uses_python310_runtime_and_uv() -> None:
+    script = Path(".github/scripts/build-pyoxidizer-artifact.py").read_text()
 
-    assert "/usr/local/bin/python" in script
-    assert "pyinstaller atlassian.spec --clean --noconfirm" in script
-    assert "./dist/atlassian/atlassian --help >/dev/null" in script
-    assert "GLIBC_2\\.(3[8-9]|[4-9][0-9])" in script
+    assert 'PYOXIDIZER_VERSION = "0.24.0"' in script
+    assert 'PYOXIDIZER_PYTHON = "3.10"' in script
+    assert 'run(["uv", "venv", "-p", python_spec, str(path)])' in script
+    assert "CARGO_REGISTRIES_CRATES_IO_PROTOCOL" in script
+    assert '["xcrun", "--sdk", "macosx", "--show-sdk-path"]' in script
+    assert '["xcode-select", "--print-path"]' in script
+    assert 'env.setdefault("SDKROOT"' in script
+    assert 'env.setdefault("DEVELOPER_DIR"' in script
+    assert 'dist_bundle = DIST_ROOT / "atlassian"' in script
 
 
 def test_release_workflow_publishes_generated_release_notes() -> None:

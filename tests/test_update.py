@@ -2,6 +2,7 @@ import json
 import tomllib
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 import atlassian_cli.commands.update as update_command
@@ -155,6 +156,46 @@ def test_default_install_dir_for_frozen_build_without_launcher_uses_executable_d
         default_install_dir(environ={}, executable=str(executable), frozen=True)
         == executable.parent
     )
+
+
+def test_update_install_rejects_package_managed_install(monkeypatch) -> None:
+    monkeypatch.setattr(update_module, "_is_binary_install", lambda **kwargs: False)
+
+    with pytest.raises(update_module.UpdateError) as excinfo:
+        update_module.install_update(current_version=__version__)
+
+    message = str(excinfo.value).lower()
+    assert "standalone binary installs" in message
+    assert "uv tool upgrade" in message
+
+
+def test_update_install_allows_binary_runtime_layout(monkeypatch, tmp_path: Path) -> None:
+    install_dir = tmp_path / "bin"
+    calls: dict = {}
+
+    monkeypatch.setattr(update_module, "_is_binary_install", lambda **kwargs: True)
+
+    def fake_run_install_script(*, version: str, install_dir: Path, script_url=None, env=None):
+        calls["version"] = version
+        calls["install_dir"] = install_dir
+        return InstallResult(
+            version=version,
+            install_dir=install_dir,
+            updated=True,
+            message="installed binary runtime",
+        )
+
+    monkeypatch.setattr(update_module, "run_install_script", fake_run_install_script)
+
+    result = update_module.install_update(
+        current_version=__version__,
+        version="0.2.0",
+        install_dir=install_dir,
+    )
+
+    assert calls == {"version": "0.2.0", "install_dir": install_dir}
+    assert result.updated is True
+    assert result.message == "installed binary runtime"
 
 
 def test_run_install_script_sets_version_and_install_dir(tmp_path: Path, monkeypatch) -> None:
