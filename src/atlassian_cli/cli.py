@@ -3,21 +3,28 @@ import sys
 from pathlib import Path
 
 import typer
+from pydantic import ValidationError
 
 from atlassian_cli import __version__
 from atlassian_cli.auth.headers import parse_cli_headers
 from atlassian_cli.auth.models import AuthMode
+from atlassian_cli.commands.env import env_command
 from atlassian_cli.commands.init import init_command
 from atlassian_cli.commands.update import app as update_app
-from atlassian_cli.config.loader import load_config
+from atlassian_cli.config.env_interpolation import (
+    resolve_active_product_input,
+    resolve_default_headers,
+)
+from atlassian_cli.config.loader import load_config as _load_config_compat
+from atlassian_cli.config.loader import load_raw_config_data
 from atlassian_cli.config.models import (
     Deployment,
-    LoadedConfig,
     Product,
+    ProductConfig,
     ProfileConfig,
     RuntimeOverrides,
 )
-from atlassian_cli.config.resolver import resolve_runtime_context
+from atlassian_cli.config.resolver import ConfigHeaderResolutionError, resolve_runtime_context
 from atlassian_cli.config.template import ensure_default_config
 from atlassian_cli.core.context import LazyExecutionContext
 from atlassian_cli.core.errors import ConfigError
@@ -63,17 +70,35 @@ app.add_typer(jira_app, name="jira")
 app.add_typer(confluence_app, name="confluence")
 app.add_typer(bitbucket_app, name="bitbucket")
 app.command("init")(init_command)
+app.command("env")(env_command)
 app.add_typer(update_app, name="update")
 
 DEFAULT_CONFIG_FILE = Path("~/.config/atlassian-cli/config.toml").expanduser()
 PRODUCT_COMMANDS = {product.value for product in Product}
 AUTO_UPDATE_CHECK_EXCLUDED_COMMANDS = {"update"}
+# Compatibility alias for tests that assert non-product commands do not touch config loading.
+load_config = _load_config_compat
+
+
+def _version_callback(value: bool) -> None:
+    if not value:
+        return
+    typer.echo(__version__)
+    raise typer.Exit()
 
 
 def _missing_product_message(config_file: Path, product: Product, *, created: bool) -> str:
     if created:
         return f"Created {config_file}. Fill in [{product.value}] or pass --url."
     return f"Fill in [{product.value}] in {config_file} or pass --url."
+
+
+def _format_product_config_validation_error(exc: ValidationError, *, product: Product) -> str:
+    messages: list[str] = []
+    for error in exc.errors(include_url=False):
+        location = ".".join(str(part) for part in error["loc"])
+        messages.append(f"[{product.value}].{location} {error['msg']}")
+    return f"Invalid config.toml configuration: {'; '.join(messages)}"
 
 
 def _stderr_is_interactive() -> bool:
@@ -99,6 +124,13 @@ def _maybe_notify_update(ctx: typer.Context, *, output: OutputMode) -> None:
 def root_callback(
     ctx: typer.Context,
     config_file: Path = typer.Option(DEFAULT_CONFIG_FILE, "--config-file"),
+    version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        help="Show version and exit.",
+    ),
     deployment: Deployment | None = typer.Option(None, "--deployment"),
     url: str | None = typer.Option(None, "--url"),
     username: str | None = typer.Option(None, "--username"),
@@ -122,23 +154,50 @@ def root_callback(
 
     def load_runtime_context():
         created_template = ensure_default_config(config_file, default_path=DEFAULT_CONFIG_FILE)
-        config = load_config(config_file) if config_file.exists() else LoadedConfig()
+        env = dict(os.environ)
+        uses_cli_auth_overrides = any(
+            value is not None for value in (auth, username, password, token)
+        )
+        try:
+            raw_config = load_raw_config_data(config_file) if config_file.exists() else {}
+            default_headers = resolve_default_headers(raw_config, env=env)
+        except ConfigError as exc:
+            raise typer.BadParameter(str(exc), param_hint="--config-file") from exc
         if url is None:
-            product_config = config.product_config(product)
-            if product_config is None:
+            if product.value not in raw_config:
                 raise typer.BadParameter(
-                    _missing_product_message(config_file, product, created=created_template)
+                    _missing_product_message(config_file, product, created=created_template),
+                    param_hint="--config-file",
                 )
             try:
+                resolved_input = resolve_active_product_input(
+                    raw_config,
+                    product=product,
+                    env=env,
+                )
+                if created_template and not resolved_input.product_data:
+                    raise typer.BadParameter(
+                        _missing_product_message(config_file, product, created=created_template),
+                        param_hint="--config-file",
+                    )
+                product_config = ProductConfig(
+                    **resolved_input.product_data,
+                    headers=resolved_input.product_headers,
+                )
                 base_profile = product_config.to_profile_config(
                     product=product,
                     name=product.value,
                 )
             except ConfigError as exc:
+                raise typer.BadParameter(str(exc), param_hint="--config-file") from exc
+            except ValidationError as exc:
                 raise typer.BadParameter(
-                    _missing_product_message(config_file, product, created=created_template)
+                    _format_product_config_validation_error(exc, product=product),
+                    param_hint="--config-file",
                 ) from exc
+            resolved_default_headers = resolved_input.default_headers
         else:
+            resolved_default_headers = default_headers
             base_profile = ProfileConfig(
                 name=f"inline-{product.value}",
                 product=product,
@@ -153,8 +212,8 @@ def root_callback(
         try:
             return resolve_runtime_context(
                 profile=base_profile,
-                env=dict(os.environ),
-                default_headers=config.headers,
+                env=env,
+                default_headers=resolved_default_headers,
                 overrides=RuntimeOverrides(
                     product=product,
                     deployment=deployment,
@@ -168,6 +227,10 @@ def root_callback(
                 ),
             )
         except ConfigError as exc:
+            if isinstance(exc, ConfigHeaderResolutionError):
+                raise typer.BadParameter(str(exc), param_hint="--config-file") from exc
+            if url is None and not uses_cli_auth_overrides:
+                raise typer.BadParameter(str(exc), param_hint="--config-file") from exc
             raise typer.BadParameter(str(exc)) from exc
 
     ctx.obj = LazyExecutionContext(load_runtime_context)

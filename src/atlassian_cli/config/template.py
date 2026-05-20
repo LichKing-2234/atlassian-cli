@@ -1,35 +1,43 @@
 from pathlib import Path
 
 DEFAULT_CONFIG_TEMPLATE = """[headers]
-# accessToken = "$(example-oauth token)"
+# accessToken = "${ATLASSIAN_GLOBAL_ACCESS_TOKEN}"
 
 [jira]
-# deployment = "server"
-# url = "https://jira.example.com"
-# auth = "basic"
-# username = "example-user"
-# token = "secret"
+# deployment = "${ATLASSIAN_JIRA_DEPLOYMENT}"
+# url = "${ATLASSIAN_JIRA_URL}"
+# auth = "${ATLASSIAN_JIRA_AUTH}"
+# username = "${ATLASSIAN_JIRA_USERNAME}"
+# password = "${ATLASSIAN_JIRA_PASSWORD}"
+# token = "${ATLASSIAN_JIRA_TOKEN}"
 
 [jira.headers]
-# accessToken = "$(example-oauth token)"
+# Authorization = "${ATLASSIAN_JIRA_HEADER_AUTHORIZATION}"
+# accessToken = "$(example-oauth token --host ${ATLASSIAN_JIRA_URL})"
 
 [confluence]
-# deployment = "dc"
-# url = "https://confluence.example.com"
-# auth = "pat"
-# token = "secret"
+# deployment = "${ATLASSIAN_CONFLUENCE_DEPLOYMENT}"
+# url = "${ATLASSIAN_CONFLUENCE_URL}"
+# auth = "${ATLASSIAN_CONFLUENCE_AUTH}"
+# username = "${ATLASSIAN_CONFLUENCE_USERNAME}"
+# password = "${ATLASSIAN_CONFLUENCE_PASSWORD}"
+# token = "${ATLASSIAN_CONFLUENCE_TOKEN}"
 
 [confluence.headers]
-# accessToken = "$(example-oauth token)"
+# Authorization = "${ATLASSIAN_CONFLUENCE_HEADER_AUTHORIZATION}"
+# accessToken = "$(example-oauth token --host ${ATLASSIAN_CONFLUENCE_URL})"
 
 [bitbucket]
-# deployment = "dc"
-# url = "https://bitbucket.example.com"
-# auth = "pat"
-# token = "secret"
+# deployment = "${ATLASSIAN_BITBUCKET_DEPLOYMENT}"
+# url = "${ATLASSIAN_BITBUCKET_URL}"
+# auth = "${ATLASSIAN_BITBUCKET_AUTH}"
+# username = "${ATLASSIAN_BITBUCKET_USERNAME}"
+# password = "${ATLASSIAN_BITBUCKET_PASSWORD}"
+# token = "${ATLASSIAN_BITBUCKET_TOKEN}"
 
 [bitbucket.headers]
-# accessToken = "$(example-oauth token)"
+# Authorization = "${ATLASSIAN_BITBUCKET_HEADER_AUTHORIZATION}"
+# accessToken = "$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})"
 """
 
 

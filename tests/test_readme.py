@@ -72,6 +72,23 @@ def test_readme_mentions_init_command() -> None:
     assert "--force" in readme
 
 
+def test_readme_mentions_env_backed_config_workflow() -> None:
+    readme = Path("README.md").read_text()
+
+    assert "${ATLASSIAN_JIRA_URL}" in readme
+    assert "atlassian init jira --env-template" in readme
+    assert 'eval "$(atlassian env)"' in readme
+    assert "environment-backed config" in readme.lower()
+    assert "$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})" in readme
+    assert "ATLASSIAN_HEADER_ACCESS_TOKEN" in readme
+
+
+def test_readme_mentions_version_flag() -> None:
+    readme = Path("README.md").read_text()
+
+    assert "atlassian --version" in readme
+
+
 def test_contributing_mentions_new_live_e2e_env_overrides() -> None:
     contributing = Path("CONTRIBUTING.md").read_text()
 

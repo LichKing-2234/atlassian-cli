@@ -89,3 +89,87 @@ def test_flag_headers_override_config_headers() -> None:
         "accessToken": "flag-token",
         "X-Trace": "top-level-trace",
     }
+
+
+def test_product_headers_use_product_source_path(monkeypatch) -> None:
+    profile = ProfileConfig(
+        name="example-alias",
+        product=Product.JIRA,
+        deployment=Deployment.SERVER,
+        url="https://jira.example.com",
+        auth=AuthMode.BASIC,
+        username="example-user",
+        token="secret",
+        headers={"Authorization": "$(example-oauth token)"},
+    )
+    sources: list[str] = []
+
+    def fake_resolve_header_map(headers, *, source, runner):
+        sources.append(source)
+        return dict(headers)
+
+    monkeypatch.setattr(
+        "atlassian_cli.config.resolver.resolve_header_map",
+        fake_resolve_header_map,
+    )
+
+    resolve_runtime_context(
+        profile=profile,
+        env={},
+        default_headers={"X-Trace": "top-level-trace"},
+        overrides=RuntimeOverrides(url="https://jira.example.com"),
+    )
+
+    assert sources == ["[headers]", "[jira.headers]"]
+
+
+def test_env_header_variables_apply_without_manual_config_headers() -> None:
+    profile = ProfileConfig(
+        name="prod-bitbucket",
+        product=Product.BITBUCKET,
+        deployment=Deployment.SERVER,
+        url="https://bitbucket.example.com",
+        auth=AuthMode.PAT,
+        token="legacy-token",
+    )
+
+    context = resolve_runtime_context(
+        profile=profile,
+        env={
+            "ATLASSIAN_HEADER_ACCESS_TOKEN": "global-token",
+            "ATLASSIAN_BITBUCKET_HEADER_ACCESS_TOKEN": "product-token",
+            "ATLASSIAN_HEADER_X_REQUEST_SOURCE": "request-source",
+        },
+        default_headers={},
+        overrides=RuntimeOverrides(url="https://bitbucket.example.com"),
+    )
+
+    assert context.auth.headers == {
+        "accessToken": "product-token",
+        "X-Request-Source": "request-source",
+    }
+
+
+def test_flag_headers_override_env_header_variables() -> None:
+    profile = ProfileConfig(
+        name="prod-bitbucket",
+        product=Product.BITBUCKET,
+        deployment=Deployment.SERVER,
+        url="https://bitbucket.example.com",
+        auth=AuthMode.PAT,
+        token="legacy-token",
+    )
+
+    context = resolve_runtime_context(
+        profile=profile,
+        env={"ATLASSIAN_BITBUCKET_HEADER_ACCESS_TOKEN": "product-token"},
+        default_headers={},
+        overrides=RuntimeOverrides(
+            url="https://bitbucket.example.com",
+            headers={"accessToken": "flag-token"},
+        ),
+    )
+
+    assert context.auth.headers == {
+        "accessToken": "flag-token",
+    }

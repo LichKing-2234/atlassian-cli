@@ -39,3 +39,18 @@ def test_default_config_template_uses_only_top_level_product_blocks() -> None:
     assert "[bitbucket]" in DEFAULT_CONFIG_TEMPLATE
     assert "[profiles." not in DEFAULT_CONFIG_TEMPLATE
     assert "Legacy compatibility" not in DEFAULT_CONFIG_TEMPLATE
+
+
+def test_default_config_template_uses_env_placeholder_examples() -> None:
+    assert '# url = "${ATLASSIAN_JIRA_URL}"' in DEFAULT_CONFIG_TEMPLATE
+    assert '# username = "${ATLASSIAN_JIRA_USERNAME}"' in DEFAULT_CONFIG_TEMPLATE
+    assert '# token = "${ATLASSIAN_JIRA_TOKEN}"' in DEFAULT_CONFIG_TEMPLATE
+    assert '# url = "${ATLASSIAN_CONFLUENCE_URL}"' in DEFAULT_CONFIG_TEMPLATE
+    assert '# token = "${ATLASSIAN_CONFLUENCE_TOKEN}"' in DEFAULT_CONFIG_TEMPLATE
+    assert '# url = "${ATLASSIAN_BITBUCKET_URL}"' in DEFAULT_CONFIG_TEMPLATE
+    assert '# token = "${ATLASSIAN_BITBUCKET_TOKEN}"' in DEFAULT_CONFIG_TEMPLATE
+    assert (
+        '# accessToken = "$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})"'
+        in DEFAULT_CONFIG_TEMPLATE
+    )
+    assert '# token = "secret"' not in DEFAULT_CONFIG_TEMPLATE

@@ -4,7 +4,8 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
-from atlassian_cli.config.loader import load_config
+from atlassian_cli.config.env_interpolation import resolve_active_product_input
+from atlassian_cli.config.loader import load_config, load_raw_config_data
 from atlassian_cli.config.models import Product
 
 runner = CliRunner()
@@ -63,6 +64,67 @@ def test_init_single_product_non_interactive_writes_config(tmp_path: Path) -> No
     assert bitbucket.url == "https://bitbucket.example.com"
     assert bitbucket.auth.value == "pat"
     assert bitbucket.token == "secret"
+
+
+def test_init_single_product_env_template_writes_placeholders(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "jira",
+            "--config-file",
+            str(config_file),
+            "--env-template",
+        ],
+    )
+
+    assert result.exit_code == 0
+    text = config_file.read_text()
+    assert 'deployment = "${ATLASSIAN_JIRA_DEPLOYMENT}"' in text
+    assert 'url = "${ATLASSIAN_JIRA_URL}"' in text
+    assert 'auth = "${ATLASSIAN_JIRA_AUTH}"' in text
+    assert 'token = "${ATLASSIAN_JIRA_TOKEN}"' in text
+    assert "username =" not in text
+    assert "password =" not in text
+    assert "[jira.headers]" not in text
+
+
+def test_init_single_product_env_template_resolves_with_minimal_pat_env(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "jira",
+            "--config-file",
+            str(config_file),
+            "--env-template",
+        ],
+    )
+
+    assert result.exit_code == 0
+    resolved = resolve_active_product_input(
+        load_raw_config_data(config_file),
+        product=Product.JIRA,
+        env={
+            "ATLASSIAN_JIRA_DEPLOYMENT": "server",
+            "ATLASSIAN_JIRA_URL": "https://jira.example.com",
+            "ATLASSIAN_JIRA_AUTH": "pat",
+            "ATLASSIAN_JIRA_TOKEN": "secret",
+        },
+    )
+
+    assert resolved.product_data == {
+        "deployment": "server",
+        "url": "https://jira.example.com",
+        "auth": "pat",
+        "token": "secret",
+    }
+    assert resolved.default_headers == {}
+    assert resolved.product_headers == {}
 
 
 def test_init_non_interactive_missing_required_values_fails_without_writing(
@@ -246,6 +308,28 @@ def test_init_without_product_prompts_for_products_in_order(tmp_path: Path) -> N
     assert config.product_config(Product.BITBUCKET) is not None
 
 
+def test_init_env_template_without_product_prompts_for_products_in_order(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+
+    result = runner.invoke(
+        app,
+        ["init", "--config-file", str(config_file), "--env-template"],
+        input="y\nn\ny\n",
+    )
+
+    assert result.exit_code == 0
+    assert result.stdout.index("Configure jira?") < result.stdout.index("Configure confluence?")
+    assert result.stdout.index("Configure confluence?") < result.stdout.index(
+        "Configure bitbucket?"
+    )
+    text = config_file.read_text()
+    assert 'url = "${ATLASSIAN_JIRA_URL}"' in text
+    assert "[confluence]" not in text
+    assert 'url = "${ATLASSIAN_BITBUCKET_URL}"' in text
+
+
 def test_init_interactive_existing_product_decline_skips_without_writing(
     tmp_path: Path,
 ) -> None:
@@ -268,6 +352,28 @@ def test_init_interactive_existing_product_decline_skips_without_writing(
 
     assert result.exit_code == 0
     assert "Skipped [jira]." in result.stdout
+    assert config_file.read_text() == original
+
+
+def test_init_env_template_preserves_overwrite_protection(tmp_path: Path) -> None:
+    config_file = tmp_path / "config.toml"
+    original = """
+    [jira]
+    deployment = "server"
+    url = "https://jira.example.com"
+    auth = "basic"
+    username = "example-user"
+    token = "secret"
+    """.strip()
+    config_file.write_text(original)
+
+    result = runner.invoke(
+        app,
+        ["init", "jira", "--config-file", str(config_file), "--env-template"],
+    )
+
+    assert result.exit_code != 0
+    assert "[jira] already exists" in strip_ansi(result.output)
     assert config_file.read_text() == original
 
 

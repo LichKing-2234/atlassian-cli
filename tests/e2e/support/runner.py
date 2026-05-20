@@ -4,14 +4,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from tests.e2e.support.env import LiveEnv
+from tests.e2e.support.env import LiveEnv, _load_dotenv_values
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = REPO_ROOT / "src"
 
 
 def run_cli(live_env: LiveEnv, *args: str) -> subprocess.CompletedProcess[str]:
-    env = dict(os.environ)
+    env = _load_dotenv_values()
+    env.update(os.environ)
     pythonpath = env.get("PYTHONPATH")
     env["PYTHONPATH"] = f"{SRC_ROOT}{os.pathsep}{pythonpath}" if pythonpath else str(SRC_ROOT)
     command = [

@@ -3,6 +3,7 @@ import re
 from typer.testing import CliRunner
 
 import atlassian_cli.config.header_substitution as header_substitution
+from atlassian_cli import __version__
 from atlassian_cli.cli import app
 
 runner = CliRunner()
@@ -21,16 +22,26 @@ def strip_ansi(text: str) -> str:
     return ANSI_ESCAPE_PATTERN.sub("", text)
 
 
-def test_root_help_displays_products() -> None:
+def test_root_help_displays_products_and_local_config_commands() -> None:
     result = runner.invoke(app, ["--help"])
+    plain_output = strip_ansi(result.output)
 
     assert result.exit_code == 0
-    assert "jira" in result.stdout
-    assert "confluence" in result.stdout
-    assert "bitbucket" in result.stdout
-    assert "init" in result.stdout
-    assert "update" in result.stdout
-    assert "--profile" not in result.stdout
+    assert "jira" in plain_output
+    assert "confluence" in plain_output
+    assert "bitbucket" in plain_output
+    assert "init" in plain_output
+    assert "env" in plain_output
+    assert "update" in plain_output
+    assert "show version and exit" in plain_output.lower()
+    assert "--profile" not in plain_output
+
+
+def test_root_version_outputs_package_version() -> None:
+    result = runner.invoke(app, ["--version"])
+
+    assert result.exit_code == 0
+    assert result.stdout.strip() == __version__
 
 
 def test_root_help_lists_default_alignment_command_groups() -> None:

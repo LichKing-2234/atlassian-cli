@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import click
 import typer
@@ -9,6 +10,7 @@ from atlassian_cli.config.writer import (
     ConfigWriteError,
     product_config_exists,
     write_product_configs,
+    write_product_tables,
 )
 
 DEFAULT_CONFIG_FILE = Path("~/.config/atlassian-cli/config.toml").expanduser()
@@ -27,11 +29,13 @@ def init_command(
     username: str | None = typer.Option(None, "--username"),
     password: str | None = typer.Option(None, "--password"),
     token: str | None = typer.Option(None, "--token"),
+    env_template: bool = typer.Option(False, "--env-template"),
     force: bool = typer.Option(False, "--force"),
 ) -> None:
     """Create or update atlassian-cli config."""
     products = [product] if product is not None else list(Product)
     updates: dict[Product, ProductConfig] = {}
+    template_updates: dict[Product, dict[str, Any]] = {}
     force_products: set[Product] = set()
 
     for selected_product in products:
@@ -48,26 +52,36 @@ def init_command(
         if force or exists:
             force_products.add(selected_product)
 
-        updates[selected_product] = _build_product_config(
-            deployment=deployment,
-            url=url,
-            auth=auth,
-            username=username,
-            password=password,
-            token=token,
-        )
+        if env_template:
+            template_updates[selected_product] = _build_env_template_table(selected_product)
+        else:
+            updates[selected_product] = _build_product_config(
+                deployment=deployment,
+                url=url,
+                auth=auth,
+                username=username,
+                password=password,
+                token=token,
+            )
 
-    if not updates:
+    if not updates and not template_updates:
         if product is None:
             typer.echo("No product config changed.")
         return
 
     try:
-        write_product_configs(config_file, updates, force_products=force_products)
+        if env_template:
+            write_product_tables(
+                config_file,
+                template_updates,
+                force_products=force_products,
+            )
+        else:
+            write_product_configs(config_file, updates, force_products=force_products)
     except ConfigWriteError as exc:
         raise typer.BadParameter(str(exc)) from exc
 
-    for selected_product in updates:
+    for selected_product in template_updates or updates:
         typer.echo(f"Wrote [{selected_product.value}] to {config_file}")
 
 
@@ -115,6 +129,16 @@ def _build_product_config(
         password=resolved_password if resolved_auth is AuthMode.BASIC else None,
         token=resolved_token,
     )
+
+
+def _build_env_template_table(product: Product) -> dict[str, Any]:
+    prefix = f"ATLASSIAN_{product.value.upper()}"
+    return {
+        "deployment": f"${{{prefix}_DEPLOYMENT}}",
+        "url": f"${{{prefix}_URL}}",
+        "auth": f"${{{prefix}_AUTH}}",
+        "token": f"${{{prefix}_TOKEN}}",
+    }
 
 
 def _prompt_enum(label: str, enum_type, option_name: str):

@@ -11,6 +11,7 @@ from atlassian_cli.config.writer import (
     product_config_exists,
     write_product_config,
     write_product_configs,
+    write_product_tables,
 )
 
 
@@ -256,6 +257,36 @@ def test_write_product_config_preserves_unknown_root_values_and_tables(tmp_path:
     assert data["headers"] == {"X-Request-Source": "example-oauth"}
     assert data["jira"]["url"] == "https://jira.example.com"
     assert data["confluence"]["url"] == "https://confluence.example.com"
+
+
+def test_write_product_tables_allows_raw_env_placeholders_and_nested_headers(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+
+    write_product_tables(
+        config_file,
+        {
+            Product.JIRA: {
+                "deployment": "${ATLASSIAN_JIRA_DEPLOYMENT}",
+                "url": "${ATLASSIAN_JIRA_URL}",
+                "auth": "${ATLASSIAN_JIRA_AUTH}",
+                "username": "${ATLASSIAN_JIRA_USERNAME}",
+                "token": "${ATLASSIAN_JIRA_TOKEN}",
+                "headers": {
+                    "Authorization": "Bearer ${ATLASSIAN_JIRA_BEARER_TOKEN}",
+                },
+            }
+        },
+    )
+
+    data = tomllib.loads(config_file.read_text())
+    assert data["jira"]["deployment"] == "${ATLASSIAN_JIRA_DEPLOYMENT}"
+    assert data["jira"]["url"] == "${ATLASSIAN_JIRA_URL}"
+    assert data["jira"]["auth"] == "${ATLASSIAN_JIRA_AUTH}"
+    assert data["jira"]["username"] == "${ATLASSIAN_JIRA_USERNAME}"
+    assert data["jira"]["token"] == "${ATLASSIAN_JIRA_TOKEN}"
+    assert data["jira"]["headers"]["Authorization"] == "Bearer ${ATLASSIAN_JIRA_BEARER_TOKEN}"
 
 
 def test_write_product_config_preserves_unselected_product_tables_as_data(
