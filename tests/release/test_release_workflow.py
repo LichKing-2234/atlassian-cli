@@ -117,6 +117,10 @@ def test_build_pyoxidizer_artifact_helper_uses_python310_runtime_and_uv() -> Non
     assert 'PYOXIDIZER_PYTHON = "3.10"' in script
     assert 'run(["uv", "venv", "-p", python_spec, str(path)])' in script
     assert "CARGO_REGISTRIES_CRATES_IO_PROTOCOL" in script
+    assert '["xcrun", "--sdk", "macosx", "--show-sdk-path"]' in script
+    assert '["xcode-select", "--print-path"]' in script
+    assert 'env.setdefault("SDKROOT"' in script
+    assert 'env.setdefault("DEVELOPER_DIR"' in script
     assert 'dist_bundle = DIST_ROOT / "atlassian"' in script
 
 

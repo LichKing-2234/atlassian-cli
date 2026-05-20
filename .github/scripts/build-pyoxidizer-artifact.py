@@ -92,6 +92,10 @@ def smoke_executable(bundle_dir: Path, *, target_os: str) -> Path:
     return bundle_dir / executable_name
 
 
+def command_output(cmd: list[str]) -> str:
+    return subprocess.check_output(cmd, cwd=REPO_ROOT, text=True).strip()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build a PyOxidizer standalone bundle.")
     parser.add_argument("--target-os", required=True, choices={"linux", "darwin", "windows"})
@@ -118,6 +122,9 @@ def main() -> None:
     env = os.environ.copy()
     env.setdefault("CARGO_REGISTRIES_CRATES_IO_PROTOCOL", "sparse")
     env.setdefault("RUSTUP_TOOLCHAIN", RUST_TOOLCHAIN[target_key])
+    if args.target_os == "darwin":
+        env.setdefault("SDKROOT", command_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"]))
+        env.setdefault("DEVELOPER_DIR", command_output(["xcode-select", "--print-path"]))
 
     run(
         [
