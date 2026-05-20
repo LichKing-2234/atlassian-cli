@@ -79,8 +79,14 @@ def test_readme_mentions_env_backed_config_workflow() -> None:
     assert "atlassian init jira --env-template" in readme
     assert 'eval "$(atlassian env)"' in readme
     assert "environment-backed config" in readme.lower()
-    assert "$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})" in readme
-    assert "ATLASSIAN_HEADER_ACCESS_TOKEN" in readme
+    assert (
+        'Authorization = "Bearer $(example-token-helper --host ${ATLASSIAN_BITBUCKET_URL})"'
+        in readme
+    )
+    assert "ATLASSIAN_HEADER_X_REQUEST_SOURCE" in readme
+    assert "ATLASSIAN_BITBUCKET_HEADER_AUTHORIZATION" in readme
+    assert "AcceptEnv ATLASSIAN_*" in readme
+    assert "SendEnv ATLASSIAN_*" in readme
 
 
 def test_readme_mentions_version_flag() -> None:

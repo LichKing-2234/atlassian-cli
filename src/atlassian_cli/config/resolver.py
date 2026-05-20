@@ -19,17 +19,6 @@ def _header_name_from_env_suffix(suffix: str) -> str:
     return parts[0].lower() + "".join(part.title() for part in parts[1:])
 
 
-def _headers_from_env(env: dict[str, str], *, prefix: str) -> dict[str, str]:
-    headers: dict[str, str] = {}
-    for name, value in env.items():
-        if not name.startswith(prefix):
-            continue
-        suffix = name[len(prefix) :]
-        header_name = _header_name_from_env_suffix(suffix)
-        headers[header_name] = value
-    return headers
-
-
 def resolve_runtime_context(
     *,
     profile,
@@ -40,10 +29,10 @@ def resolve_runtime_context(
 ):
     product = overrides.product or profile.product
     deployment = overrides.deployment or profile.deployment
-    url = overrides.url or env.get("ATLASSIAN_URL") or profile.url
-    username = overrides.username or env.get("ATLASSIAN_USERNAME") or profile.username
-    password = overrides.password or env.get("ATLASSIAN_PASSWORD") or profile.password
-    token = overrides.token or env.get("ATLASSIAN_TOKEN") or profile.token
+    url = overrides.url or profile.url
+    username = overrides.username or profile.username
+    password = overrides.password or profile.password
+    token = overrides.token or profile.token
     auth = overrides.auth or profile.auth
     try:
         config_headers = resolve_header_map(
@@ -58,16 +47,9 @@ def resolve_runtime_context(
         source=f"[{product.value}.headers]",
         runner=command_runner,
     )
-    env_headers = _headers_from_env(env, prefix="ATLASSIAN_HEADER_")
-    env_product_headers = _headers_from_env(
-        env,
-        prefix=f"ATLASSIAN_{product.value.upper()}_HEADER_",
-    )
     headers = {
         **config_headers,
         **profile_headers,
-        **env_headers,
-        **env_product_headers,
         **overrides.headers,
     }
     return ExecutionContext(

@@ -90,15 +90,33 @@ def resolve_active_product_input(
         source=f"[{product.value}.headers]",
         env=env,
     )
+    product_fields = {
+        field_name: field_value
+        for field_name, field_value in product_table.items()
+        if field_name != "headers"
+    }
+    base_field_names = ("deployment", "url", "auth", "token")
     product_data = _resolve_string_map(
         {
-            field_name: field_value
-            for field_name, field_value in product_table.items()
-            if field_name != "headers"
+            field_name: product_fields[field_name]
+            for field_name in base_field_names
+            if field_name in product_fields
         },
         source=f"[{product.value}]",
         env=env,
     )
+    if product_data.get("auth") == "basic" and "username" in product_fields:
+        product_data["username"] = interpolate_env_value(
+            product_fields["username"],
+            source=f"[{product.value}].username",
+            env=env,
+        )
+    if product_data.get("auth") == "basic" and "password" in product_fields:
+        product_data["password"] = interpolate_env_value(
+            product_fields["password"],
+            source=f"[{product.value}].password",
+            env=env,
+        )
     return ResolvedProductInput(
         product_data=product_data,
         default_headers=default_headers,

@@ -68,7 +68,7 @@ def test_nested_command_help_does_not_resolve_runtime_config(tmp_path, monkeypat
         token = "repo-token"
 
         [bitbucket.headers]
-        accessToken = "$(example-oauth token)"
+        Authorization = "Bearer $(example-token-helper)"
         """.strip()
     )
     commands: list[str] = []

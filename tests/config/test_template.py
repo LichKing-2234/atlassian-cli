@@ -49,8 +49,8 @@ def test_default_config_template_uses_env_placeholder_examples() -> None:
     assert '# token = "${ATLASSIAN_CONFLUENCE_TOKEN}"' in DEFAULT_CONFIG_TEMPLATE
     assert '# url = "${ATLASSIAN_BITBUCKET_URL}"' in DEFAULT_CONFIG_TEMPLATE
     assert '# token = "${ATLASSIAN_BITBUCKET_TOKEN}"' in DEFAULT_CONFIG_TEMPLATE
+    assert '# X-Request-Source = "${ATLASSIAN_HEADER_X_REQUEST_SOURCE}"' in DEFAULT_CONFIG_TEMPLATE
     assert (
-        '# accessToken = "$(example-oauth token --host ${ATLASSIAN_BITBUCKET_URL})"'
-        in DEFAULT_CONFIG_TEMPLATE
+        '# Authorization = "${ATLASSIAN_BITBUCKET_HEADER_AUTHORIZATION}"' in DEFAULT_CONFIG_TEMPLATE
     )
     assert '# token = "secret"' not in DEFAULT_CONFIG_TEMPLATE

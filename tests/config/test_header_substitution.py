@@ -12,10 +12,10 @@ from atlassian_cli.core.errors import ConfigError
 
 def test_substitute_header_commands_replaces_command_output() -> None:
     resolved = substitute_header_commands(
-        value="Bearer $(example-oauth token)",
+        value="Bearer $(example-token-helper)",
         source="[headers]",
         header_name="Authorization",
-        runner=lambda command: "oauth-token" if command == "example-oauth token" else "",
+        runner=lambda command: "oauth-token" if command == "example-token-helper" else "",
     )
 
     assert resolved == "Bearer oauth-token"
@@ -24,10 +24,10 @@ def test_substitute_header_commands_replaces_command_output() -> None:
 def test_substitute_header_commands_supports_multiple_substitutions() -> None:
     outputs = {
         "whoami": "example-user",
-        "example-oauth token": "oauth-token",
+        "example-token-helper": "oauth-token",
     }
     resolved = substitute_header_commands(
-        value="User $(whoami) Token $(example-oauth token)",
+        value="User $(whoami) Token $(example-token-helper)",
         source="[profiles.code.headers]",
         header_name="X-Debug",
         runner=lambda command: outputs[command],
@@ -39,9 +39,9 @@ def test_substitute_header_commands_supports_multiple_substitutions() -> None:
 def test_substitute_header_commands_rejects_malformed_syntax() -> None:
     with pytest.raises(ConfigError, match="Malformed"):
         substitute_header_commands(
-            value="$(example-oauth token",
+            value="$(example-token-helper",
             source="[headers]",
-            header_name="accessToken",
+            header_name="Authorization",
             runner=lambda command: "ignored",
         )
 
@@ -51,7 +51,7 @@ def test_substitute_header_commands_rejects_empty_command_body() -> None:
         substitute_header_commands(
             value="prefix $() suffix",
             source="[headers]",
-            header_name="accessToken",
+            header_name="Authorization",
             runner=lambda command: "ignored",
         )
 
@@ -61,7 +61,7 @@ def test_substitute_header_commands_rejects_nested_commands() -> None:
         substitute_header_commands(
             value="$(echo $(whoami))",
             source="[headers]",
-            header_name="accessToken",
+            header_name="Authorization",
             runner=lambda command: "ignored",
         )
 
@@ -69,9 +69,9 @@ def test_substitute_header_commands_rejects_nested_commands() -> None:
 def test_substitute_header_commands_rejects_empty_output() -> None:
     with pytest.raises(ConfigError, match="empty output"):
         substitute_header_commands(
-            value="$(example-oauth token)",
+            value="$(example-token-helper)",
             source="[headers]",
-            header_name="accessToken",
+            header_name="Authorization",
             runner=lambda command: "   ",
         )
 
@@ -79,9 +79,9 @@ def test_substitute_header_commands_rejects_empty_output() -> None:
 def test_substitute_header_commands_rejects_multiline_output() -> None:
     with pytest.raises(ConfigError, match="single line"):
         substitute_header_commands(
-            value="$(example-oauth token)",
+            value="$(example-token-helper)",
             source="[headers]",
-            header_name="accessToken",
+            header_name="Authorization",
             runner=lambda command: "line-one\nline-two",
         )
 
@@ -99,7 +99,7 @@ def test_run_header_command_raises_for_non_zero_exit(monkeypatch: pytest.MonkeyP
     )
 
     with pytest.raises(ConfigError, match="exit code 7"):
-        run_header_command("example-oauth token")
+        run_header_command("example-token-helper")
 
 
 def test_run_header_command_uses_cmd_shell_on_windows(
@@ -119,7 +119,7 @@ def test_run_header_command_uses_cmd_shell_on_windows(
     monkeypatch.setattr(os, "name", "nt")
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    output = run_header_command("example-oauth token")
+    output = run_header_command("example-token-helper")
 
     assert output == "oauth-token\n"
-    assert calls == [["cmd.exe", "/d", "/s", "/c", "example-oauth token"]]
+    assert calls == [["cmd.exe", "/d", "/s", "/c", "example-token-helper"]]

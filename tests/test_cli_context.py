@@ -132,7 +132,7 @@ def test_root_callback_uses_bitbucket_product_headers_without_profile(
         token = "repo-token"
 
         [bitbucket.headers]
-        accessToken = "$(example-oauth token)"
+        Authorization = "Bearer $(example-token-helper)"
         """.strip()
     )
 
@@ -153,7 +153,7 @@ def test_root_callback_uses_bitbucket_product_headers_without_profile(
             {
                 "list": lambda self, start, limit: [
                     {
-                        "accessToken": context.auth.headers.get("accessToken"),
+                        "authorization": context.auth.headers.get("Authorization"),
                         "X-Request-Source": context.auth.headers.get("X-Request-Source"),
                     }
                 ]
@@ -175,65 +175,8 @@ def test_root_callback_uses_bitbucket_product_headers_without_profile(
     )
 
     assert result.exit_code == 0
-    assert '"accessToken": "profile-token"' in result.stdout
+    assert '"authorization": "Bearer profile-token"' in result.stdout
     assert '"X-Request-Source": "config-default"' in result.stdout
-
-
-def test_root_callback_uses_env_header_variables_without_manual_config_headers(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    config_file = tmp_path / "config.toml"
-    config_file.write_text(
-        """
-        [bitbucket]
-        deployment = "dc"
-        url = "https://bitbucket.example.com"
-        auth = "pat"
-        token = "repo-token"
-        """.strip()
-    )
-
-    from atlassian_cli.products.bitbucket.commands import project as project_module
-
-    monkeypatch.setattr(
-        project_module,
-        "build_project_service",
-        lambda context: type(
-            "FakeService",
-            (),
-            {
-                "list": lambda self, start, limit: [
-                    {
-                        "accessToken": context.auth.headers.get("accessToken"),
-                        "requestSource": context.auth.headers.get("X-Request-Source"),
-                    }
-                ]
-            },
-        )(),
-    )
-
-    result = runner.invoke(
-        app,
-        [
-            "--config-file",
-            str(config_file),
-            "bitbucket",
-            "project",
-            "list",
-            "--output",
-            "json",
-        ],
-        env={
-            **ci_output_env(),
-            "ATLASSIAN_BITBUCKET_HEADER_ACCESS_TOKEN": "product-token",
-            "ATLASSIAN_HEADER_X_REQUEST_SOURCE": "request-source",
-        },
-    )
-
-    assert result.exit_code == 0
-    assert '"accessToken": "product-token"' in result.stdout
-    assert '"requestSource": "request-source"' in result.stdout
 
 
 def test_root_callback_resolves_env_backed_product_fields_before_validation(
@@ -376,7 +319,7 @@ def test_root_callback_flag_headers_override_config_headers(
         token = "repo-token"
 
         [bitbucket.headers]
-        accessToken = "$(example-oauth token)"
+        Authorization = "Bearer $(example-token-helper)"
         """.strip()
     )
 
@@ -396,7 +339,7 @@ def test_root_callback_flag_headers_override_config_headers(
             (),
             {
                 "list": lambda self, start, limit: [
-                    {"accessToken": context.auth.headers.get("accessToken")}
+                    {"authorization": context.auth.headers.get("Authorization")}
                 ]
             },
         )(),
@@ -408,7 +351,7 @@ def test_root_callback_flag_headers_override_config_headers(
             "--config-file",
             str(config_file),
             "--header",
-            "accessToken: flag-token",
+            "Authorization: Bearer flag-token",
             "bitbucket",
             "project",
             "list",
@@ -418,7 +361,7 @@ def test_root_callback_flag_headers_override_config_headers(
     )
 
     assert result.exit_code == 0
-    assert '"accessToken": "flag-token"' in result.stdout
+    assert '"authorization": "Bearer flag-token"' in result.stdout
 
 
 def test_root_callback_explicit_url_still_uses_top_level_headers(
@@ -502,7 +445,7 @@ def test_root_callback_reports_created_template_for_missing_product_config(
             "get",
             "DEMO-1",
         ],
-        env=ci_output_env(),
+        env={"CI": "true", "GITHUB_ACTIONS": "true", "TERM": "xterm-256color"},
     )
     plain_output = strip_ansi(result.output)
 
@@ -531,7 +474,7 @@ def test_root_callback_reports_created_template_for_empty_generated_product_bloc
             "get",
             "DEMO-1",
         ],
-        env=ci_output_env(),
+        env={"CI": "true", "GITHUB_ACTIONS": "true", "TERM": "xterm-256color"},
     )
     plain_output = strip_ansi(result.output)
 
@@ -772,7 +715,7 @@ def test_root_callback_reports_explicit_url_header_failure_as_config_file_error(
     config_file.write_text(
         """
         [headers]
-        Authorization = "$(example-oauth token)"
+        Authorization = "$(example-token-helper)"
         """.strip()
     )
 
@@ -780,7 +723,7 @@ def test_root_callback_reports_explicit_url_header_failure_as_config_file_error(
         header_substitution,
         "run_header_command",
         lambda command: (_ for _ in ()).throw(
-            ConfigError("Header command failed with exit code 1: example-oauth token")
+            ConfigError("Header command failed with exit code 1: example-token-helper")
         ),
     )
 
