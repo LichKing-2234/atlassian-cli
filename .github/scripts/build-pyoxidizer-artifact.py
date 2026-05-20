@@ -5,10 +5,8 @@ import argparse
 import os
 import shutil
 import subprocess
-import sys
 import tomllib
 from pathlib import Path
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BUILD_ROOT = REPO_ROOT / ".pyoxidizer-build"
