@@ -1,3 +1,5 @@
+import re
+import sys
 from pathlib import Path
 
 import typer
@@ -14,6 +16,7 @@ from atlassian_cli.update import (
 )
 
 app = typer.Typer(help="CLI update commands")
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def _echo_payload(payload: dict, *, output: OutputMode) -> None:
@@ -22,6 +25,10 @@ def _echo_payload(payload: dict, *, output: OutputMode) -> None:
         return
     message = payload.get("message")
     typer.echo(str(message) if message else render_output(payload, output=OutputMode.MARKDOWN))
+
+
+def _stderr_is_interactive() -> bool:
+    return sys.stderr.isatty()
 
 
 def _format_check(info: UpdateInfo) -> str:
@@ -36,11 +43,29 @@ def _format_check(info: UpdateInfo) -> str:
     return f"atlassian-cli {info.current_version} is up to date."
 
 
+def _is_progress_line(line: str) -> bool:
+    return all(char in "#O=-.% 0123456789" for char in line)
+
+
+def _installer_notes(stderr: str) -> list[str]:
+    normalized = _ANSI_ESCAPE_RE.sub("", stderr.replace("\r", "\n"))
+    notes: list[str] = []
+    for raw_line in normalized.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("Downloading "):
+            continue
+        if _is_progress_line(line):
+            continue
+        notes.append(line)
+    return notes
+
+
 def _format_install(result: InstallResult) -> str:
-    if result.updated and result.installer_stderr:
-        return "\n".join([result.message, result.installer_stderr])
     if result.updated:
-        return result.message
+        notes = _installer_notes(result.installer_stderr)
+        return "\n".join([result.message, *notes])
     return f"{result.message}."
 
 
@@ -85,15 +110,20 @@ def install_update_command(
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     """Install the latest release, or a specific release with --version."""
+    stream_output = not is_machine_output(output) and _stderr_is_interactive()
     try:
         result = install_update(
             current_version=__version__,
             version=version,
             install_dir=install_dir,
             force=force,
+            stream_output=stream_output,
         )
     except UpdateError as exc:
         _fail(exc)
+
+    if result.output_streamed and not is_machine_output(output):
+        return
 
     payload = result.to_dict() | {"message": _format_install(result)}
     _echo_payload(payload, output=output)

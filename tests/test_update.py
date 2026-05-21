@@ -175,9 +175,12 @@ def test_update_install_allows_binary_runtime_layout(monkeypatch, tmp_path: Path
 
     monkeypatch.setattr(update_module, "_is_binary_install", lambda **kwargs: True)
 
-    def fake_run_install_script(*, version: str, install_dir: Path, script_url=None, env=None):
+    def fake_run_install_script(
+        *, version: str, install_dir: Path, script_url=None, env=None, stream_output=False
+    ):
         calls["version"] = version
         calls["install_dir"] = install_dir
+        calls["stream_output"] = stream_output
         return InstallResult(
             version=version,
             install_dir=install_dir,
@@ -193,7 +196,7 @@ def test_update_install_allows_binary_runtime_layout(monkeypatch, tmp_path: Path
         install_dir=install_dir,
     )
 
-    assert calls == {"version": "0.2.0", "install_dir": install_dir}
+    assert calls == {"version": "0.2.0", "install_dir": install_dir, "stream_output": False}
     assert result.updated is True
     assert result.message == "installed binary runtime"
 
@@ -310,6 +313,41 @@ def test_run_install_script_uses_powershell_on_windows(tmp_path: Path, monkeypat
     assert result.updated is True
 
 
+def test_run_install_script_can_stream_live_output(tmp_path: Path, monkeypatch) -> None:
+    install_dir = tmp_path / "bin"
+    calls: dict = {}
+
+    def fake_download_install_script(script_url):
+        return "#!/bin/sh\necho install fixture\n"
+
+    monkeypatch.setattr(update_module, "_download_install_script", fake_download_install_script)
+
+    def fake_run(args, env, check, stdout=None, stderr=None):
+        calls["args"] = args
+        calls["env"] = env
+        calls["check"] = check
+        calls["stdout"] = stdout
+        calls["stderr"] = stderr
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr(update_module.subprocess, "run", fake_run)
+
+    result = update_module.run_install_script(
+        version="0.2.0",
+        install_dir=install_dir,
+        stream_output=True,
+    )
+
+    assert calls["args"][0] == "sh"
+    assert calls["env"]["INSTALL_VERSION"] == "v0.2.0"
+    assert calls["env"]["INSTALL_DIR"] == str(install_dir)
+    assert calls["stdout"] is None
+    assert calls["stderr"] is None
+    assert calls["check"] is False
+    assert result.output_streamed is True
+    assert result.updated is True
+
+
 def test_update_check_outputs_latest_release_json(monkeypatch) -> None:
     monkeypatch.setattr(
         update_command,
@@ -354,6 +392,8 @@ def test_update_install_passes_selected_options(monkeypatch, tmp_path: Path) -> 
     install_dir = tmp_path / "bin"
     calls: dict = {}
 
+    monkeypatch.setattr(update_command, "_stderr_is_interactive", lambda: False)
+
     def fake_install_update(**kwargs):
         calls.update(kwargs)
         return InstallResult(
@@ -384,8 +424,76 @@ def test_update_install_passes_selected_options(monkeypatch, tmp_path: Path) -> 
         "version": "0.2.0",
         "install_dir": install_dir,
         "force": True,
+        "stream_output": False,
     }
     assert "installed v0.2.0" in result.stdout
+
+
+def test_update_install_noninteractive_human_output_omits_progress_replay(
+    monkeypatch, tmp_path: Path
+) -> None:
+    install_dir = tmp_path / "bin"
+
+    monkeypatch.setattr(update_command, "_stderr_is_interactive", lambda: False)
+
+    def fake_install_update(**kwargs):
+        return InstallResult(
+            version="v0.2.0",
+            install_dir=install_dir,
+            updated=True,
+            message="installed v0.2.0 to fixture",
+            installer_stdout="installed v0.2.0 to fixture\n",
+            installer_stderr=(
+                "Downloading https://example.invalid/atlassian-cli.tar.gz\n"
+                "##O=- #      #\n"
+                "##########\x1b[118;1:3u######################### 21.2%\n"
+                "add /tmp/example-bin to PATH to run atlassian directly\n"
+            ),
+        )
+
+    monkeypatch.setattr(update_command, "install_update", fake_install_update)
+
+    result = runner.invoke(app, ["update", "install"])
+
+    assert result.exit_code == 0
+    assert "installed v0.2.0 to fixture" in result.stdout
+    assert "add /tmp/example-bin to PATH to run atlassian directly" in result.stdout
+    assert "Downloading https://example.invalid/atlassian-cli.tar.gz" not in result.stdout
+    assert "##O=- #      #" not in result.stdout
+    assert "[118;1:3u" not in result.stdout
+
+
+def test_update_install_interactive_human_output_requests_live_progress(
+    monkeypatch, tmp_path: Path
+) -> None:
+    install_dir = tmp_path / "bin"
+    calls: dict = {}
+
+    monkeypatch.setattr(update_command, "_stderr_is_interactive", lambda: True)
+
+    def fake_install_update(**kwargs):
+        calls.update(kwargs)
+        return InstallResult(
+            version="v0.2.0",
+            install_dir=install_dir,
+            updated=True,
+            message="installed v0.2.0 to fixture",
+            output_streamed=True,
+        )
+
+    monkeypatch.setattr(update_command, "install_update", fake_install_update)
+
+    result = runner.invoke(app, ["update", "install"])
+
+    assert result.exit_code == 0
+    assert calls == {
+        "current_version": __version__,
+        "version": None,
+        "install_dir": None,
+        "force": False,
+        "stream_output": True,
+    }
+    assert result.stdout == ""
 
 
 def test_auto_update_notice_reports_newer_release_and_records_state(

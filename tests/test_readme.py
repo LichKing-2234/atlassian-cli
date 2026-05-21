@@ -109,6 +109,8 @@ def test_readme_scopes_update_install_to_binary_installs() -> None:
     assert "binary install" in readme
     assert "atlassian update install" in readme
     assert "package-managed installs" in readme
+    assert "shows the installer's live download progress" in readme
+    assert "suppresses replayed progress noise" in readme
 
 
 def test_readme_mentions_pyoxidizer_backed_binary_release_path() -> None:

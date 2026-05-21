@@ -90,7 +90,7 @@ atlassian update install --version v0.1.0
 atlassian update install --install-dir ~/.local/bin
 ```
 
-`atlassian update install` uses the same installer and checksum verification as the binary install command. Package-managed installs such as `uv tool install` should be upgraded through the package manager instead of `atlassian update install`, for example:
+`atlassian update install` uses the same installer and checksum verification as the binary install command. In an interactive terminal it shows the installer's live download progress; in non-interactive output it still suppresses replayed progress noise and keeps the final status plus any actionable PATH reminder. Package-managed installs such as `uv tool install` should be upgraded through the package manager instead of `atlassian update install`, for example:
 
 ```bash
 uv tool upgrade atlassian-cli

@@ -61,6 +61,7 @@ class InstallResult:
     message: str
     installer_stdout: str = ""
     installer_stderr: str = ""
+    output_streamed: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -378,6 +379,7 @@ def run_install_script(
     install_dir: Path,
     script_url: str | None = None,
     env: dict[str, str] | None = None,
+    stream_output: bool = False,
 ) -> InstallResult:
     tag = normalize_tag(version)
     platform = sys.platform
@@ -394,17 +396,31 @@ def run_install_script(
     with tempfile.TemporaryDirectory(prefix="atlassian-cli-update-") as tmp_dir:
         script_path = Path(tmp_dir) / script_name
         script_path.write_text(script, encoding="utf-8")
-        result = subprocess.run(
-            install_command_for_script(script_path, platform=platform),
-            env=run_env,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        command = install_command_for_script(script_path, platform=platform)
+        if stream_output:
+            result = subprocess.run(
+                command,
+                env=run_env,
+                stdout=None,
+                stderr=None,
+                check=False,
+            )
+            stdout = ""
+            stderr = ""
+        else:
+            result = subprocess.run(
+                command,
+                env=run_env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            stdout = result.stdout.strip()
+            stderr = result.stderr.strip()
 
-    stdout = result.stdout.strip()
-    stderr = result.stderr.strip()
     if result.returncode != 0:
+        if stream_output:
+            raise UpdateError(f"installer exited with status {result.returncode}")
         detail = stderr or stdout or f"installer exited with status {result.returncode}"
         raise UpdateError(detail)
 
@@ -416,6 +432,7 @@ def run_install_script(
         or f"installed {tag} to {install_dir.expanduser() / ('atlassian.cmd' if _is_windows_platform(platform) else 'atlassian')}",
         installer_stdout=stdout,
         installer_stderr=stderr,
+        output_streamed=stream_output,
     )
 
 
@@ -425,6 +442,7 @@ def install_update(
     version: str | None = None,
     install_dir: Path | None = None,
     force: bool = False,
+    stream_output: bool = False,
 ) -> InstallResult:
     if not _is_binary_install():
         raise UpdateError(
@@ -435,7 +453,11 @@ def install_update(
 
     destination = install_dir.expanduser() if install_dir is not None else default_install_dir()
     if version is not None:
-        return run_install_script(version=version, install_dir=destination)
+        return run_install_script(
+            version=version,
+            install_dir=destination,
+            stream_output=stream_output,
+        )
 
     info = get_update_info(current_version)
     if not info.update_available and not force:
@@ -445,4 +467,8 @@ def install_update(
             updated=False,
             message=f"atlassian-cli {current_version} is up to date",
         )
-    return run_install_script(version=info.latest.tag, install_dir=destination)
+    return run_install_script(
+        version=info.latest.tag,
+        install_dir=destination,
+        stream_output=stream_output,
+    )
