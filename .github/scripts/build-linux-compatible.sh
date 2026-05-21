@@ -35,4 +35,5 @@ docker run --rm \
       --target-arch amd64 \
       --version \"${VERSION}\" \
       --archive-format tar.gz
+    chmod -R a+rX dist/atlassian
   "

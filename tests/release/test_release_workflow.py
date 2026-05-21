@@ -161,6 +161,12 @@ def test_build_linux_compatible_script_uses_pinned_bullseye_container() -> None:
     assert "--target-arch amd64" in script
 
 
+def test_build_linux_compatible_script_makes_bundle_readable_for_packaging() -> None:
+    script = Path(".github/scripts/build-linux-compatible.sh").read_text()
+
+    assert "chmod -R a+rX dist/atlassian" in script
+
+
 def test_release_workflow_publishes_generated_release_notes() -> None:
     workflow = yaml.safe_load(Path(".github/workflows/release.yml").read_text())
     steps = workflow["jobs"]["release"]["steps"]
