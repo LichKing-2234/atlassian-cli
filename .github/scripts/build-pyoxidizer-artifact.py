@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import tomllib
@@ -13,6 +14,8 @@ BUILD_ROOT = REPO_ROOT / ".pyoxidizer-build"
 DIST_ROOT = REPO_ROOT / "dist"
 PYOXIDIZER_VERSION = "0.24.0"
 PYOXIDIZER_PYTHON = "3.10"
+MAX_GLIBC_FOR_LINUX_AMD64 = (2, 31)
+GLIBC_VERSION_PATTERN = re.compile(r"^GLIBC_(\d+)\.(\d+)$")
 RUST_TOOLCHAIN = {
     ("linux", "amd64"): "1.84.1-x86_64-unknown-linux-gnu",
     ("darwin", "arm64"): "1.84.1-aarch64-apple-darwin",
@@ -96,6 +99,47 @@ def command_output(cmd: list[str]) -> str:
     return subprocess.check_output(cmd, cwd=REPO_ROOT, text=True).strip()
 
 
+def iter_glibc_versions(path: Path) -> set[tuple[int, int]]:
+    versions: set[tuple[int, int]] = set()
+    output = command_output(["strings", str(path)])
+    for line in output.splitlines():
+        match = GLIBC_VERSION_PATTERN.fullmatch(line.strip())
+        if match is None:
+            continue
+        versions.add((int(match.group(1)), int(match.group(2))))
+    return versions
+
+
+def assert_linux_glibc_compatibility(bundle_dir: Path, *, target_arch: str) -> None:
+    if shutil.which("strings") is None:
+        raise RuntimeError("strings is required to validate linux glibc compatibility")
+
+    executable = bundle_dir / "atlassian"
+    candidates = [executable]
+    candidates.extend(
+        sorted(
+            path
+            for path in bundle_dir.rglob("*")
+            if path.is_file() and (path.suffix == ".so" or ".so." in path.name)
+        )
+    )
+
+    limit = MAX_GLIBC_FOR_LINUX_AMD64
+    violations: list[str] = []
+    for path in candidates:
+        versions = iter_glibc_versions(path)
+        if not versions:
+            continue
+        max_version = max(versions)
+        if max_version > limit:
+            rel_path = path.relative_to(bundle_dir)
+            violations.append(f"{rel_path} -> GLIBC_{max_version[0]}.{max_version[1]}")
+
+    if violations:
+        details = ", ".join(violations)
+        raise SystemExit(f"linux amd64 bundle requires glibc newer than 2.31: {details}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build a PyOxidizer standalone bundle.")
     parser.add_argument("--target-os", required=True, choices={"linux", "darwin", "windows"})
@@ -152,6 +196,8 @@ def main() -> None:
     install_dir = build_output / "release" / "install"
     shutil.copytree(install_dir, dist_bundle)
     executable = smoke_executable(dist_bundle, target_os=args.target_os)
+    if target_key == ("linux", "amd64"):
+        assert_linux_glibc_compatibility(dist_bundle, target_arch=args.target_arch)
     subprocess.run([str(executable), "--version"], cwd=REPO_ROOT, check=True, text=True)
 
 

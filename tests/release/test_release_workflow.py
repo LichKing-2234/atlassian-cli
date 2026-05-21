@@ -22,11 +22,27 @@ def test_release_workflow_builds_expected_platform_matrix() -> None:
     }
 
     assert targets == {
-        ("ubuntu-latest", "linux", "amd64", "tar.gz"),
+        ("ubuntu-22.04", "linux", "amd64", "tar.gz"),
         ("macos-latest", "darwin", "arm64", "tar.gz"),
         ("macos-15-intel", "darwin", "amd64", "tar.gz"),
         ("windows-latest", "windows", "amd64", "zip"),
     }
+
+
+def test_release_workflow_pins_linux_runner_and_uses_compatible_build_wrapper() -> None:
+    workflow = yaml.safe_load(Path(".github/workflows/release.yml").read_text())
+    matrix = workflow["jobs"]["release"]["strategy"]["matrix"]["include"]
+    linux_entry = next(
+        entry
+        for entry in matrix
+        if entry["target_os"] == "linux" and entry["target_arch"] == "amd64"
+    )
+    steps = workflow["jobs"]["release"]["steps"]
+    build = next(step for step in steps if step["name"] == "Build standalone artifact")
+
+    assert linux_entry["runner"] == "ubuntu-22.04"
+    assert '.github/scripts/build-linux-compatible.sh "${VERSION}"' in build["run"]
+    assert 'if [ "${{ matrix.target_os }}" = "linux" ]; then' in build["run"]
 
 
 def test_release_workflow_builds_python_package_assets() -> None:
@@ -122,6 +138,27 @@ def test_build_pyoxidizer_artifact_helper_uses_python310_runtime_and_uv() -> Non
     assert 'env.setdefault("SDKROOT"' in script
     assert 'env.setdefault("DEVELOPER_DIR"' in script
     assert 'dist_bundle = DIST_ROOT / "atlassian"' in script
+
+
+def test_build_pyoxidizer_artifact_helper_checks_linux_glibc_baseline() -> None:
+    script = Path(".github/scripts/build-pyoxidizer-artifact.py").read_text()
+
+    assert "assert_linux_glibc_compatibility" in script
+    assert "MAX_GLIBC_FOR_LINUX_AMD64 = (2, 31)" in script
+    assert 'target_key == ("linux", "amd64")' in script
+    assert 'command_output(["strings", str(path)])' in script
+    assert "requires glibc newer than 2.31" in script
+
+
+def test_build_linux_compatible_script_uses_pinned_bullseye_container() -> None:
+    script = Path(".github/scripts/build-linux-compatible.sh").read_text()
+
+    assert 'IMAGE="${LINUX_BUILD_IMAGE:-python:3.12-bullseye}"' in script
+    assert "docker run --rm" in script
+    assert "--platform linux/amd64" in script
+    assert "python .github/scripts/build-pyoxidizer-artifact.py" in script
+    assert "--target-os linux" in script
+    assert "--target-arch amd64" in script
 
 
 def test_release_workflow_publishes_generated_release_notes() -> None:

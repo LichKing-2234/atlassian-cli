@@ -172,7 +172,7 @@ jobs:
       max-parallel: 1
       matrix:
         include:
-          - runner: ubuntu-latest
+          - runner: ubuntu-22.04
             target_os: linux
             target_arch: amd64
             archive_format: tar.gz
@@ -221,11 +221,15 @@ jobs:
 
       - name: Build standalone artifact
         run: |
-          python .github/scripts/build-pyoxidizer-artifact.py \
-            --target-os "${{ matrix.target_os }}" \
-            --target-arch "${{ matrix.target_arch }}" \
-            --version "${VERSION}" \
-            --archive-format "${{ matrix.archive_format }}"
+          if [ "${{ matrix.target_os }}" = "linux" ]; then
+            bash .github/scripts/build-linux-compatible.sh "${VERSION}"
+          else
+            python .github/scripts/build-pyoxidizer-artifact.py \
+              --target-os "${{ matrix.target_os }}" \
+              --target-arch "${{ matrix.target_arch }}" \
+              --version "${VERSION}" \
+              --archive-format "${{ matrix.archive_format }}"
+          fi
 
       - name: Package archive
         id: package
