@@ -64,10 +64,12 @@ def test_ci_workflow_builds_python_packages_without_pyinstaller_smoke() -> None:
     workflow = yaml.safe_load(Path(".github/workflows/ci.yml").read_text())
     steps = workflow["jobs"]["verify"]["steps"]
     names = [step["name"] for step in steps]
+    smoke = next(step for step in steps if step["name"] == "Build PyOxidizer smoke test")
 
     assert "Build package" in names
     assert "Build release binary smoke test" not in names
     assert "Build PyOxidizer smoke test" in names
+    assert '.github/scripts/build-linux-compatible.sh "${VERSION}"' in smoke["run"]
 
 
 def test_release_workflow_uses_bash_for_cross_platform_release_steps() -> None:
