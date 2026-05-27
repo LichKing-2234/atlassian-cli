@@ -95,7 +95,7 @@ def init_command(
 def _confirm_overwrite(product: Product) -> bool:
     try:
         return typer.confirm(f"[{product.value}] already exists. Overwrite?", default=False)
-    except click.Abort as exc:
+    except (click.Abort, typer.Abort) as exc:
         raise typer.BadParameter(
             f"[{product.value}] already exists. Use --force to overwrite it."
         ) from exc
@@ -192,7 +192,7 @@ def _prompt_enum(label: str, enum_type, option_name: str):
 def _prompt_value(label: str, option_name: str, *, hide_input: bool = False) -> str:
     try:
         return typer.prompt(label, hide_input=hide_input)
-    except click.Abort as exc:
+    except (click.Abort, typer.Abort) as exc:
         raise typer.BadParameter(
             f"Missing required option for non-interactive init: {option_name}"
         ) from exc

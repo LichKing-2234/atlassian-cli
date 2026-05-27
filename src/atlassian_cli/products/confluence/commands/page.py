@@ -1,5 +1,4 @@
 import typer
-from click.core import ParameterSource
 
 from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
@@ -20,6 +19,11 @@ def _parse_csv(value: str | None) -> list[str] | None:
     return values or None
 
 
+def _is_default_parameter_source(ctx: typer.Context, name: str) -> bool:
+    source = ctx.get_parameter_source(name)
+    return getattr(source, "name", None) == "DEFAULT"
+
+
 @app.command("get")
 def get_page(
     ctx: typer.Context,
@@ -38,12 +42,8 @@ def get_page(
             "convert-to-markdown is not supported on Confluence Server/DC",
             param_hint="--convert-to-markdown",
         )
-    include_metadata_is_default = (
-        ctx.get_parameter_source("include_metadata") is ParameterSource.DEFAULT
-    )
-    convert_to_markdown_is_default = (
-        ctx.get_parameter_source("convert_to_markdown") is ParameterSource.DEFAULT
-    )
+    include_metadata_is_default = _is_default_parameter_source(ctx, "include_metadata")
+    convert_to_markdown_is_default = _is_default_parameter_source(ctx, "convert_to_markdown")
     use_default_read = (
         include_metadata
         and not convert_to_markdown
