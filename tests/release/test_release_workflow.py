@@ -146,19 +146,27 @@ def test_build_pyoxidizer_artifact_helper_checks_linux_glibc_baseline() -> None:
     script = Path(".github/scripts/build-pyoxidizer-artifact.py").read_text()
 
     assert "assert_linux_glibc_compatibility" in script
-    assert "MAX_GLIBC_FOR_LINUX_AMD64 = (2, 31)" in script
+    assert "MAX_GLIBC_FOR_LINUX_AMD64 = (2, 28)" in script
     assert 'target_key == ("linux", "amd64")' in script
     assert 'command_output(["strings", str(path)])' in script
-    assert "requires glibc newer than 2.31" in script
+    assert "requires glibc newer than 2.28" in script
 
 
-def test_build_linux_compatible_script_uses_pinned_bullseye_container() -> None:
+def test_build_linux_compatible_script_uses_pinned_manylinux_2_28_container() -> None:
     script = Path(".github/scripts/build-linux-compatible.sh").read_text()
 
-    assert 'IMAGE="${LINUX_BUILD_IMAGE:-python:3.12-bullseye}"' in script
+    assert "quay.io/pypa/manylinux_2_28_x86_64@sha256:" in script
+    assert 'IMAGE="${LINUX_BUILD_IMAGE:-${DEFAULT_IMAGE}}"' in script
+    assert 'PYOXIDIZER_CACHE_DIR="${PYOXIDIZER_CACHE_DIR:-${HOME}/.cache/pyoxidizer}"' in script
+    assert '-v "${PYOXIDIZER_CACHE_DIR}:/root/.cache/pyoxidizer"' in script
+    assert "for tool in gcc g++ make curl git xz uv strings" in script
+    assert "dnf install" not in script
+    assert "apt-get" not in script
     assert "docker run --rm" in script
     assert "--platform linux/amd64" in script
-    assert "python .github/scripts/build-pyoxidizer-artifact.py" in script
+    assert "PYTHON_BIN=" in script
+    assert "/opt/python/cp312-cp312/bin/python" in script
+    assert ".github/scripts/build-pyoxidizer-artifact.py" in script
     assert "--target-os linux" in script
     assert "--target-arch amd64" in script
 

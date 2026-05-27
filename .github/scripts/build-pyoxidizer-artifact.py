@@ -14,7 +14,7 @@ BUILD_ROOT = REPO_ROOT / ".pyoxidizer-build"
 DIST_ROOT = REPO_ROOT / "dist"
 PYOXIDIZER_VERSION = "0.24.0"
 PYOXIDIZER_PYTHON = "3.10"
-MAX_GLIBC_FOR_LINUX_AMD64 = (2, 31)
+MAX_GLIBC_FOR_LINUX_AMD64 = (2, 28)
 GLIBC_VERSION_PATTERN = re.compile(r"^GLIBC_(\d+)\.(\d+)$")
 RUST_TOOLCHAIN = {
     ("linux", "amd64"): "1.84.1-x86_64-unknown-linux-gnu",
@@ -137,7 +137,7 @@ def assert_linux_glibc_compatibility(bundle_dir: Path, *, target_arch: str) -> N
 
     if violations:
         details = ", ".join(violations)
-        raise SystemExit(f"linux amd64 bundle requires glibc newer than 2.31: {details}")
+        raise SystemExit(f"linux amd64 bundle requires glibc newer than 2.28: {details}")
 
 
 def main() -> None:
