@@ -111,6 +111,14 @@ def test_jira_issue_help_lists_attachment_subcommand() -> None:
     assert "attachment" in plain_output
 
 
+def test_confluence_page_help_lists_attachment_subcommand() -> None:
+    result = runner.invoke(app, ["confluence", "page", "--help"], env=ci_output_env())
+    plain_output = strip_ansi(result.output)
+
+    assert result.exit_code == 0
+    assert "attachment" in plain_output
+
+
 def test_cli_rejects_removed_table_output_mode() -> None:
     result = runner.invoke(
         app,
