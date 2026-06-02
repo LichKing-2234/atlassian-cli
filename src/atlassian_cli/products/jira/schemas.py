@@ -94,6 +94,51 @@ class JiraComment(ApiModel):
         return {key: value for key, value in payload.items() if value not in (None, "")}
 
 
+class JiraAttachment(ApiModel):
+    id: str | None = None
+    filename: str = ""
+    size: int | None = None
+    mime_type: str | None = None
+    created: str | None = None
+    download_url: str | None = None
+    author: JiraUser | None = None
+
+    @classmethod
+    def from_api_response(
+        cls, data: dict[str, Any] | None, **kwargs: Any
+    ) -> "JiraAttachment":
+        data = data or {}
+        raw_size = data.get("size")
+        try:
+            size = int(raw_size) if raw_size is not None else None
+        except (TypeError, ValueError):
+            size = None
+        return cls(
+            id=coerce_str(data.get("id")),
+            filename=str(data.get("filename", "")),
+            size=size,
+            mime_type=coerce_str(first_present(data.get("mimeType"), data.get("mime_type"))),
+            created=coerce_str(data.get("created")),
+            download_url=coerce_str(
+                first_present(data.get("content"), data.get("download_url"))
+            ),
+            author=JiraUser.from_api_response(data.get("author")) if data.get("author") else None,
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "id": self.id,
+            "filename": self.filename,
+            "size": self.size,
+            "mime_type": self.mime_type,
+            "created": self.created,
+            "download_url": self.download_url,
+        }
+        if self.author:
+            payload["author"] = self.author.to_simplified_dict()
+        return {key: value for key, value in payload.items() if value not in (None, "", {}, [])}
+
+
 class JiraProject(ApiModel):
     id: str | None = None
     key: str = ""

@@ -1,4 +1,4 @@
-from atlassian_cli.products.jira.schemas import JiraIssue, JiraSearchResult, JiraUser
+from atlassian_cli.products.jira.schemas import JiraAttachment, JiraIssue, JiraSearchResult, JiraUser
 
 
 def test_jira_issue_from_api_response_builds_rich_resource() -> None:
@@ -46,6 +46,36 @@ def test_jira_user_from_api_response_handles_cloud_shape() -> None:
     assert simplified["account_id"] == "abc-123"
     assert simplified["display_name"] == "Cloud User"
     assert simplified["name"] == "Cloud User"
+
+
+def test_jira_attachment_schema_normalizes_metadata() -> None:
+    attachment = JiraAttachment.from_api_response(
+        {
+            "id": "10001",
+            "filename": "report.pdf",
+            "size": 42,
+            "mimeType": "application/pdf",
+            "created": "2026-06-02T01:02:03.000+0000",
+            "content": "attachment://DEMO-1/report.pdf",
+            "author": {
+                "displayName": "Example Author",
+                "name": "example-user-id",
+            },
+        }
+    )
+
+    assert attachment.to_simplified_dict() == {
+        "id": "10001",
+        "filename": "report.pdf",
+        "size": 42,
+        "mime_type": "application/pdf",
+        "created": "2026-06-02T01:02:03.000+0000",
+        "download_url": "attachment://DEMO-1/report.pdf",
+        "author": {
+            "display_name": "Example Author",
+            "name": "example-user-id",
+        },
+    }
 
 
 def test_jira_search_result_from_api_response_preserves_metadata() -> None:
