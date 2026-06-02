@@ -24,14 +24,20 @@ def test_readme_mentions_bitbucket_pr_diff_tty_behavior() -> None:
     readme = Path("README.md").read_text()
 
     assert "bitbucket pr diff demo example-repo 42" in readme.lower()
+    assert "bitbucket pr diff demo example-repo 42 --with-lines" in readme.lower()
     assert "ansi-colored diff output in a tty" in readme.lower()
     assert "falls back to plain text" in readme.lower()
+    assert "line-aware diff output" in readme.lower()
 
 
 def test_readme_mentions_bitbucket_comments_and_build_status() -> None:
     readme = Path("README.md").read_text()
 
     assert "bitbucket pr comment list demo example-repo 42" in readme.lower()
+    assert (
+        'bitbucket pr comment add demo example-repo 42 "example comment" --path example.py'
+        in readme.lower()
+    )
     assert "bitbucket pr build-status demo example-repo 42" in readme.lower()
     assert "bitbucket commit build-status abc123" in readme.lower()
 

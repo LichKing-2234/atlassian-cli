@@ -20,9 +20,25 @@ class FakeCommentProvider:
         self.calls.append(("get", project_key, repo_slug, pr_id, comment_id))
         return {"id": comment_id, "version": 3, "text": "example comment"}
 
-    def add_pull_request_comment(self, project_key, repo_slug, pr_id, text, *, parent_id=None):
-        self.calls.append(("add", project_key, repo_slug, pr_id, text, parent_id))
-        return {"id": 1002, "version": 1, "text": text}
+    def add_pull_request_comment(
+        self,
+        project_key,
+        repo_slug,
+        pr_id,
+        text,
+        *,
+        parent_id=None,
+        anchor=None,
+    ):
+        self.calls.append(("add", project_key, repo_slug, pr_id, text, parent_id, anchor))
+        payload = {"id": 1002, "version": 1, "text": text}
+        if anchor:
+            payload["anchor"] = {
+                "path": anchor["path"],
+                "line": anchor["line"],
+                "lineType": anchor["line_type"],
+            }
+        return payload
 
     def update_pull_request_comment(
         self, project_key, repo_slug, pr_id, comment_id, text, *, version
@@ -77,12 +93,45 @@ def test_comment_service_get_add_reply_edit_and_delete() -> None:
     ]
 
 
+def test_comment_service_adds_inline_comment_anchor() -> None:
+    provider = FakeCommentProvider()
+    service = PullRequestCommentService(provider)
+
+    result = service.add(
+        "DEMO",
+        "example-repo",
+        42,
+        "example comment",
+        anchor={"path": "example.py", "line": 12, "line_type": "ADDED"},
+    )
+
+    assert result["anchor"] == {"path": "example.py", "line": 12, "line_type": "ADDED"}
+    assert provider.calls[-1] == (
+        "add",
+        "DEMO",
+        "example-repo",
+        42,
+        "example comment",
+        None,
+        {"path": "example.py", "line": 12, "line_type": "ADDED"},
+    )
+
+
 def test_comment_service_raw_methods_preserve_provider_payloads() -> None:
     service = PullRequestCommentService(FakeCommentProvider())
 
     assert service.list_raw("DEMO", "example-repo", 42, start=0, limit=25)[0]["id"] == 1001
     assert service.get_raw("DEMO", "example-repo", 42, "1001")["id"] == "1001"
-    assert service.add_raw("DEMO", "example-repo", 42, "example comment")["id"] == 1002
+    assert (
+        service.add_raw(
+            "DEMO",
+            "example-repo",
+            42,
+            "example comment",
+            anchor={"path": "example.py", "line": 12, "line_type": "ADDED"},
+        )["anchor"]["lineType"]
+        == "ADDED"
+    )
     assert (
         service.reply_raw("DEMO", "example-repo", 42, "1001", "example response")["text"]
         == "example response"

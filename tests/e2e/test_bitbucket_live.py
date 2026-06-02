@@ -216,6 +216,36 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
     assert "diff" in diff_payload
     assert branch_name in diff_payload["diff"] or "e2e-note.txt" in diff_payload["diff"]
 
+    diff_with_lines = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "diff",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "--with-lines",
+        "--output",
+        "json",
+    )
+    assert diff_with_lines["id"] == pr_id
+
+    inline_anchor = None
+    for file_diff in diff_with_lines["files"]:
+        if file_diff.get("path") != "e2e-note.txt":
+            continue
+        for hunk in file_diff.get("hunks", []):
+            for line in hunk.get("lines", []):
+                anchor = line.get("anchor")
+                if anchor and anchor.get("line_type") == "ADDED":
+                    inline_anchor = anchor
+                    break
+            if inline_anchor:
+                break
+        if inline_anchor:
+            break
+    assert inline_anchor is not None
+
     added_comment = run_json(
         live_env,
         "bitbucket",
@@ -231,6 +261,56 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
     )
     comment_id = added_comment["id"]
     comment_version = added_comment["version"]
+
+    inline_comment = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "comment",
+        "add",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "example comment",
+        "--path",
+        inline_anchor["path"],
+        "--line",
+        str(inline_anchor["line"]),
+        "--line-type",
+        inline_anchor["line_type"],
+        "--output",
+        "json",
+    )
+    inline_comment_id = inline_comment["id"]
+    inline_comment_version = inline_comment["version"]
+    if "anchor" in inline_comment:
+        assert inline_comment["anchor"]["path"] == inline_anchor["path"]
+        assert inline_comment["anchor"]["line"] == inline_anchor["line"]
+        assert inline_comment["anchor"]["line_type"] == inline_anchor["line_type"]
+
+    raw_diff_after_inline = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "diff",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "--with-lines",
+        "--output",
+        "raw-json",
+    )
+    raw_inline_comment_ids = [
+        str(comment_id)
+        for file_diff in raw_diff_after_inline.get("diffs", [])
+        if file_diff.get("destination", {}).get("toString") == inline_anchor["path"]
+        for hunk in file_diff.get("hunks", [])
+        for segment in hunk.get("segments", [])
+        for line in segment.get("lines", [])
+        if line.get("destination") == inline_anchor["line"]
+        for comment_id in line.get("commentIds", [])
+    ]
+    assert inline_comment_id in raw_inline_comment_ids
 
     comments = run_json(
         live_env,
@@ -325,6 +405,23 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
         "json",
     )
     assert deleted_reply["deleted"] is True
+
+    deleted_inline_comment = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "comment",
+        "delete",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        inline_comment_id,
+        "--version",
+        str(inline_comment_version),
+        "--output",
+        "json",
+    )
+    assert deleted_inline_comment["deleted"] is True
 
     head_commit = fetched.get("from_ref", {}).get("latest_commit")
     if not head_commit:

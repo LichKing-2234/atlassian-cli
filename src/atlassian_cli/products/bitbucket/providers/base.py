@@ -21,6 +21,9 @@ class BitbucketProvider(Protocol):
     ) -> list[dict]: ...
     def get_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict: ...
     def get_pull_request_diff(self, project_key: str, repo_slug: str, pr_id: int) -> str: ...
+    def get_pull_request_diff_with_lines(
+        self, project_key: str, repo_slug: str, pr_id: int
+    ) -> dict: ...
     def list_pull_request_comments(
         self,
         project_key: str,
@@ -41,6 +44,7 @@ class BitbucketProvider(Protocol):
         text: str,
         *,
         parent_id: str | None = None,
+        anchor: dict | None = None,
     ) -> dict: ...
     def update_pull_request_comment(
         self,

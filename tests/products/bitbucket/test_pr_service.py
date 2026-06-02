@@ -186,6 +186,61 @@ def test_pull_request_service_get_detail_includes_diff() -> None:
     assert "+example change" in result["diff"]
 
 
+def test_pull_request_service_diff_with_lines_normalizes_provider_payload() -> None:
+    class StructuredDiffProvider(FakePullRequestProvider):
+        def get_pull_request_diff_with_lines(self, project_key: str, repo_slug: str, pr_id: int):
+            return {
+                "values": [
+                    {
+                        "destination": {"toString": "example.py"},
+                        "hunks": [
+                            {
+                                "sourceLine": 0,
+                                "sourceSpan": 0,
+                                "destinationLine": 1,
+                                "destinationSpan": 1,
+                                "segments": [
+                                    {
+                                        "type": "ADDED",
+                                        "lines": [
+                                            {
+                                                "destination": 1,
+                                                "line": "+example response",
+                                            }
+                                        ],
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+
+    service = PullRequestService(provider=StructuredDiffProvider())
+
+    result = service.diff_with_lines("DEMO", "example-repo", 42)
+
+    assert result["id"] == 42
+    assert result["files"][0]["path"] == "example.py"
+    assert result["files"][0]["hunks"][0]["lines"][0]["anchor"] == {
+        "path": "example.py",
+        "line": 1,
+        "line_type": "ADDED",
+    }
+
+
+def test_pull_request_service_diff_with_lines_raw_preserves_provider_payload() -> None:
+    raw_payload = {"values": [{"destination": {"toString": "example.py"}}]}
+
+    class StructuredDiffProvider(FakePullRequestProvider):
+        def get_pull_request_diff_with_lines(self, project_key: str, repo_slug: str, pr_id: int):
+            return raw_payload
+
+    service = PullRequestService(provider=StructuredDiffProvider())
+
+    assert service.diff_with_lines_raw("DEMO", "example-repo", 42) is raw_payload
+
+
 def test_pull_request_service_merge_prefetches_title_and_version() -> None:
     provider = FakePullRequestProvider()
     service = PullRequestService(provider=provider)

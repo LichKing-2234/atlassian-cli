@@ -54,13 +54,41 @@ class PullRequestCommentService:
     def get_raw(self, project_key: str, repo_slug: str, pr_id: int, comment_id: str) -> dict:
         return self.provider.get_pull_request_comment(project_key, repo_slug, pr_id, comment_id)
 
-    def add(self, project_key: str, repo_slug: str, pr_id: int, text: str) -> dict:
+    def add(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        text: str,
+        *,
+        anchor: dict | None = None,
+    ) -> dict:
         return BitbucketPullRequestComment.from_api_response(
-            self.provider.add_pull_request_comment(project_key, repo_slug, pr_id, text)
+            self.provider.add_pull_request_comment(
+                project_key,
+                repo_slug,
+                pr_id,
+                text,
+                anchor=anchor,
+            )
         ).to_simplified_dict()
 
-    def add_raw(self, project_key: str, repo_slug: str, pr_id: int, text: str) -> dict:
-        return self.provider.add_pull_request_comment(project_key, repo_slug, pr_id, text)
+    def add_raw(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        text: str,
+        *,
+        anchor: dict | None = None,
+    ) -> dict:
+        return self.provider.add_pull_request_comment(
+            project_key,
+            repo_slug,
+            pr_id,
+            text,
+            anchor=anchor,
+        )
 
     def reply(
         self, project_key: str, repo_slug: str, pr_id: int, parent_id: str, text: str

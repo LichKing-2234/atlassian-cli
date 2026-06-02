@@ -99,9 +99,19 @@ def get_pull_request_diff(
     project_key: str,
     repo_slug: str,
     pr_id: int,
+    with_lines: bool = typer.Option(False, "--with-lines"),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_pr_service(ctx.obj)
+    if with_lines:
+        payload = (
+            service.diff_with_lines_raw(project_key, repo_slug, pr_id)
+            if is_raw_output(output)
+            else service.diff_with_lines(project_key, repo_slug, pr_id)
+        )
+        typer.echo(render_output(payload, output=output))
+        return
+
     if is_raw_output(output):
         typer.echo(render_output(service.diff_raw(project_key, repo_slug, pr_id), output=output))
         return

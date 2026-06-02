@@ -95,6 +95,19 @@ class BitbucketServerProvider:
         response = self.client.get(url, headers={"Accept": "text/plain"}, advanced_mode=True)
         return response.text
 
+    def get_pull_request_diff_with_lines(
+        self, project_key: str, repo_slug: str, pr_id: int
+    ) -> dict:
+        url = f"{self.client._url_pull_request(project_key, repo_slug, pr_id)}/diff"
+        response = self.client.get(
+            url,
+            headers={"Accept": "application/json"},
+            advanced_mode=True,
+        )
+        if hasattr(response, "json"):
+            return response.json()
+        return response
+
     def list_pull_request_comments(
         self,
         project_key: str,
@@ -135,7 +148,22 @@ class BitbucketServerProvider:
         text: str,
         *,
         parent_id: str | None = None,
+        anchor: dict | None = None,
     ) -> dict:
+        if anchor is not None:
+            body = {
+                "text": text,
+                "anchor": {
+                    "path": anchor["path"],
+                    "line": anchor["line"],
+                    "lineType": anchor["line_type"],
+                },
+            }
+            if parent_id:
+                body["parent"] = {"id": parent_id}
+            url = self.client._url_pull_request_comments(project_key, repo_slug, pr_id)
+            return self.client.post(url, data=body)
+
         return self.client.add_pull_request_comment(
             project_key,
             repo_slug,

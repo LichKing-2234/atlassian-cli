@@ -414,6 +414,97 @@ def test_bitbucket_pr_diff_outputs_colored_diff_for_tty(monkeypatch) -> None:
     assert "+example change" in result.stdout
 
 
+def test_bitbucket_pr_diff_with_lines_outputs_structured_json(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr as pr_module
+
+    calls = {}
+
+    class FakeService:
+        def diff_with_lines(self, project_key, repo_slug, pr_id):
+            calls["args"] = (project_key, repo_slug, pr_id)
+            return {
+                "id": pr_id,
+                "files": [
+                    {
+                        "path": "example.py",
+                        "hunks": [
+                            {
+                                "lines": [
+                                    {
+                                        "type": "ADDED",
+                                        "new_line": 1,
+                                        "text": "+example response",
+                                        "anchor": {
+                                            "path": "example.py",
+                                            "line": 1,
+                                            "line_type": "ADDED",
+                                        },
+                                    }
+                                ]
+                            }
+                        ],
+                    }
+                ],
+            }
+
+    monkeypatch.setattr(pr_module, "build_pr_service", lambda *_args: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "diff",
+            "DEMO",
+            "example-repo",
+            "42",
+            "--with-lines",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls["args"] == ("DEMO", "example-repo", 42)
+    assert '"line_type": "ADDED"' in result.stdout
+
+
+def test_bitbucket_pr_diff_with_lines_raw_output_uses_raw_service(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr as pr_module
+
+    calls = {}
+
+    class FakeService:
+        def diff_with_lines_raw(self, project_key, repo_slug, pr_id):
+            calls["args"] = (project_key, repo_slug, pr_id)
+            return {"values": [{"destination": {"toString": "example.py"}}]}
+
+    monkeypatch.setattr(pr_module, "build_pr_service", lambda *_args: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "diff",
+            "DEMO",
+            "example-repo",
+            "42",
+            "--with-lines",
+            "--output",
+            "raw-json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls["args"] == ("DEMO", "example-repo", 42)
+    assert '"values"' in result.stdout
+
+
 def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(
     monkeypatch,
 ) -> None:
