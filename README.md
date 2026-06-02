@@ -195,8 +195,10 @@ ssh example-user@example-host
 - `atlassian bitbucket pr list DEMO example-repo`
 - `atlassian bitbucket pr list DEMO example-repo --state MERGED`
 - `atlassian bitbucket pr diff DEMO example-repo 42`
+- `atlassian bitbucket pr diff DEMO example-repo 42 --with-lines --output json`
 - `atlassian bitbucket pr comment list DEMO example-repo 42`
 - `atlassian bitbucket pr comment add DEMO example-repo 42 "example comment"`
+- `atlassian bitbucket pr comment add DEMO example-repo 42 "example comment" --path example.py --line 12 --line-type ADDED`
 - `atlassian bitbucket pr build-status DEMO example-repo 42`
 - `atlassian bitbucket commit build-status abc123`
 - `atlassian bitbucket pr list DEMO example-repo --output json`
@@ -253,6 +255,7 @@ Examples:
 - `atlassian confluence space list`
 - `atlassian bitbucket pr list DEMO example-repo`
 - `atlassian bitbucket pr diff DEMO example-repo 42`
+- `atlassian bitbucket pr diff DEMO example-repo 42 --with-lines --output json`
 - `atlassian bitbucket pr comment list DEMO example-repo 42`
 - `atlassian bitbucket pr build-status DEMO example-repo 42`
 - `atlassian bitbucket commit build-status abc123`
@@ -280,10 +283,12 @@ Bitbucket pull request diff behavior:
 
 - `atlassian bitbucket pr diff DEMO example-repo 42` shows ANSI-colored diff output in a TTY.
 - The same command falls back to plain text when redirected or piped.
+- `atlassian bitbucket pr diff DEMO example-repo 42 --with-lines --output json` returns line-aware diff output with old and new line coordinates and reusable inline-comment anchors.
 
 Bitbucket pull request comments and build status behavior:
 
 - `atlassian bitbucket pr comment list DEMO example-repo 42` lists pull request comments.
+- `atlassian bitbucket pr comment add DEMO example-repo 42 "example comment" --path example.py --line 12 --line-type ADDED` creates an inline pull request comment.
 - `atlassian bitbucket pr comment edit DEMO example-repo 42 1001 "example comment" --version 3` requires the current comment version.
 - `atlassian bitbucket pr build-status DEMO example-repo 42` summarizes build statuses for pull request commits.
 - `atlassian bitbucket pr build-status DEMO example-repo 42 --latest-only` checks only the pull request head commit.
