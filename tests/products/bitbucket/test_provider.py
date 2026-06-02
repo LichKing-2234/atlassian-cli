@@ -129,6 +129,58 @@ def test_bitbucket_provider_get_pull_request_diff_uses_text_endpoint() -> None:
     )
 
 
+def test_bitbucket_provider_get_pull_request_diff_with_lines_uses_json_endpoint() -> None:
+    calls = {}
+
+    class FakeResponse:
+        def json(self):
+            return {
+                "values": [
+                    {
+                        "destination": {"toString": "example.py"},
+                        "hunks": [
+                            {
+                                "sourceLine": 0,
+                                "sourceSpan": 0,
+                                "destinationLine": 1,
+                                "destinationSpan": 1,
+                                "segments": [
+                                    {
+                                        "type": "ADDED",
+                                        "lines": [
+                                            {
+                                                "destination": 1,
+                                                "line": "+example response",
+                                            }
+                                        ],
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+
+    class FakeClient:
+        def _url_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> str:
+            return f"rest/api/latest/projects/{project_key}/repos/{repo_slug}/pull-requests/{pr_id}"
+
+        def get(self, url: str, headers=None, advanced_mode: bool = False):
+            calls["args"] = (url, headers, advanced_mode)
+            return FakeResponse()
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.get_pull_request_diff_with_lines("DEMO", "example-repo", 42)
+
+    assert result["values"][0]["destination"]["toString"] == "example.py"
+    assert calls["args"] == (
+        "rest/api/latest/projects/DEMO/repos/example-repo/pull-requests/42/diff",
+        {"Accept": "application/json"},
+        True,
+    )
+
+
 def test_create_repo_forwards_project_key_and_name_to_sdk() -> None:
     calls = {}
 
@@ -250,6 +302,40 @@ def test_bitbucket_provider_comment_methods_forward_to_sdk() -> None:
     assert calls["add"] == ("DEMO", "example-repo", 42, "example response", "1001")
     assert calls["update"] == ("DEMO", "example-repo", 42, "1001", "example comment", 3)
     assert calls["delete"] == ("DEMO", "example-repo", 42, "1001", 4)
+
+
+def test_bitbucket_provider_add_pull_request_comment_posts_anchor_payload() -> None:
+    calls = {}
+
+    class FakeClient:
+        def _url_pull_request_comments(self, project_key, repo_slug, pr_id):
+            return (
+                f"rest/api/latest/projects/{project_key}/repos/{repo_slug}"
+                f"/pull-requests/{pr_id}/comments"
+            )
+
+        def post(self, url, data=None):
+            calls["post"] = (url, data)
+            return {"id": 1001, "text": data["text"], "anchor": data["anchor"]}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.add_pull_request_comment(
+        "DEMO",
+        "example-repo",
+        42,
+        "example comment",
+        anchor={"path": "example.py", "line": 12, "line_type": "ADDED"},
+    )
+
+    assert result["anchor"] == {"path": "example.py", "line": 12, "lineType": "ADDED"}
+    assert calls["post"] == (
+        "rest/api/latest/projects/DEMO/repos/example-repo/pull-requests/42/comments",
+        {
+            "text": "example comment",
+            "anchor": {"path": "example.py", "line": 12, "lineType": "ADDED"},
+        },
+    )
 
 
 def test_bitbucket_provider_build_status_methods_forward_to_sdk() -> None:
