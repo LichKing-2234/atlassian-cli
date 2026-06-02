@@ -56,9 +56,7 @@ class AttachmentService:
             self.provider.upload_attachment(page_id, file_path, comment=comment)
         ).to_simplified_dict()
 
-    def upload_raw(
-        self, page_id: str, file_path: str, *, comment: str | None = None
-    ) -> dict:
+    def upload_raw(self, page_id: str, file_path: str, *, comment: str | None = None) -> dict:
         return self.provider.upload_attachment(page_id, file_path, comment=comment)
 
     def download(self, attachment_id: str, destination: str) -> dict:
@@ -70,7 +68,5 @@ class AttachmentService:
     def download_from_content(self, page_id: str, *, name: str, destination: str) -> dict:
         return self.provider.download_attachment_from_content(page_id, name, destination)
 
-    def download_from_content_raw(
-        self, page_id: str, *, name: str, destination: str
-    ) -> dict:
+    def download_from_content_raw(self, page_id: str, *, name: str, destination: str) -> dict:
         return self.download_from_content(page_id, name=name, destination=destination)

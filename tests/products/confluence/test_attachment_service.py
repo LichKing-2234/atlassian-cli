@@ -56,9 +56,7 @@ def test_attachment_service_download_by_page_and_name() -> None:
 
     service = AttachmentService(provider=FakeProvider())
 
-    result = service.download_from_content(
-        "1234", name="deploy.log", destination="/tmp/deploy.log"
-    )
+    result = service.download_from_content("1234", name="deploy.log", destination="/tmp/deploy.log")
 
     assert result["attachment_id"] == "55"
     assert result["bytes_written"] == 21

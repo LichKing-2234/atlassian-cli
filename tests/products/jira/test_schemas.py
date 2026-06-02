@@ -1,4 +1,9 @@
-from atlassian_cli.products.jira.schemas import JiraAttachment, JiraIssue, JiraSearchResult, JiraUser
+from atlassian_cli.products.jira.schemas import (
+    JiraAttachment,
+    JiraIssue,
+    JiraSearchResult,
+    JiraUser,
+)
 
 
 def test_jira_issue_from_api_response_builds_rich_resource() -> None:

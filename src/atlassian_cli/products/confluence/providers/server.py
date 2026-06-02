@@ -281,14 +281,10 @@ class ConfluenceServerProvider:
             "bytes_written": bytes_written,
         }
 
-    def download_attachment_from_content(
-        self, page_id: str, name: str, destination: str
-    ) -> dict:
+    def download_attachment_from_content(self, page_id: str, name: str, destination: str) -> dict:
         raw_matches = self.list_attachments(page_id, filename=name).get("results", [])
         matches = [
-            item
-            for item in raw_matches
-            if isinstance(item, dict) and item.get("title") == name
+            item for item in raw_matches if isinstance(item, dict) and item.get("title") == name
         ]
         if not matches:
             raise RuntimeError(f"No attachment named {name} found on page {page_id}")

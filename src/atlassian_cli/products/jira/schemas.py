@@ -104,9 +104,7 @@ class JiraAttachment(ApiModel):
     author: JiraUser | None = None
 
     @classmethod
-    def from_api_response(
-        cls, data: dict[str, Any] | None, **kwargs: Any
-    ) -> "JiraAttachment":
+    def from_api_response(cls, data: dict[str, Any] | None, **kwargs: Any) -> "JiraAttachment":
         data = data or {}
         raw_size = data.get("size")
         try:
@@ -119,9 +117,7 @@ class JiraAttachment(ApiModel):
             size=size,
             mime_type=coerce_str(first_present(data.get("mimeType"), data.get("mime_type"))),
             created=coerce_str(data.get("created")),
-            download_url=coerce_str(
-                first_present(data.get("content"), data.get("download_url"))
-            ),
+            download_url=coerce_str(first_present(data.get("content"), data.get("download_url"))),
             author=JiraUser.from_api_response(data.get("author")) if data.get("author") else None,
         )
 
