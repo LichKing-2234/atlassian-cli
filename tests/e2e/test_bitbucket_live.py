@@ -283,9 +283,34 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
     )
     inline_comment_id = inline_comment["id"]
     inline_comment_version = inline_comment["version"]
-    assert inline_comment["anchor"]["path"] == inline_anchor["path"]
-    assert inline_comment["anchor"]["line"] == inline_anchor["line"]
-    assert inline_comment["anchor"]["line_type"] == inline_anchor["line_type"]
+    if "anchor" in inline_comment:
+        assert inline_comment["anchor"]["path"] == inline_anchor["path"]
+        assert inline_comment["anchor"]["line"] == inline_anchor["line"]
+        assert inline_comment["anchor"]["line_type"] == inline_anchor["line_type"]
+
+    raw_diff_after_inline = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "diff",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "--with-lines",
+        "--output",
+        "raw-json",
+    )
+    raw_inline_comment_ids = [
+        str(comment_id)
+        for file_diff in raw_diff_after_inline.get("diffs", [])
+        if file_diff.get("destination", {}).get("toString") == inline_anchor["path"]
+        for hunk in file_diff.get("hunks", [])
+        for segment in hunk.get("segments", [])
+        for line in segment.get("lines", [])
+        if line.get("destination") == inline_anchor["line"]
+        for comment_id in line.get("commentIds", [])
+    ]
+    assert inline_comment_id in raw_inline_comment_ids
 
     comments = run_json(
         live_env,
