@@ -22,11 +22,21 @@ class FakeCommentService:
     def get_raw(self, project_key, repo_slug, pr_id, comment_id):
         return {"id": int(comment_id), "text": "example comment"}
 
-    def add(self, project_key, repo_slug, pr_id, text):
-        return {"id": "1002", "text": text}
+    def add(self, project_key, repo_slug, pr_id, text, anchor=None):
+        payload = {"id": "1002", "text": text}
+        if anchor:
+            payload["anchor"] = anchor
+        return payload
 
-    def add_raw(self, project_key, repo_slug, pr_id, text):
-        return {"id": 1002, "text": text}
+    def add_raw(self, project_key, repo_slug, pr_id, text, anchor=None):
+        payload = {"id": 1002, "text": text}
+        if anchor:
+            payload["anchor"] = {
+                "path": anchor["path"],
+                "line": anchor["line"],
+                "lineType": anchor["line_type"],
+            }
+        return payload
 
     def reply(self, project_key, repo_slug, pr_id, parent_id, text):
         return {"id": "1003", "text": text, "parent": {"id": parent_id}}
@@ -108,6 +118,114 @@ def test_bitbucket_pr_comment_raw_output_uses_raw_service(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert '"id": 1001' in result.stdout
+
+
+def test_bitbucket_pr_comment_add_accepts_inline_anchor(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr_comment as comment_module
+
+    monkeypatch.setattr(
+        comment_module, "build_comment_service", lambda *_args: FakeCommentService()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "comment",
+            "add",
+            "DEMO",
+            "example-repo",
+            "42",
+            "example comment",
+            "--path",
+            "example.py",
+            "--line",
+            "12",
+            "--line-type",
+            "added",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"path": "example.py"' in result.stdout
+    assert '"line": 12' in result.stdout
+    assert '"line_type": "ADDED"' in result.stdout
+
+
+def test_bitbucket_pr_comment_add_rejects_partial_inline_anchor(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr_comment as comment_module
+
+    service_calls = []
+
+    def build_service(*_args):
+        service_calls.append("built")
+        return FakeCommentService()
+
+    monkeypatch.setattr(comment_module, "build_comment_service", build_service)
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "comment",
+            "add",
+            "DEMO",
+            "example-repo",
+            "42",
+            "example comment",
+            "--path",
+            "example.py",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "Usage:" in result.output
+    assert service_calls == []
+
+
+def test_bitbucket_pr_comment_add_rejects_invalid_line_type(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr_comment as comment_module
+
+    service_calls = []
+    monkeypatch.setattr(
+        comment_module,
+        "build_comment_service",
+        lambda *_args: service_calls.append("built") or FakeCommentService(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "comment",
+            "add",
+            "DEMO",
+            "example-repo",
+            "42",
+            "example comment",
+            "--path",
+            "example.py",
+            "--line",
+            "12",
+            "--line-type",
+            "SIDEWAYS",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "Usage:" in result.output
+    assert service_calls == []
 
 
 def test_bitbucket_pr_comment_edit_requires_version(monkeypatch) -> None:
