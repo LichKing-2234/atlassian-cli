@@ -190,7 +190,13 @@ ssh example-user@example-host
 ## Examples
 
 - `atlassian jira issue get DEMO-1`
+- `atlassian jira issue attachment list DEMO-1`
+- `atlassian jira issue attachment upload DEMO-1 ./report.pdf`
+- `atlassian jira issue attachment download DEMO-1 --name report.pdf --destination ./report.pdf`
 - `atlassian confluence page get 1234`
+- `atlassian confluence page attachment list 1234`
+- `atlassian confluence page attachment upload 1234 ./diagram.png`
+- `atlassian confluence page attachment download 1234 --name diagram.png --destination ./diagram.png`
 - `atlassian bitbucket repo get DEMO example-repo`
 - `atlassian bitbucket pr list DEMO example-repo`
 - `atlassian bitbucket pr list DEMO example-repo --state MERGED`
@@ -293,8 +299,8 @@ Bitbucket pull request comments and build status behavior:
 
 The CLI now covers the `mcp-atlassian` `TOOLSETS=default` Jira and Confluence command groups for Server/Data Center:
 
-- Jira issues, fields, comments, and transitions
-- Confluence pages and comments
+- Jira issues, fields, comments, attachments, and transitions
+- Confluence pages, comments, and attachments
 
 Normalized json and yaml output now follows MCP-style resource envelopes more closely. This is a breaking change for scripts that consumed older normalized output.
 

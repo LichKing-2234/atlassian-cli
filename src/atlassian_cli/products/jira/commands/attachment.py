@@ -2,10 +2,10 @@ import typer
 
 from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
-from atlassian_cli.products.confluence.services.attachment import AttachmentService
 from atlassian_cli.products.factory import build_provider
+from atlassian_cli.products.jira.services.attachment import AttachmentService
 
-app = typer.Typer(help="Confluence attachment commands")
+app = typer.Typer(help="Jira issue attachment commands")
 
 
 def build_attachment_service(context) -> AttachmentService:
@@ -15,41 +15,26 @@ def build_attachment_service(context) -> AttachmentService:
 @app.command("list")
 def list_attachments(
     ctx: typer.Context,
-    page_id: str,
-    start: int = typer.Option(0, "--start"),
-    limit: int = typer.Option(50, "--limit"),
-    filename: str | None = typer.Option(None, "--filename"),
-    media_type: str | None = typer.Option(None, "--media-type"),
+    issue_key: str,
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_attachment_service(ctx.obj)
-    kwargs = {
-        "start": start,
-        "limit": limit,
-        "filename": filename,
-        "media_type": media_type,
-    }
-    payload = (
-        service.list_raw(page_id, **kwargs)
-        if is_raw_output(output)
-        else service.list(page_id, **kwargs)
-    )
+    payload = service.list_raw(issue_key) if is_raw_output(output) else service.list(issue_key)
     typer.echo(render_output(payload, output=output))
 
 
 @app.command("upload")
 def upload_attachment(
     ctx: typer.Context,
-    page_id: str,
-    file_path: str = typer.Option(..., "--file"),
-    comment: str | None = typer.Option(None, "--comment"),
+    issue_key: str,
+    file_path: str,
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_attachment_service(ctx.obj)
     payload = (
-        service.upload_raw(page_id, file_path, comment=comment)
+        service.upload_raw(issue_key, file_path)
         if is_raw_output(output)
-        else service.upload(page_id, file_path, comment=comment)
+        else service.upload(issue_key, file_path)
     )
     typer.echo(render_output(payload, output=output))
 
@@ -57,14 +42,15 @@ def upload_attachment(
 @app.command("download")
 def download_attachment(
     ctx: typer.Context,
-    attachment_id: str,
+    issue_key: str,
+    name: str = typer.Option(..., "--name"),
     destination: str = typer.Option(..., "--destination"),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_attachment_service(ctx.obj)
     payload = (
-        service.download_raw(attachment_id, destination)
+        service.download_raw(issue_key, name=name, destination=destination)
         if is_raw_output(output)
-        else service.download(attachment_id, destination)
+        else service.download(issue_key, name=name, destination=destination)
     )
     typer.echo(render_output(payload, output=output))

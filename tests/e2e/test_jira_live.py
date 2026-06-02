@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -94,7 +95,7 @@ def test_jira_project_and_metadata_live(live_env) -> None:
     assert user["name"] == user_name
 
 
-def test_jira_issue_round_trip_live(live_env) -> None:
+def test_jira_issue_round_trip_live(live_env, tmp_path) -> None:
     registry = CleanupRegistry()
     summary = unique_name("jira-e2e")
     issue_key = None
@@ -232,6 +233,50 @@ def test_jira_issue_round_trip_live(live_env) -> None:
             "json",
         )
         assert edited["id"] == comment["id"]
+
+        upload_file = tmp_path / "report.pdf"
+        upload_file.write_text("example report\n")
+        uploaded = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "attachment",
+            "upload",
+            issue_key,
+            str(upload_file),
+            "--output",
+            "json",
+        )
+        assert uploaded["filename"] == "report.pdf"
+
+        listed = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "attachment",
+            "list",
+            issue_key,
+            "--output",
+            "json",
+        )
+        assert any(item["filename"] == "report.pdf" for item in listed["results"])
+
+        download_target = tmp_path / "downloaded-report.pdf"
+        downloaded = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "attachment",
+            "download",
+            issue_key,
+            "--name",
+            "report.pdf",
+            "--destination",
+            str(download_target),
+            "--output",
+            "json",
+        )
+        assert Path(downloaded["path"]).read_text() == "example report\n"
     finally:
         registry.run()
 

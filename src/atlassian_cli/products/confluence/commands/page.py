@@ -2,10 +2,12 @@ import typer
 
 from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
+from atlassian_cli.products.confluence.commands.page_attachment import app as attachment_app
 from atlassian_cli.products.confluence.services.page import PageService
 from atlassian_cli.products.factory import build_provider
 
 app = typer.Typer(help="Confluence page commands")
+app.add_typer(attachment_app, name="attachment")
 
 
 def build_page_service(context) -> PageService:

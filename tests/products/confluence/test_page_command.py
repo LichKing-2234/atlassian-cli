@@ -44,6 +44,51 @@ def test_confluence_page_get_outputs_json(monkeypatch) -> None:
     assert '"metadata"' in result.stdout
 
 
+def test_confluence_page_attachment_download_outputs_json(monkeypatch, tmp_path) -> None:
+    from atlassian_cli.products.confluence.commands import page_attachment as attachment_module
+
+    target = tmp_path / "diagram.png"
+    monkeypatch.setattr(
+        attachment_module,
+        "build_attachment_service",
+        lambda *_args, **_kwargs: type(
+            "FakeService",
+            (),
+            {
+                "download_from_content": lambda self, page_id, *, name, destination: {
+                    "page_id": page_id,
+                    "title": name,
+                    "path": destination,
+                    "bytes_written": 3,
+                }
+            },
+        )(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "DEMO",
+            "confluence",
+            "page",
+            "attachment",
+            "download",
+            "1234",
+            "--name",
+            "diagram.png",
+            "--destination",
+            str(target),
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert '"page_id": "1234"' in result.stdout
+    assert str(target) in result.stdout
+
+
 def test_confluence_page_get_renders_storage_html_in_markdown_output(monkeypatch) -> None:
     from atlassian_cli.products.confluence.commands import page as page_module
 

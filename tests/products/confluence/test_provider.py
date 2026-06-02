@@ -84,8 +84,8 @@ def test_upload_attachment_returns_first_result_item(tmp_path) -> None:
     calls = {}
 
     class FakeClient:
-        def attach_file(self, file_path: str, *, page_id: str):
-            calls["args"] = (file_path, page_id)
+        def attach_file(self, file_path: str, *, page_id: str, comment: str | None):
+            calls["args"] = (file_path, page_id, comment)
             return {
                 "results": [
                     {
@@ -107,7 +107,55 @@ def test_upload_attachment_returns_first_result_item(tmp_path) -> None:
         "title": "deploy.log",
         "_links": {"download": "/download/attachments/55/deploy.log"},
     }
-    assert calls["args"] == (str(upload_file), "1234")
+    assert calls["args"] == (str(upload_file), "1234", None)
+
+
+def test_list_attachments_forwards_pagination_and_filters() -> None:
+    calls = {}
+
+    class FakeClient:
+        def get_attachments_from_content(
+            self,
+            page_id: str,
+            *,
+            start: int,
+            limit: int,
+            filename: str | None,
+            media_type: str | None,
+        ):
+            calls["args"] = (page_id, start, limit, filename, media_type)
+            return {"results": []}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.list_attachments(
+        "1234",
+        start=5,
+        limit=10,
+        filename="diagram.png",
+        media_type="image/png",
+    )
+
+    assert result == {"results": []}
+    assert calls["args"] == ("1234", 5, 10, "diagram.png", "image/png")
+
+
+def test_upload_attachment_forwards_comment(tmp_path) -> None:
+    calls = {}
+
+    class FakeClient:
+        def attach_file(self, file_path: str, *, page_id: str, comment: str | None):
+            calls["args"] = (file_path, page_id, comment)
+            return {"results": [{"id": "55", "title": "diagram.png"}]}
+
+    upload_file = tmp_path / "diagram.png"
+    upload_file.write_bytes(b"png")
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.upload_attachment("1234", str(upload_file), comment="example comment")
+
+    assert result == {"id": "55", "title": "diagram.png"}
+    assert calls["args"] == (str(upload_file), "1234", "example comment")
 
 
 def test_reply_to_comment_posts_comment_container_payload() -> None:

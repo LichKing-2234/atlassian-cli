@@ -207,11 +207,27 @@ class ConfluenceServerProvider:
         response.raise_for_status()
         return response.json()
 
-    def list_attachments(self, page_id: str) -> dict:
-        return self.client.get_attachments_from_content(page_id)
+    def list_attachments(
+        self,
+        page_id: str,
+        *,
+        start: int = 0,
+        limit: int = 50,
+        filename: str | None = None,
+        media_type: str | None = None,
+    ) -> dict:
+        return self.client.get_attachments_from_content(
+            page_id,
+            start=start,
+            limit=limit,
+            filename=filename,
+            media_type=media_type,
+        )
 
-    def upload_attachment(self, page_id: str, file_path: str) -> dict:
-        response = self.client.attach_file(file_path, page_id=page_id)
+    def upload_attachment(
+        self, page_id: str, file_path: str, *, comment: str | None = None
+    ) -> dict:
+        response = self.client.attach_file(file_path, page_id=page_id, comment=comment)
         if isinstance(response, dict):
             results = response.get("results")
             if isinstance(results, list) and results and isinstance(results[0], dict):
@@ -264,3 +280,16 @@ class ConfluenceServerProvider:
             "path": str(target),
             "bytes_written": bytes_written,
         }
+
+    def download_attachment_from_content(self, page_id: str, name: str, destination: str) -> dict:
+        raw_matches = self.list_attachments(page_id, filename=name).get("results", [])
+        matches = [
+            item for item in raw_matches if isinstance(item, dict) and item.get("title") == name
+        ]
+        if not matches:
+            raise RuntimeError(f"No attachment named {name} found on page {page_id}")
+        if len(matches) > 1:
+            raise RuntimeError(f"Multiple attachments named {name} found on page {page_id}")
+        result = self.download_attachment(str(matches[0]["id"]), destination)
+        result["page_id"] = page_id
+        return result
