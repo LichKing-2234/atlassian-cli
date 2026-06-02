@@ -35,7 +35,7 @@ def test_readme_mentions_bitbucket_comments_and_build_status() -> None:
 
     assert "bitbucket pr comment list demo example-repo 42" in readme.lower()
     assert (
-        "bitbucket pr comment add demo example-repo 42 \"example comment\" --path example.py"
+        'bitbucket pr comment add demo example-repo 42 "example comment" --path example.py'
         in readme.lower()
     )
     assert "bitbucket pr build-status demo example-repo 42" in readme.lower()
