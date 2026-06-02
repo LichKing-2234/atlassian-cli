@@ -151,9 +151,6 @@ jobs:
       - name: Build python package assets
         run: python -m build
 
-      - name: Generate release notes
-        run: python .github/scripts/generate_release_notes.py "${{ needs.prepare.outputs.tag }}" release-notes.md
-
       - name: Upload python package assets
         uses: softprops/action-gh-release@v2
         with:
@@ -161,7 +158,6 @@ jobs:
           tag_name: ${{ needs.prepare.outputs.tag }}
           target_commitish: ${{ needs.prepare.outputs.commit_sha }}
           prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
-          body_path: release-notes.md
           overwrite_files: true
           files: dist/*
 
@@ -169,7 +165,6 @@ jobs:
     needs: [prepare, verify]
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         include:
           - runner: ubuntu-22.04
@@ -240,9 +235,6 @@ jobs:
             --target-arch "${{ matrix.target_arch }}" \
             --archive-format "${{ matrix.archive_format }}"
 
-      - name: Generate release notes
-        run: python .github/scripts/generate_release_notes.py "${TAG}" release-notes.md
-
       - name: Upload platform archive
         uses: softprops/action-gh-release@v2
         with:
@@ -250,7 +242,6 @@ jobs:
           tag_name: ${{ needs.prepare.outputs.tag }}
           target_commitish: ${{ needs.prepare.outputs.commit_sha }}
           prerelease: ${{ needs.prepare.outputs.is_prerelease == 'true' }}
-          body_path: release-notes.md
           overwrite_files: true
           files: ${{ steps.package.outputs.archive_name }}
 
@@ -280,7 +271,7 @@ jobs:
           cd release-assets
           sha256sum atlassian-cli_* > checksums.txt
 
-      - name: Upload checksums
+      - name: Upload checksums and release notes
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.RELEASE_TOKEN || github.token }}

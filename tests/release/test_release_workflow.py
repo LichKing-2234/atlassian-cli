@@ -177,18 +177,35 @@ def test_build_linux_compatible_script_makes_bundle_readable_for_packaging() -> 
     assert "chmod -R a+rX dist/atlassian" in script
 
 
-def test_release_workflow_publishes_generated_release_notes() -> None:
+def test_release_workflow_parallelizes_platform_archives_and_centralizes_release_notes() -> None:
     workflow = yaml.safe_load(Path(".github/workflows/release.yml").read_text())
-    steps = workflow["jobs"]["release"]["steps"]
+    package_steps = workflow["jobs"]["python-package"]["steps"]
+    release_job = workflow["jobs"]["release"]
+    release_steps = release_job["steps"]
+    checksums_steps = workflow["jobs"]["checksums"]["steps"]
 
-    checkout = next(step for step in steps if step["name"] == "Check out repository")
-    release_notes = next(step for step in steps if step["name"] == "Generate release notes")
-    upload_steps = [step for step in steps if step.get("uses") == "softprops/action-gh-release@v2"]
+    checkout = next(step for step in release_steps if step["name"] == "Check out repository")
+    package_upload = next(
+        step for step in package_steps if step.get("uses") == "softprops/action-gh-release@v2"
+    )
+    platform_upload = next(
+        step for step in release_steps if step.get("uses") == "softprops/action-gh-release@v2"
+    )
+    release_notes = next(
+        step for step in checksums_steps if step["name"] == "Generate release notes"
+    )
+    checksums_upload = next(
+        step for step in checksums_steps if step["name"] == "Upload checksums and release notes"
+    )
 
+    assert "max-parallel" not in release_job["strategy"]
     assert checkout["with"]["fetch-depth"] == 0
+    assert "Generate release notes" not in [step["name"] for step in package_steps]
+    assert "Generate release notes" not in [step["name"] for step in release_steps]
     assert "python .github/scripts/generate_release_notes.py" in release_notes["run"]
-    assert upload_steps
-    assert all(step["with"]["body_path"] == "release-notes.md" for step in upload_steps)
+    assert "body_path" not in package_upload["with"]
+    assert "body_path" not in platform_upload["with"]
+    assert checksums_upload["with"]["body_path"] == "release-notes.md"
 
 
 def test_release_workflow_notifies_wecom_after_publish() -> None:
