@@ -379,5 +379,51 @@ def test_confluence_attachment_round_trip_live(live_env, tmp_path) -> None:
             "json",
         )
         assert Path(downloaded["path"]).read_text() == "release=42\nstatus=ok\n"
+
+        page_upload_file = tmp_path / "diagram.png"
+        page_upload_file.write_text("example diagram\n")
+        page_uploaded = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "attachment",
+            "upload",
+            page_id,
+            str(page_upload_file),
+            "--output",
+            "json",
+        )
+        assert page_uploaded["title"] == "diagram.png"
+
+        page_listed = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "attachment",
+            "list",
+            page_id,
+            "--filename",
+            "diagram.png",
+            "--output",
+            "json",
+        )
+        assert any(item["title"] == "diagram.png" for item in page_listed["results"])
+
+        page_download_target = tmp_path / "downloaded-diagram.png"
+        page_downloaded = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "attachment",
+            "download",
+            page_id,
+            "--name",
+            "diagram.png",
+            "--destination",
+            str(page_download_target),
+            "--output",
+            "json",
+        )
+        assert Path(page_downloaded["path"]).read_text() == "example diagram\n"
     finally:
         registry.run()
