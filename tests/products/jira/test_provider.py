@@ -92,3 +92,79 @@ def test_get_issue_rejects_unsupported_server_options() -> None:
         assert "comment_limit" in str(exc)
     else:
         raise AssertionError("expected NotImplementedError")
+
+
+def test_list_issue_attachments_fetches_attachment_field_only() -> None:
+    calls = {}
+
+    class FakeClient:
+        def issue(self, issue_key: str, fields="*all", expand=None) -> dict:
+            calls["args"] = (issue_key, fields, expand)
+            return {"fields": {"attachment": [{"id": "10001", "filename": "report.pdf"}]}}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.list_issue_attachments("DEMO-1")
+
+    assert result == [{"id": "10001", "filename": "report.pdf"}]
+    assert calls["args"] == ("DEMO-1", "attachment", None)
+
+
+def test_upload_issue_attachment_delegates_to_client() -> None:
+    calls = {}
+
+    class FakeClient:
+        def add_attachment(self, issue_key: str, filename: str) -> dict:
+            calls["args"] = (issue_key, filename)
+            return {"id": "10001", "filename": "report.pdf", "size": 42}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.upload_issue_attachment("DEMO-1", "/tmp/report.pdf")
+
+    assert result == {"id": "10001", "filename": "report.pdf", "size": 42}
+    assert calls["args"] == ("DEMO-1", "/tmp/report.pdf")
+
+
+def test_download_issue_attachment_streams_to_destination(tmp_path) -> None:
+    calls = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_content(self, chunk_size: int):
+            assert chunk_size == 64 * 1024
+            yield b"example "
+            yield b"report\n"
+
+    class FakeSession:
+        def get(self, url: str, *, stream: bool):
+            calls.append((url, stream))
+            return FakeResponse()
+
+    class FakeClient:
+        _session = FakeSession()
+
+    provider = build_provider_with_client(FakeClient())
+    target = tmp_path / "report.pdf"
+
+    result = provider.download_issue_attachment(
+        {
+            "id": "10001",
+            "filename": "report.pdf",
+            "content": "attachment://DEMO-1/report.pdf",
+        },
+        str(target),
+        issue_key="DEMO-1",
+    )
+
+    assert target.read_bytes() == b"example report\n"
+    assert result == {
+        "issue_key": "DEMO-1",
+        "attachment_id": "10001",
+        "filename": "report.pdf",
+        "path": str(target),
+        "bytes_written": 15,
+    }
+    assert calls == [("attachment://DEMO-1/report.pdf", True)]

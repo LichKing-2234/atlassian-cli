@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from atlassian import Jira
 from requests import HTTPError
 
@@ -92,6 +94,55 @@ class JiraServerProvider:
     def update_issue(self, issue_key: str, fields: dict) -> dict:
         self.client.issue_update(issue_key, fields=fields)
         return {"key": issue_key, "updated": True}
+
+    def list_issue_attachments(self, issue_key: str) -> list[dict]:
+        issue = self.client.issue(issue_key, fields="attachment")
+        fields = issue.get("fields") if isinstance(issue, dict) else {}
+        attachments = fields.get("attachment", []) if isinstance(fields, dict) else []
+        return [item for item in attachments if isinstance(item, dict)]
+
+    def upload_issue_attachment(self, issue_key: str, file_path: str) -> dict:
+        response = self.client.add_attachment(issue_key, file_path)
+        return response if isinstance(response, dict) else {"uploaded": bool(response)}
+
+    def download_issue_attachment(
+        self, attachment: dict, destination: str, *, issue_key: str
+    ) -> dict:
+        filename = str(attachment.get("filename") or attachment.get("id") or "attachment")
+        download_url = attachment.get("content") or attachment.get("download_url")
+        if not isinstance(download_url, str) or not download_url:
+            raise RuntimeError(f"attachment download url missing for {filename}")
+
+        target = Path(destination)
+        if target.exists() and target.is_dir():
+            target = target / Path(filename).name
+        elif destination.endswith("/") or destination.endswith("\\"):
+            target.mkdir(parents=True, exist_ok=True)
+            target = target / Path(filename).name
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+
+        session = getattr(self.client, "_session", None)
+        if session is None:
+            raise RuntimeError("attachment download is unavailable without an HTTP session")
+
+        bytes_written = 0
+        response = session.get(download_url, stream=True)
+        response.raise_for_status()
+        with target.open("wb") as handle:
+            for chunk in response.iter_content(chunk_size=64 * 1024):
+                if not chunk:
+                    continue
+                handle.write(chunk)
+                bytes_written += len(chunk)
+
+        return {
+            "issue_key": issue_key,
+            "attachment_id": str(attachment.get("id", "")),
+            "filename": filename,
+            "path": str(target),
+            "bytes_written": bytes_written,
+        }
 
     def get_create_meta(self, project_key: str, issue_type: str) -> dict:
         meta = self.client.issue_createmeta(project_key, expand="projects.issuetypes.fields")
