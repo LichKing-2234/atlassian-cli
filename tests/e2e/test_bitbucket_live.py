@@ -472,6 +472,32 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
     assert "overall_state" in commit_build_status
     assert "results" in commit_build_status
 
+    approved = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "approve",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "--output",
+        "json",
+    )
+    assert approved["approved"] is True
+
+    unapproved = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "unapprove",
+        target["project_key"],
+        target["repo_slug"],
+        str(pr_id),
+        "--output",
+        "json",
+    )
+    assert unapproved["approved"] is False
+
     merged = run_json(
         live_env,
         "bitbucket",

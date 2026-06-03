@@ -205,6 +205,8 @@ ssh example-user@example-host
 - `atlassian bitbucket pr comment list DEMO example-repo 42`
 - `atlassian bitbucket pr comment add DEMO example-repo 42 "example comment"`
 - `atlassian bitbucket pr comment add DEMO example-repo 42 "example comment" --path example.py --line 12 --line-type ADDED`
+- `atlassian bitbucket pr approve DEMO example-repo 42`
+- `atlassian bitbucket pr unapprove DEMO example-repo 42`
 - `atlassian bitbucket pr build-status DEMO example-repo 42`
 - `atlassian bitbucket commit build-status abc123`
 - `atlassian bitbucket pr list DEMO example-repo --output json`
@@ -263,6 +265,8 @@ Examples:
 - `atlassian bitbucket pr diff DEMO example-repo 42`
 - `atlassian bitbucket pr diff DEMO example-repo 42 --with-lines --output json`
 - `atlassian bitbucket pr comment list DEMO example-repo 42`
+- `atlassian bitbucket pr approve DEMO example-repo 42`
+- `atlassian bitbucket pr unapprove DEMO example-repo 42`
 - `atlassian bitbucket pr build-status DEMO example-repo 42`
 - `atlassian bitbucket commit build-status abc123`
 - `atlassian jira issue get DEMO-1 --output json`
@@ -296,6 +300,8 @@ Bitbucket pull request comments and build status behavior:
 - `atlassian bitbucket pr comment list DEMO example-repo 42` lists pull request comments.
 - `atlassian bitbucket pr comment add DEMO example-repo 42 "example comment" --path example.py --line 12 --line-type ADDED` creates an inline pull request comment.
 - `atlassian bitbucket pr comment edit DEMO example-repo 42 1001 "example comment" --version 3` requires the current comment version.
+- `atlassian bitbucket pr approve DEMO example-repo 42` approves a pull request as the authenticated user.
+- `atlassian bitbucket pr unapprove DEMO example-repo 42` removes the authenticated user's pull request approval.
 - `atlassian bitbucket pr build-status DEMO example-repo 42` summarizes build statuses for pull request commits.
 - `atlassian bitbucket pr build-status DEMO example-repo 42 --latest-only` checks only the pull request head commit.
 - `atlassian bitbucket commit build-status abc123` checks a specific commit.

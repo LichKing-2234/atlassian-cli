@@ -157,6 +157,40 @@ def get_pull_request_build_status(
     typer.echo(render_output(payload, output=output))
 
 
+@app.command("approve")
+def approve_pull_request(
+    ctx: typer.Context,
+    project_key: str,
+    repo_slug: str,
+    pr_id: int,
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_pr_service(ctx.obj)
+    result = (
+        service.approve_raw(project_key, repo_slug, pr_id)
+        if is_raw_output(output)
+        else service.approve(project_key, repo_slug, pr_id)
+    )
+    typer.echo(render_output(result, output=output))
+
+
+@app.command("unapprove")
+def unapprove_pull_request(
+    ctx: typer.Context,
+    project_key: str,
+    repo_slug: str,
+    pr_id: int,
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_pr_service(ctx.obj)
+    result = (
+        service.unapprove_raw(project_key, repo_slug, pr_id)
+        if is_raw_output(output)
+        else service.unapprove(project_key, repo_slug, pr_id)
+    )
+    typer.echo(render_output(result, output=output))
+
+
 @app.command("create")
 def create_pull_request(
     ctx: typer.Context,

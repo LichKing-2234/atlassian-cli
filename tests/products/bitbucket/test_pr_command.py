@@ -505,6 +505,105 @@ def test_bitbucket_pr_diff_with_lines_raw_output_uses_raw_service(monkeypatch) -
     assert '"values"' in result.stdout
 
 
+def test_bitbucket_pr_approve_outputs_json(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr as pr_module
+
+    calls = {}
+
+    class FakeService:
+        def approve(self, project_key, repo_slug, pr_id):
+            calls["args"] = (project_key, repo_slug, pr_id)
+            return {"approved": True, "status": "APPROVED"}
+
+    monkeypatch.setattr(pr_module, "build_pr_service", lambda *_args: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "approve",
+            "DEMO",
+            "example-repo",
+            "42",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls["args"] == ("DEMO", "example-repo", 42)
+    assert '"approved": true' in result.stdout
+
+
+def test_bitbucket_pr_unapprove_outputs_json(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr as pr_module
+
+    calls = {}
+
+    class FakeService:
+        def unapprove(self, project_key, repo_slug, pr_id):
+            calls["args"] = (project_key, repo_slug, pr_id)
+            return {"approved": False, "status": "UNAPPROVED"}
+
+    monkeypatch.setattr(pr_module, "build_pr_service", lambda *_args: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "unapprove",
+            "DEMO",
+            "example-repo",
+            "42",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls["args"] == ("DEMO", "example-repo", 42)
+    assert '"approved": false' in result.stdout
+
+
+def test_bitbucket_pr_approve_raw_output_uses_raw_service(monkeypatch) -> None:
+    from atlassian_cli.products.bitbucket.commands import pr as pr_module
+
+    calls = {}
+
+    class FakeService:
+        def approve_raw(self, project_key, repo_slug, pr_id):
+            calls["args"] = (project_key, repo_slug, pr_id)
+            return {"approved": True, "status": "APPROVED", "raw": {"id": 42}}
+
+    monkeypatch.setattr(pr_module, "build_pr_service", lambda *_args: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "pr",
+            "approve",
+            "DEMO",
+            "example-repo",
+            "42",
+            "--output",
+            "raw-json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls["args"] == ("DEMO", "example-repo", 42)
+    assert '"raw": {' in result.stdout
+
+
 def test_bitbucket_pr_list_falls_back_to_markdown_when_interactive_import_fails(
     monkeypatch,
 ) -> None:

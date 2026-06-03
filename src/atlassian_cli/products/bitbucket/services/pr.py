@@ -1,7 +1,10 @@
 from atlassian_cli.output.interactive import CollectionPage
 from atlassian_cli.products.bitbucket.diff import normalize_pull_request_diff
 from atlassian_cli.products.bitbucket.providers.base import BitbucketProvider
-from atlassian_cli.products.bitbucket.schemas import BitbucketPullRequest
+from atlassian_cli.products.bitbucket.schemas import (
+    BitbucketPullRequest,
+    BitbucketPullRequestApproval,
+)
 
 
 class PullRequestService:
@@ -89,6 +92,28 @@ class PullRequestService:
 
     def diff_with_lines_raw(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
         return self.provider.get_pull_request_diff_with_lines(project_key, repo_slug, pr_id)
+
+    def approve(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        payload = BitbucketPullRequestApproval.from_api_response(
+            self.provider.approve_pull_request(project_key, repo_slug, pr_id)
+        ).to_simplified_dict()
+        payload.setdefault("approved", True)
+        payload.setdefault("status", "APPROVED")
+        return payload
+
+    def approve_raw(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        return self.provider.approve_pull_request(project_key, repo_slug, pr_id)
+
+    def unapprove(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        payload = BitbucketPullRequestApproval.from_api_response(
+            self.provider.unapprove_pull_request(project_key, repo_slug, pr_id)
+        ).to_simplified_dict()
+        payload.setdefault("approved", False)
+        payload.setdefault("status", "UNAPPROVED")
+        return payload
+
+    def unapprove_raw(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        return self.provider.unapprove_pull_request(project_key, repo_slug, pr_id)
 
     def create(self, project_key: str, repo_slug: str, payload: dict) -> dict:
         return BitbucketPullRequest.from_api_response(

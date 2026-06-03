@@ -7,6 +7,7 @@ from atlassian_cli.products.bitbucket.services.pr import PullRequestService
 
 class FakePullRequestProvider:
     def __init__(self) -> None:
+        self.approval_calls = []
         self.merge_calls = []
 
     def list_pull_requests(
@@ -61,6 +62,26 @@ class FakePullRequestProvider:
 
     def get_pull_request_diff(self, project_key: str, repo_slug: str, pr_id: int) -> str:
         return "--- a/e2e-note.txt\n+++ b/e2e-note.txt\n@@ -0,0 +1 @@\n+example change\n"
+
+    def approve_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        self.approval_calls.append(("approve", project_key, repo_slug, pr_id))
+        return {
+            "approved": True,
+            "status": "APPROVED",
+            "role": "REVIEWER",
+            "lastReviewedCommit": "abc123",
+            "user": {"displayName": "Example Author", "name": "example-user-id"},
+        }
+
+    def unapprove_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        self.approval_calls.append(("unapprove", project_key, repo_slug, pr_id))
+        return {
+            "approved": False,
+            "status": "UNAPPROVED",
+            "role": "REVIEWER",
+            "lastReviewedCommit": "abc123",
+            "user": {"displayName": "Example Author", "name": "example-user-id"},
+        }
 
     def merge_pull_request(
         self,
@@ -239,6 +260,53 @@ def test_pull_request_service_diff_with_lines_raw_preserves_provider_payload() -
     service = PullRequestService(provider=StructuredDiffProvider())
 
     assert service.diff_with_lines_raw("DEMO", "example-repo", 42) is raw_payload
+
+
+def test_pull_request_service_approve_normalizes_provider_payload() -> None:
+    provider = FakePullRequestProvider()
+    service = PullRequestService(provider=provider)
+
+    result = service.approve("DEMO", "example-repo", 42)
+
+    assert result == {
+        "approved": True,
+        "status": "APPROVED",
+        "role": "REVIEWER",
+        "last_reviewed_commit": "abc123",
+        "user": {"display_name": "Example Author", "name": "example-user-id"},
+    }
+    assert provider.approval_calls == [("approve", "DEMO", "example-repo", 42)]
+
+
+def test_pull_request_service_unapprove_normalizes_provider_payload() -> None:
+    provider = FakePullRequestProvider()
+    service = PullRequestService(provider=provider)
+
+    result = service.unapprove("DEMO", "example-repo", 42)
+
+    assert result == {
+        "approved": False,
+        "status": "UNAPPROVED",
+        "role": "REVIEWER",
+        "last_reviewed_commit": "abc123",
+        "user": {"display_name": "Example Author", "name": "example-user-id"},
+    }
+    assert provider.approval_calls == [("unapprove", "DEMO", "example-repo", 42)]
+
+
+def test_pull_request_service_approval_raw_methods_preserve_provider_payload() -> None:
+    provider = FakePullRequestProvider()
+    service = PullRequestService(provider=provider)
+
+    approved = service.approve_raw("DEMO", "example-repo", 42)
+    unapproved = service.unapprove_raw("DEMO", "example-repo", 42)
+
+    assert approved["status"] == "APPROVED"
+    assert unapproved["status"] == "UNAPPROVED"
+    assert provider.approval_calls == [
+        ("approve", "DEMO", "example-repo", 42),
+        ("unapprove", "DEMO", "example-repo", 42),
+    ]
 
 
 def test_pull_request_service_merge_prefetches_title_and_version() -> None:

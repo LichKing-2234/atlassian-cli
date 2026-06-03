@@ -51,6 +51,8 @@ COVERAGE_MANIFEST = {
     "bitbucket pr get": "test_bitbucket_branch_and_pr_round_trip_live",
     "bitbucket pr diff": "test_bitbucket_branch_and_pr_round_trip_live",
     "bitbucket pr build-status": "test_bitbucket_branch_and_pr_round_trip_live",
+    "bitbucket pr approve": "test_bitbucket_branch_and_pr_round_trip_live",
+    "bitbucket pr unapprove": "test_bitbucket_branch_and_pr_round_trip_live",
     "bitbucket pr comment list": "test_bitbucket_branch_and_pr_round_trip_live",
     "bitbucket pr comment get": "test_bitbucket_branch_and_pr_round_trip_live",
     "bitbucket pr comment add": "test_bitbucket_branch_and_pr_round_trip_live",

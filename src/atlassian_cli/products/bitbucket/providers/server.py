@@ -108,6 +108,14 @@ class BitbucketServerProvider:
             return response.json()
         return response
 
+    def approve_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        url = f"{self.client._url_pull_request(project_key, repo_slug, pr_id)}/approve"
+        return self.client.post(url)
+
+    def unapprove_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        url = f"{self.client._url_pull_request(project_key, repo_slug, pr_id)}/approve"
+        return self.client.delete(url)
+
     def list_pull_request_comments(
         self,
         project_key: str,

@@ -82,6 +82,39 @@ class BitbucketReviewer(ApiModel):
         return payload
 
 
+class BitbucketPullRequestApproval(ApiModel):
+    approved: bool | None = None
+    status: str | None = None
+    role: str | None = None
+    user: BitbucketUserRef | None = None
+    last_reviewed_commit: str | None = None
+
+    @classmethod
+    def from_api_response(
+        cls, data: dict[str, Any] | None, **kwargs: Any
+    ) -> "BitbucketPullRequestApproval":
+        data = data or {}
+        user_data = data.get("user") if isinstance(data.get("user"), dict) else {}
+        return cls(
+            approved=data.get("approved"),
+            status=coerce_str(data.get("status")),
+            role=coerce_str(data.get("role")),
+            user=BitbucketUserRef.from_api_response(user_data) if user_data else None,
+            last_reviewed_commit=coerce_str(data.get("lastReviewedCommit")),
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "approved": self.approved,
+            "status": self.status,
+            "role": self.role,
+            "last_reviewed_commit": self.last_reviewed_commit,
+        }
+        if self.user:
+            payload["user"] = self.user.to_simplified_dict()
+        return {key: value for key, value in payload.items() if value not in (None, "", {}, [])}
+
+
 class BitbucketProject(ApiModel):
     id: str | None = None
     key: str = ""

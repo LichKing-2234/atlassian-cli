@@ -181,6 +181,49 @@ def test_bitbucket_provider_get_pull_request_diff_with_lines_uses_json_endpoint(
     )
 
 
+def test_bitbucket_provider_approve_pull_request_uses_current_user_endpoint() -> None:
+    calls = {}
+
+    class FakeClient:
+        def _url_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> str:
+            return f"rest/api/latest/projects/{project_key}/repos/{repo_slug}/pull-requests/{pr_id}"
+
+        def post(self, url: str):
+            calls["post"] = url
+            return {"approved": True, "status": "APPROVED"}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.approve_pull_request("DEMO", "example-repo", 42)
+
+    assert result == {"approved": True, "status": "APPROVED"}
+    assert (
+        calls["post"] == "rest/api/latest/projects/DEMO/repos/example-repo/pull-requests/42/approve"
+    )
+
+
+def test_bitbucket_provider_unapprove_pull_request_uses_current_user_endpoint() -> None:
+    calls = {}
+
+    class FakeClient:
+        def _url_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> str:
+            return f"rest/api/latest/projects/{project_key}/repos/{repo_slug}/pull-requests/{pr_id}"
+
+        def delete(self, url: str):
+            calls["delete"] = url
+            return {"approved": False, "status": "UNAPPROVED"}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.unapprove_pull_request("DEMO", "example-repo", 42)
+
+    assert result == {"approved": False, "status": "UNAPPROVED"}
+    assert (
+        calls["delete"]
+        == "rest/api/latest/projects/DEMO/repos/example-repo/pull-requests/42/approve"
+    )
+
+
 def test_create_repo_forwards_project_key_and_name_to_sdk() -> None:
     calls = {}
 
