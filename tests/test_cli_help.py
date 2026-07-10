@@ -37,6 +37,19 @@ def test_root_help_displays_products_and_local_config_commands() -> None:
     assert "--profile" not in plain_output
 
 
+def test_init_help_explains_product_credentials_and_dynamic_headers() -> None:
+    result = runner.invoke(app, ["init", "--help"], terminal_width=160)
+    plain_output = " ".join(strip_ansi(result.output).replace("│", " ").lower().split())
+
+    assert result.exit_code == 0
+    assert "atlassian product password" in plain_output
+    assert "atlassian product api token or pat" in plain_output
+    assert "values containing `$()` are stored without executing the command" in plain_output
+    assert "command substitution is evaluated only in header values" in plain_output
+    assert "`${...}` references remain environment placeholders" in plain_output
+    assert "overwrite an existing product section" in plain_output
+
+
 def test_root_version_outputs_package_version() -> None:
     result = runner.invoke(app, ["--version"])
 

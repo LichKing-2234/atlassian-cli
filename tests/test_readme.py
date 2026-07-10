@@ -72,10 +72,16 @@ def test_readme_mentions_semantic_alignment_and_output_breaking_change() -> None
 
 def test_readme_mentions_init_command() -> None:
     readme = Path("README.md").read_text()
+    normalized_readme = " ".join(readme.lower().split())
 
     assert "atlassian init" in readme
     assert "atlassian init jira" in readme
+    assert "atlassian init --help" in readme
     assert "--force" in readme
+    assert "product password and token values containing `$()`" in normalized_readme
+    assert "stored without executing the command" in normalized_readme
+    assert "[jira.headers]" in normalized_readme
+    assert "use `atlassian init` for product credential sections" in normalized_readme
 
 
 def test_readme_mentions_env_backed_config_workflow() -> None:

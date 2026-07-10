@@ -104,6 +104,12 @@ Run the setup wizard:
 atlassian init
 ```
 
+Inspect every supported argument:
+
+```bash
+atlassian init --help
+```
+
 Configure one product:
 
 ```bash
@@ -115,6 +121,37 @@ Use flags for non-interactive setup:
 ```bash
 atlassian init bitbucket --deployment dc --url https://bitbucket.example.com --auth pat --token secret
 ```
+
+For automated Jira and Confluence setup, provide the product credentials as
+literal values through the parameterized command:
+
+```bash
+atlassian init jira \
+  --deployment server \
+  --url https://jira.example.com \
+  --auth basic \
+  --username "$ATLASSIAN_JIRA_USERNAME" \
+  --password "$ATLASSIAN_JIRA_PASSWORD"
+
+atlassian init confluence \
+  --deployment server \
+  --url https://confluence.example.com \
+  --auth basic \
+  --username "$ATLASSIAN_CONFLUENCE_USERNAME" \
+  --password "$ATLASSIAN_CONFLUENCE_PASSWORD"
+```
+
+Use `atlassian init` for product credential sections. Configure dynamic headers
+separately under `[headers]` or a concrete per-product section such as
+`[jira.headers]`:
+
+```toml
+[headers]
+Authorization = "Bearer $(example-token-helper)"
+```
+
+Product password and token values containing `$()` are stored without executing
+the command. `${...}` references remain supported as environment placeholders.
 
 Existing product config is not overwritten by default. Use `--force` when replacing a product block non-interactively:
 

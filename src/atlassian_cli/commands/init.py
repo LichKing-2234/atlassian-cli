@@ -22,22 +22,62 @@ DEFAULT_CONFIG_FILE = Path("~/.config/atlassian-cli/config.toml").expanduser()
 
 
 def init_command(
-    product: Product | None = typer.Argument(None),
+    product: Product | None = typer.Argument(
+        None,
+        help="Product section to configure.",
+    ),
     config_file: Path = typer.Option(
         DEFAULT_CONFIG_FILE,
         "--config-file",
         help="Path to config.toml.",
     ),
-    deployment: Deployment | None = typer.Option(None, "--deployment"),
-    url: str | None = typer.Option(None, "--url"),
-    auth: AuthMode | None = typer.Option(None, "--auth"),
-    username: str | None = typer.Option(None, "--username"),
-    password: str | None = typer.Option(None, "--password"),
-    token: str | None = typer.Option(None, "--token"),
-    env_template: bool = typer.Option(False, "--env-template"),
-    force: bool = typer.Option(False, "--force"),
+    deployment: Deployment | None = typer.Option(
+        None,
+        "--deployment",
+        help="Atlassian product deployment type.",
+    ),
+    url: str | None = typer.Option(
+        None,
+        "--url",
+        help="Base URL for the selected Atlassian product.",
+    ),
+    auth: AuthMode | None = typer.Option(
+        None,
+        "--auth",
+        help="Authentication mode for the selected Atlassian product.",
+    ),
+    username: str | None = typer.Option(
+        None,
+        "--username",
+        help="Atlassian product username for basic authentication.",
+    ),
+    password: str | None = typer.Option(
+        None,
+        "--password",
+        help="Atlassian product password for basic authentication.",
+    ),
+    token: str | None = typer.Option(
+        None,
+        "--token",
+        help="Atlassian product API token or PAT.",
+    ),
+    env_template: bool = typer.Option(
+        False,
+        "--env-template",
+        help="Write environment-variable placeholders instead of credentials.",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Overwrite an existing product section.",
+    ),
 ) -> None:
-    """Create or update atlassian-cli config."""
+    """Create or update Atlassian product credentials.
+
+    Password and token values containing `$()` are stored without executing the
+    command. Command substitution is evaluated only in header values; `${...}`
+    references remain environment placeholders.
+    """
     products = [product] if product is not None else list(Product)
     updates: dict[Product, ProductConfig] = {}
     template_updates: dict[Product, dict[str, Any]] = {}

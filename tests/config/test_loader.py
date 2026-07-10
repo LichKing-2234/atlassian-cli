@@ -79,6 +79,26 @@ def test_load_config_rejects_non_string_header_values(tmp_path: Path) -> None:
         load_config(config_file)
 
 
+def test_load_config_preserves_command_substitution_in_product_credentials(
+    tmp_path: Path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+        [jira]
+        deployment = "server"
+        url = "https://jira.example.com"
+        auth = "basic"
+        username = "example-user"
+        token = "$(example-token-helper)"
+        """.strip()
+    )
+
+    config = load_config(config_file)
+
+    assert config.product_config(Product.JIRA).token == "$(example-token-helper)"
+
+
 def test_load_config_rejects_legacy_profiles_table(tmp_path: Path) -> None:
     config_file = tmp_path / "config.toml"
     config_file.write_text(

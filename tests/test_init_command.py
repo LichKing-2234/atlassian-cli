@@ -295,6 +295,53 @@ def test_init_basic_missing_credential_mentions_token_and_password(tmp_path: Pat
     assert not config_file.exists()
 
 
+@pytest.mark.parametrize("product", ["jira", "confluence"])
+@pytest.mark.parametrize(
+    ("credential_option", "credential_field"),
+    [("--token", "token"), ("--password", "password")],
+)
+def test_init_preserves_command_substitution_in_product_credentials(
+    tmp_path: Path,
+    product: str,
+    credential_option: str,
+    credential_field: str,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    credential = "$(example-token-helper)"
+
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            product,
+            "--config-file",
+            str(config_file),
+            "--deployment",
+            "server",
+            "--url",
+            f"https://{product}.example.com",
+            "--auth",
+            "basic",
+            "--username",
+            "example-user",
+            credential_option,
+            credential,
+        ],
+    )
+
+    assert result.exit_code == 0
+    selected_product = Product(product)
+    product_config = load_config(config_file).product_config(selected_product)
+    assert getattr(product_config, credential_field) == credential
+
+    resolved = resolve_active_product_input(
+        load_raw_config_data(config_file),
+        product=selected_product,
+        env={},
+    )
+    assert resolved.product_data[credential_field] == credential
+
+
 def test_init_wizard_later_failure_does_not_write_partial_config(tmp_path: Path) -> None:
     config_file = tmp_path / "config.toml"
 
