@@ -1,0 +1,51 @@
+{
+  "baseline": {
+    "bitbucket": "6.7.2",
+    "gh": "2.96.0",
+    "gh_commit": "b300f2ec7ec9dc9addc39b2ad88c54097ded7ca0"
+  },
+  "commands": {
+    "list": {
+      "aliases": ["ls"],
+      "default_limit": 30,
+      "default_state": "open",
+      "options": ["--author", "--base", "--head", "--json", "--limit", "--repo", "--search", "--state", "--web", "-A", "-B", "-H", "-L", "-R", "-S", "-s", "-w"],
+      "state_values": ["open", "closed", "merged", "all"]
+    },
+    "view": {
+      "options": ["--comments", "--json", "--repo", "--web", "-R", "-c", "-w"],
+      "usage": "view [<number> | <url> | <branch>]"
+    }
+  },
+  "blocked_json_fields": {
+    "latestReviews": "B30",
+    "mergeCommit": "B31",
+    "potentialMergeCommit": "B25",
+    "reviews": "B30"
+  },
+  "deferred_options": ["--jq", "--template", "-q", "-t"],
+  "excluded_options": ["--app", "--assignee", "--draft", "--label"],
+  "json_fields": [
+    "additions", "author", "baseRefName", "baseRefOid", "body", "changedFiles",
+    "closed", "closedAt", "comments", "commits", "createdAt", "deletions", "files",
+    "fullDatabaseId", "headRefName", "headRefOid", "headRepository",
+    "headRepositoryOwner", "id", "isCrossRepository", "latestReviews", "mergeCommit",
+    "mergedAt", "mergedBy", "mergeable", "mergeStateStatus", "number",
+    "potentialMergeCommit", "reviewDecision", "reviewRequests", "reviews", "state",
+    "statusCheckRollup", "title", "updatedAt", "url"
+  ],
+  "errors": {
+    "json_missing": "Specify one or more comma-separated fields for `--json`:",
+    "json_unknown": "Unknown JSON field: \"unknownField\"",
+    "web_json": "cannot use `--web` with `--json`",
+    "view_repo_without_selector": "argument required when using the --repo flag",
+    "blocked_reviews": "unsupported by Bitbucket Server 6.7.2: atomic pull-request review records (B30); required by gh v2.96.0 pr view --json reviews"
+  },
+  "golden": {
+    "list_non_tty": "1234\tExample pull request\tfeature/DEMO-1234/example-change\tOPEN\t2026-07-15T12:00:00Z\n",
+    "list_tty": "\nShowing 1 of 1 open pull request in DEMO/example-repo\n\nID     TITLE                 BRANCH                            CREATED AT\n#1234  Example pull request  feature/DEMO-1234/example-change  about 1 day ago\n",
+    "view_non_tty": "title:\tExample pull request\nstate:\tOPEN\nauthor:\tExample Author\nlabels:\t\nassignees:\t\nreviewers:\treviewer-one (Requested)\nprojects:\t\nmilestone:\t\nnumber:\t1234\nurl:\thttps://bitbucket.example.com/projects/DEMO/repos/example-repo/pull-requests/1234\nadditions:\t1\ndeletions:\t0\nauto-merge:\tdisabled\n--\nexample response\n",
+    "view_comments_non_tty": "author:\treviewer-one\nassociation:\tnone\nedited:\tfalse\nstatus:\tnone\n--\nexample comment\n--\n",
+    "browser_notice": "Opening https://bitbucket.example.com/projects/DEMO/repos/example-repo/pull-requests/1234 in your browser.\n"
+  }
+}
