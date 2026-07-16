@@ -108,6 +108,63 @@ class BitbucketServerProvider:
             return response.json()
         return response
 
+    def list_pull_request_activities(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        *,
+        start: int,
+        limit: int,
+    ) -> list[dict]:
+        return self._paged_items(
+            self.client.get_pull_requests_activities(
+                project_key,
+                repo_slug,
+                pr_id,
+                start=start,
+                limit=limit,
+            ),
+            limit=limit,
+        )
+
+    def list_pull_request_changes(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        *,
+        start: int,
+        limit: int,
+    ) -> list[dict]:
+        return self._paged_items(
+            self.client.get_pull_requests_changes(
+                project_key,
+                repo_slug,
+                pr_id,
+                start=start,
+                limit=limit,
+            ),
+            limit=limit,
+        )
+
+    def get_pull_request_mergeability(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        return self.client.is_pull_request_can_be_merged(project_key, repo_slug, pr_id)
+
+    def list_dashboard_pull_requests(
+        self, *, role: str, state: str, start: int, limit: int
+    ) -> list[dict]:
+        return self._paged_items(
+            self.client.get_dashboard_pull_requests(
+                start=start,
+                limit=limit,
+                role=role,
+                state=state,
+                order="NEWEST",
+            ),
+            limit=limit,
+        )
+
     def approve_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
         url = f"{self.client._url_pull_request(project_key, repo_slug, pr_id)}/approve"
         return self.client.post(url)

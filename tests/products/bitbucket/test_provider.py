@@ -402,3 +402,40 @@ def test_bitbucket_provider_build_status_methods_forward_to_sdk() -> None:
     assert statuses == {"values": [{"key": "DEMO", "state": "SUCCESSFUL"}]}
     assert calls["commits"] == ("DEMO", "example-repo", 42, 0, 25)
     assert calls["build"] == "abc123"
+
+
+def test_bitbucket_provider_exposes_pr_read_primitives() -> None:
+    calls = {}
+
+    class FakeClient:
+        def get_pull_requests_activities(self, project, repo, pr_id, start=0, limit=None):
+            calls["activities"] = (project, repo, pr_id, start, limit)
+            return {"values": [{"action": "MERGED"}]}
+
+        def get_pull_requests_changes(self, project, repo, pr_id, start=0, limit=None):
+            calls["changes"] = (project, repo, pr_id, start, limit)
+            return {"values": [{"type": "ADD", "path": {"toString": "example.py"}}]}
+
+        def is_pull_request_can_be_merged(self, project, repo, pr_id):
+            calls["mergeability"] = (project, repo, pr_id)
+            return {"canMerge": True, "conflicted": False, "vetoes": []}
+
+        def get_dashboard_pull_requests(
+            self, start=0, limit=None, role=None, state=None, order=None
+        ):
+            calls["dashboard"] = (start, limit, role, state, order)
+            return {"values": [{"id": 1234}]}
+
+    provider = build_provider_with_client(FakeClient())
+    assert provider.list_pull_request_activities("DEMO", "example-repo", 1234, start=0, limit=100)
+    assert provider.list_pull_request_changes("DEMO", "example-repo", 1234, start=0, limit=100)
+    assert provider.get_pull_request_mergeability("DEMO", "example-repo", 1234)["canMerge"]
+    assert provider.list_dashboard_pull_requests(
+        role="AUTHOR", state="OPEN", start=0, limit=100
+    ) == [{"id": 1234}]
+    assert calls == {
+        "activities": ("DEMO", "example-repo", 1234, 0, 100),
+        "changes": ("DEMO", "example-repo", 1234, 0, 100),
+        "mergeability": ("DEMO", "example-repo", 1234),
+        "dashboard": (0, 100, "AUTHOR", "OPEN", "NEWEST"),
+    }

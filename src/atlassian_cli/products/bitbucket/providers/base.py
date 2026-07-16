@@ -24,6 +24,30 @@ class BitbucketProvider(Protocol):
     def get_pull_request_diff_with_lines(
         self, project_key: str, repo_slug: str, pr_id: int
     ) -> dict: ...
+    def list_pull_request_activities(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        *,
+        start: int,
+        limit: int,
+    ) -> list[dict]: ...
+    def list_pull_request_changes(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        *,
+        start: int,
+        limit: int,
+    ) -> list[dict]: ...
+    def get_pull_request_mergeability(
+        self, project_key: str, repo_slug: str, pr_id: int
+    ) -> dict: ...
+    def list_dashboard_pull_requests(
+        self, *, role: str, state: str, start: int, limit: int
+    ) -> list[dict]: ...
     def approve_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict: ...
     def unapprove_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict: ...
     def list_pull_request_comments(
