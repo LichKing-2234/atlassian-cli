@@ -439,3 +439,21 @@ def test_bitbucket_provider_exposes_pr_read_primitives() -> None:
         "mergeability": ("DEMO", "example-repo", 1234),
         "dashboard": (0, 100, "AUTHOR", "OPEN", "NEWEST"),
     }
+
+
+def test_dashboard_all_state_is_omitted_from_sdk_request() -> None:
+    calls = {}
+
+    class FakeClient:
+        def get_dashboard_pull_requests(
+            self, start=0, limit=None, role=None, state=None, order=None
+        ):
+            calls["dashboard"] = (start, limit, role, state, order)
+            return {"values": [{"id": 1234}]}
+
+    provider = build_provider_with_client(FakeClient())
+
+    assert provider.list_dashboard_pull_requests(
+        role="AUTHOR", state="ALL", start=0, limit=100
+    ) == [{"id": 1234}]
+    assert calls["dashboard"] == (0, 100, "AUTHOR", None, "NEWEST")

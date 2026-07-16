@@ -20,7 +20,7 @@ def raw_pr(
     title: str = "Example pull request",
     description: str = "example response",
     state: str = "OPEN",
-    author: str = "example-author",
+    author: str = "~example-user",
     source_branch: str = "feature/DEMO-1234/example-change",
     target_branch: str = "DEMO",
 ) -> dict:
@@ -210,7 +210,7 @@ class FakeProvider:
                 "committerTimestamp": 1784120400000,
                 "author": {
                     "id": 1001,
-                    "name": "example-author",
+                    "name": "~example-user",
                     "displayName": "Example Author",
                 },
             }
@@ -335,7 +335,7 @@ def test_explicit_filters_combine_before_limit() -> None:
         REPO,
         PullRequestListFilters(
             limit=1,
-            author="example-author",
+            author="~example-user",
             base="DEMO",
             head="feature/DEMO-1234/example-change",
         ),
@@ -379,7 +379,7 @@ def test_search_combines_positive_and_negative_qualifiers() -> None:
     result = PullRequestReadService(provider).list(
         REPO,
         PullRequestListFilters(
-            search=("state:open author:example-author base:DEMO review:required -head:reviewer-two")
+            search=("state:open author:~example-user base:DEMO review:required -head:reviewer-two")
         ),
         {"number"},
     )
@@ -434,13 +434,13 @@ def test_status_search_enriches_only_when_status_is_required() -> None:
 
 def test_pagination_applies_filters_before_limit_and_preserves_order() -> None:
     pull_requests = [raw_pr(pr_id=2000 + index, author="reviewer-two") for index in range(100)] + [
-        raw_pr(pr_id=3000 + index, author="example-author") for index in range(3)
+        raw_pr(pr_id=3000 + index, author="~example-user") for index in range(3)
     ]
     provider = FakeProvider(pull_requests)
 
     result = PullRequestReadService(provider).list(
         REPO,
-        PullRequestListFilters(limit=3, author="example-author"),
+        PullRequestListFilters(limit=3, author="~example-user"),
         {"number"},
     )
 
@@ -497,6 +497,76 @@ def test_author_me_uses_dashboard_and_filters_to_the_resolved_repository() -> No
     assert result.items == [{"number": 1234}]
     assert provider.dashboard_calls == [("AUTHOR", "OPEN", 0, 100)]
     assert provider.list_calls == []
+
+
+def test_author_me_with_explicit_all_state_keeps_all_service_semantics() -> None:
+    open_pull_request = raw_pr(pr_id=1234, state="OPEN")
+    merged_pull_request = raw_pr(pr_id=1235, state="MERGED")
+    other_repository = raw_pr(pr_id=1236, state="MERGED")
+    other_repository["toRef"]["repository"]["project"]["key"] = "~example-user"
+    provider = FakeProvider(
+        [open_pull_request, merged_pull_request],
+        dashboard_pull_requests=[open_pull_request, other_repository, merged_pull_request],
+    )
+
+    result = PullRequestReadService(provider).list(
+        REPO,
+        PullRequestListFilters(state="all", author="@me"),
+        {"number"},
+    )
+
+    assert result.items == [{"number": 1234}, {"number": 1235}]
+    assert provider.dashboard_calls == [("AUTHOR", "ALL", 0, 100)]
+    assert provider.list_calls == []
+
+
+@pytest.mark.parametrize(
+    ("search", "expected"),
+    [
+        ("author:@me state:merged", [1235]),
+        ("author:@me -state:open", [1235]),
+    ],
+)
+def test_author_me_search_state_qualifiers_fetch_all_dashboard_states(
+    search: str, expected: list[int]
+) -> None:
+    provider = FakeProvider(
+        [raw_pr(pr_id=1234, state="OPEN"), raw_pr(pr_id=1235, state="MERGED")],
+        dashboard_pull_requests=[
+            raw_pr(pr_id=1234, state="OPEN"),
+            raw_pr(pr_id=1235, state="MERGED"),
+        ],
+    )
+
+    result = PullRequestReadService(provider).list(
+        REPO,
+        PullRequestListFilters(search=search),
+        {"number"},
+    )
+
+    assert [item["number"] for item in result.items] == expected
+    assert provider.dashboard_calls == [("AUTHOR", "ALL", 0, 100)]
+    assert provider.list_calls == []
+
+
+def test_negated_author_me_with_state_search_uses_all_dashboard_states() -> None:
+    authored_by_me = raw_pr(pr_id=1234, state="MERGED", author="~example-user")
+    authored_by_collaborator = raw_pr(pr_id=1235, state="MERGED", author="reviewer-two")
+    open_pull_request = raw_pr(pr_id=1236, state="OPEN", author="reviewer-two")
+    provider = FakeProvider(
+        [authored_by_me, authored_by_collaborator, open_pull_request],
+        dashboard_pull_requests=[authored_by_me],
+    )
+
+    result = PullRequestReadService(provider).list(
+        REPO,
+        PullRequestListFilters(search="-author:@me state:merged"),
+        {"number"},
+    )
+
+    assert result.items == [{"number": 1235}]
+    assert provider.dashboard_calls == [("AUTHOR", "ALL", 0, 100)]
+    assert provider.list_calls == [("ALL", 0, 100)]
 
 
 @pytest.mark.parametrize(
@@ -574,7 +644,7 @@ def test_direct_projection_maps_every_supported_direct_field() -> None:
         "author": {
             "id": "1001",
             "is_bot": False,
-            "login": "example-author",
+            "login": "~example-user",
             "name": "Example Author",
         },
         "baseRefName": "DEMO",
@@ -816,7 +886,7 @@ def test_enrichment_maps_diff_comment_commit_and_build_objects() -> None:
             {
                 "id": "1001",
                 "is_bot": False,
-                "login": "example-author",
+                "login": "~example-user",
                 "name": "Example Author",
             }
         ],
@@ -1063,7 +1133,7 @@ def test_search_maps_each_status_value(status: str, expected: int) -> None:
 
 
 def test_negated_author_me_uses_dashboard_ids_to_filter_repository_list() -> None:
-    authored_by_me = raw_pr(pr_id=1234, author="example-author")
+    authored_by_me = raw_pr(pr_id=1234, author="~example-user")
     authored_by_collaborator = raw_pr(pr_id=1235, author="reviewer-two")
     provider = FakeProvider(
         [authored_by_me, authored_by_collaborator],

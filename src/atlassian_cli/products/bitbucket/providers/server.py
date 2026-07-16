@@ -159,7 +159,7 @@ class BitbucketServerProvider:
                 start=start,
                 limit=limit,
                 role=role,
-                state=state,
+                state=None if state == "ALL" else state,
                 order="NEWEST",
             ),
             limit=limit,
