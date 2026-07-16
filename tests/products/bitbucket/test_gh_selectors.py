@@ -34,6 +34,7 @@ SERVER = ServerIdentity.from_url("https://bitbucket.example.com/bitbucket")
             "example-repo",
         ),
         ("git@bitbucket.example.com:DEMO/example-repo.git", "DEMO", "example-repo"),
+        ("bitbucket.example.com:DEMO/example-repo.git", "DEMO", "example-repo"),
         (
             "https://bitbucket.example.com/bitbucket/users/example-user/repos/example-repo",
             "~example-user",
@@ -158,11 +159,65 @@ def test_host_prefixed_selector_rejects_wrong_port() -> None:
         parse_repository_selector("bitbucket.example.com/DEMO/example-repo", server)
 
 
+def test_host_prefixed_selector_rejects_explicit_wrong_port() -> None:
+    server = ServerIdentity.from_url("https://bitbucket.example.com:8443/bitbucket")
+
+    with pytest.raises(RepositoryHostMismatchError):
+        parse_repository_selector("bitbucket.example.com:7999/DEMO/example-repo", server)
+
+
 def test_http_repository_url_rejects_wrong_port() -> None:
     value = "https://bitbucket.example.com:8443/bitbucket/projects/DEMO/repos/example-repo"
 
     with pytest.raises(RepositoryHostMismatchError):
         parse_repository_selector(value, SERVER)
+
+
+@pytest.mark.parametrize(
+    ("server_url", "value"),
+    [
+        (
+            "https://bitbucket.example.com/bitbucket",
+            "http://bitbucket.example.com:443/bitbucket/projects/DEMO/repos/example-repo",
+        ),
+        (
+            "http://bitbucket.example.com/bitbucket",
+            "https://bitbucket.example.com:80/bitbucket/projects/DEMO/repos/example-repo",
+        ),
+    ],
+)
+def test_http_repository_url_rejects_cross_scheme(server_url: str, value: str) -> None:
+    with pytest.raises(RepositoryHostMismatchError):
+        parse_repository_selector(value, ServerIdentity.from_url(server_url))
+
+
+def test_pull_request_url_rejects_cross_scheme() -> None:
+    value = (
+        "http://bitbucket.example.com:443/bitbucket/projects/DEMO/repos/"
+        "example-repo/pull-requests/1234"
+    )
+
+    with pytest.raises(RepositoryHostMismatchError):
+        parse_pull_request_url(value, SERVER)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        ("//bitbucket.example.com/bitbucket/projects/DEMO/repos/example-repo/pull-requests/1234"),
+        (
+            "ssh://bitbucket.example.com:443/bitbucket/projects/DEMO/repos/"
+            "example-repo/pull-requests/1234"
+        ),
+        (
+            "ftp://bitbucket.example.com:443/bitbucket/projects/DEMO/repos/"
+            "example-repo/pull-requests/1234"
+        ),
+    ],
+)
+def test_pull_request_url_rejects_non_http_urls(value: str) -> None:
+    with pytest.raises(ValidationError):
+        parse_pull_request_url(value, SERVER)
 
 
 def test_ssh_clone_accepts_distinct_clone_port() -> None:

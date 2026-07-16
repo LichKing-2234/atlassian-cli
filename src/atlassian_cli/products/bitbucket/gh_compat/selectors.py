@@ -54,6 +54,15 @@ class ServerIdentity:
                 "repository host does not match the configured Bitbucket server"
             )
 
+    def require_web_origin(self, scheme: str, host: str | None, port: int | None) -> None:
+        if scheme not in {"http", "https"}:
+            raise ValidationError("repository URL must use HTTP or HTTPS")
+        if scheme != self.scheme:
+            raise RepositoryHostMismatchError(
+                "repository host does not match the configured Bitbucket server"
+            )
+        self.require_host(host, port)
+
     def strip_context_path(self, path: str) -> str:
         if not self.context_path:
             return path
@@ -94,9 +103,12 @@ def _repository(project: str, repo: str, server: ServerIdentity) -> RepositoryRe
 
 def _web_or_clone(value: str, server: ServerIdentity) -> RepositoryRef | None:
     parsed = urlparse(value)
-    if parsed.scheme in {"http", "https", "ssh"}:
-        server.require_host(parsed.hostname, parsed.port, clone=parsed.scheme == "ssh")
-        path = parsed.path if parsed.scheme == "ssh" else server.strip_context_path(parsed.path)
+    if parsed.scheme in {"http", "https"}:
+        server.require_web_origin(parsed.scheme, parsed.hostname, parsed.port)
+        path = server.strip_context_path(parsed.path)
+    elif parsed.scheme == "ssh":
+        server.require_host(parsed.hostname, parsed.port, clone=True)
+        path = parsed.path
     elif match := _SCP_RE.fullmatch(value):
         server.require_host(match.group("host"), None, clone=True)
         path = "/" + match.group("path")
@@ -112,15 +124,15 @@ def _web_or_clone(value: str, server: ServerIdentity) -> RepositoryRef | None:
 
 def parse_repository_selector(value: str, server: ServerIdentity) -> RepositoryRef:
     value = value.strip()
-    if parsed := _web_or_clone(value, server):
-        return parsed
     parts = value.split("/")
     if len(parts) == 3:
         if parts[0].lower() != server.authority.lower():
             raise RepositoryHostMismatchError(
                 "repository host does not match the configured Bitbucket server"
             )
-        parts = parts[1:]
+        return _repository(parts[1], parts[2], server)
+    if parsed := _web_or_clone(value, server):
+        return parsed
     if len(parts) != 2:
         raise ValidationError("repository must use PROJECT/REPOSITORY syntax")
     return _repository(parts[0], parts[1], server)
@@ -128,7 +140,7 @@ def parse_repository_selector(value: str, server: ServerIdentity) -> RepositoryR
 
 def parse_pull_request_url(value: str, server: ServerIdentity) -> PullRequestRef:
     parsed = urlparse(value)
-    server.require_host(parsed.hostname, parsed.port)
+    server.require_web_origin(parsed.scheme, parsed.hostname, parsed.port)
     match = _PR_RE.search(server.strip_context_path(parsed.path))
     if match is None:
         raise ValidationError("invalid Bitbucket pull request URL")
