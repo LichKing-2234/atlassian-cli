@@ -265,6 +265,62 @@ def test_invalid_state_fails_before_context_or_provider(monkeypatch) -> None:
 
 
 @pytest.mark.parametrize(
+    ("arguments", "expected_error"),
+    [
+        pytest.param(
+            ["--json", "--search", "'bad"],
+            "Specify one or more comma-separated fields",
+            id="missing-json-value",
+        ),
+        pytest.param(
+            ["--web", "--json", "number", "--search", "draft:true"],
+            "cannot use `--web` with `--json`",
+            id="web-json-conflict",
+        ),
+        pytest.param(
+            ["--state", "invalid", "--search", "draft:true"],
+            "invalid state: invalid",
+            id="invalid-state",
+        ),
+        pytest.param(
+            ["--limit", "0", "--search", "draft:true"],
+            "limit must be greater than zero",
+            id="invalid-limit",
+        ),
+    ],
+)
+def test_list_validation_wins_before_invalid_search_or_io(
+    arguments: list[str],
+    expected_error: str,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        pr_module,
+        "require_primary_auth",
+        lambda *_args, **_kwargs: pytest.fail("context accessed"),
+    )
+    monkeypatch.setattr(
+        pr_module,
+        "resolve_repository",
+        lambda *_args, **_kwargs: pytest.fail("repo resolved"),
+    )
+    monkeypatch.setattr(pr_module, "build_provider", lambda *_: pytest.fail("provider called"))
+    monkeypatch.setattr(
+        pr_module,
+        "open_browser",
+        lambda *_args, **_kwargs: pytest.fail("browser called"),
+    )
+
+    result = runner.invoke(
+        app,
+        ["bitbucket", "pr", "list", *arguments],
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr.startswith(expected_error)
+
+
+@pytest.mark.parametrize(
     "search",
     [
         f"{negated}{qualifier}:DEMO"
@@ -344,6 +400,23 @@ def test_primary_list_web_rejects_search_before_context_or_browser(monkeypatch) 
     result = runner.invoke(
         app,
         ["bitbucket", "pr", "list", "--web", "--search", "draft:true"],
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr == "Error: unsupported search qualifier: draft\n"
+
+
+def test_hidden_ls_rejects_search_before_context_or_provider(monkeypatch) -> None:
+    monkeypatch.setattr(
+        pr_module,
+        "require_primary_auth",
+        lambda *_args, **_kwargs: pytest.fail("context accessed"),
+    )
+    monkeypatch.setattr(pr_module, "build_provider", lambda *_: pytest.fail("provider called"))
+
+    result = runner.invoke(
+        app,
+        ["bitbucket", "pr", "ls", "--search", "draft:true"],
     )
 
     assert result.exit_code == 1

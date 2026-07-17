@@ -242,7 +242,6 @@ def _list_run(
     web: bool,
     output: OutputMode | None,
 ) -> None:
-    parse_search_query(search)
     fields = validate_json_fields(json_fields, web=web, surface="pr list")
     if output is not None and fields is not None:
         raise GhPreflightError("cannot use `--output` with `--json`")
@@ -262,6 +261,7 @@ def _list_run(
         raise GhPreflightError(f"invalid state: {state}")
     if limit < 1:
         raise GhPreflightError("limit must be greater than zero")
+    parse_search_query(search)
 
     context = ctx.obj
     require_primary_auth(context.auth)
