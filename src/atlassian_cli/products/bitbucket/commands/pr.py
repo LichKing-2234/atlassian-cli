@@ -485,8 +485,8 @@ def view_pull_request(
 @app.command("browse")
 def browse_pull_requests(
     ctx: typer.Context,
-    project_key: str,
-    repo_slug: str,
+    project_key: str = typer.Argument(..., metavar="PROJECT_KEY"),
+    repo_slug: str = typer.Argument(..., metavar="REPO_SLUG"),
     state: str = typer.Option(
         "OPEN",
         "--state",
