@@ -1,5 +1,6 @@
 import re
 
+import pytest
 from typer.testing import CliRunner
 
 import atlassian_cli.config.header_substitution as header_substitution
@@ -151,17 +152,71 @@ def test_cli_rejects_removed_table_output_mode() -> None:
     assert "table" in result.output
 
 
-def test_pr_list_help_mentions_markdown_output_mode() -> None:
-    result = runner.invoke(
-        app,
-        ["bitbucket", "pr", "list", "--help"],
-        env=ci_output_env(),
-    )
-    plain_output = strip_ansi(result.output)
+def test_pr_list_help_matches_first_slice() -> None:
+    result = runner.invoke(app, ["bitbucket", "pr", "list", "--help"], env=ci_output_env())
+    output = strip_ansi(result.output)
 
     assert result.exit_code == 0
-    assert "markdown" in plain_output
-    assert "table" not in plain_output
-    assert "--state" in plain_output
-    assert "MERGED" in plain_output
-    assert "DECLINED" in plain_output
+    for option in (
+        "--author",
+        "--base",
+        "--head",
+        "--json",
+        "--limit",
+        "--repo",
+        "--search",
+        "--state",
+        "--web",
+    ):
+        assert option in output
+    for absent in (
+        "--app",
+        "--assignee",
+        "--draft",
+        "--label",
+        "--jq",
+        "--template",
+        "--output",
+    ):
+        assert absent not in output
+
+
+def test_pr_browse_help_preserves_only_legacy_browser_arguments() -> None:
+    result = runner.invoke(app, ["bitbucket", "pr", "browse", "--help"], env=ci_output_env())
+    output = strip_ansi(result.output)
+
+    assert result.exit_code == 0
+    for value in ("PROJECT_KEY", "REPO_SLUG", "--state", "--start", "--limit"):
+        assert value in output
+    for absent in ("--author", "--json", "--repo", "--search", "--web", "--output"):
+        assert absent not in output
+
+
+def test_pr_view_help_matches_first_slice() -> None:
+    result = runner.invoke(app, ["bitbucket", "pr", "view", "--help"], env=ci_output_env())
+    output = strip_ansi(result.output)
+
+    assert result.exit_code == 0
+    for value in ("[<number> | <url> | <branch>]", "--comments", "--json", "--repo", "--web"):
+        assert value in output
+    for absent in ("--jq", "--output", "--template"):
+        assert absent not in output
+
+
+def test_pr_help_hides_callable_legacy_commands() -> None:
+    result = runner.invoke(app, ["bitbucket", "pr", "--help"], env=ci_output_env())
+    output = strip_ansi(result.output)
+
+    assert result.exit_code == 0
+    for visible in ("browse", "comment", "create", "diff", "list", "merge", "view"):
+        assert visible in output
+    for hidden in ("get", "build-status", "approve", "unapprove", "ls"):
+        assert hidden not in output
+
+
+@pytest.mark.parametrize("command", ["get", "build-status", "approve", "unapprove"])
+def test_hidden_legacy_pr_commands_remain_callable(command: str) -> None:
+    result = runner.invoke(app, ["bitbucket", "pr", command, "--help"], env=ci_output_env())
+
+    assert result.exit_code == 0
+    assert "Usage:" in strip_ansi(result.output)
