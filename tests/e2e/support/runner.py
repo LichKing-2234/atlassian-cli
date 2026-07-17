@@ -10,7 +10,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 SRC_ROOT = REPO_ROOT / "src"
 
 
-def run_cli(live_env: LiveEnv, *args: str) -> subprocess.CompletedProcess[str]:
+def run_cli(
+    live_env: LiveEnv,
+    *args: str,
+    cwd: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
     env = _load_dotenv_values()
     env.update(os.environ)
     pythonpath = env.get("PYTHONPATH")
@@ -25,7 +29,7 @@ def run_cli(live_env: LiveEnv, *args: str) -> subprocess.CompletedProcess[str]:
     ]
     return subprocess.run(
         command,
-        cwd=REPO_ROOT,
+        cwd=cwd or REPO_ROOT,
         env=env,
         capture_output=True,
         text=True,
@@ -33,8 +37,8 @@ def run_cli(live_env: LiveEnv, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def run_json(live_env: LiveEnv, *args: str):
-    result = run_cli(live_env, *args)
+def run_json(live_env: LiveEnv, *args: str, cwd: Path | None = None):
+    result = run_cli(live_env, *args, cwd=cwd)
     if result.returncode != 0:
         raise AssertionError(
             "CLI command failed\n"
