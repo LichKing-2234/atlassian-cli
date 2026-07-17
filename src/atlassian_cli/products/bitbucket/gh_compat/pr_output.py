@@ -140,21 +140,15 @@ def _render_color_json(value: Any, depth: int = 0) -> str:
                 f"{_render_color_json(value[key], depth + 1)}"
             )
         delimiter = _colored(COLOR_DELIM, ",")
-        return (
-            f"{_colored(COLOR_DELIM, '{')}\n"
-            f"{f'{delimiter}\n'.join(items)}\n"
-            f"{indent}{_colored(COLOR_DELIM, '}')}"
-        )
+        joined_items = f"{delimiter}\n".join(items)
+        return f"{_colored(COLOR_DELIM, '{')}\n{joined_items}\n{indent}{_colored(COLOR_DELIM, '}')}"
     if isinstance(value, list):
         if not value:
             return f"{_colored(COLOR_DELIM, '[')}{_colored(COLOR_DELIM, ']')}"
         items = [f"{child_indent}{_render_color_json(item, depth + 1)}" for item in value]
         delimiter = _colored(COLOR_DELIM, ",")
-        return (
-            f"{_colored(COLOR_DELIM, '[')}\n"
-            f"{f'{delimiter}\n'.join(items)}\n"
-            f"{indent}{_colored(COLOR_DELIM, ']')}"
-        )
+        joined_items = f"{delimiter}\n".join(items)
+        return f"{_colored(COLOR_DELIM, '[')}\n{joined_items}\n{indent}{_colored(COLOR_DELIM, ']')}"
     if value is None:
         return _colored(COLOR_NULL, "null")
     if isinstance(value, bool):
@@ -305,7 +299,7 @@ def render_pr_list(
                     )
                 )
             )
-        return f"{'\n'.join(lines)}\n"
+        return "\n".join(lines) + "\n"
 
     shown = len(pull_requests)
     total = shown if total is None else total
@@ -551,7 +545,8 @@ def render_pr_view(
         lines.append(f"{_style('Reviewers:', '1', color=color)} {reviewers}")
 
     body = _render_markdown(pull_request.get("body"), width=width, color=color)
-    rendered = f"{'\n'.join(lines)}\n\n{body}\n\n"
+    joined_lines = "\n".join(lines)
+    rendered = f"{joined_lines}\n\n{body}\n\n"
     rendered_comments = _tty_comments(
         pull_request,
         show_all=comments,
