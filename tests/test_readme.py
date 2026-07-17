@@ -30,6 +30,20 @@ def test_readme_mentions_bitbucket_pr_diff_tty_behavior() -> None:
     assert "line-aware diff output" in readme.lower()
 
 
+def test_readme_documents_bitbucket_api_compare_endpoints() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    for value in (
+        "atlassian bitbucket api -X GET",
+        "projects/DEMO/repos/example-repo/compare/diff",
+        "projects/DEMO/repos/example-repo/compare/changes",
+        "projects/DEMO/repos/example-repo/compare/commits",
+        "--paginate --jq '.values[]'",
+        "structured JSON",
+    ):
+        assert value in readme
+
+
 def test_readme_mentions_bitbucket_comments_and_build_status() -> None:
     readme = Path("README.md").read_text()
 

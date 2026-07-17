@@ -42,6 +42,7 @@ COVERAGE_MANIFEST = {
     "confluence page attachment download": "test_confluence_attachment_round_trip_live",
     "bitbucket project list": "test_bitbucket_project_and_repo_queries_live",
     "bitbucket project get": "test_bitbucket_project_and_repo_queries_live",
+    "bitbucket api": "test_bitbucket_branch_and_pr_round_trip_live",
     "bitbucket repo get": "test_bitbucket_project_and_repo_queries_live",
     "bitbucket repo list": "test_bitbucket_project_and_repo_queries_live",
     "bitbucket repo create": "test_bitbucket_repo_create_live",

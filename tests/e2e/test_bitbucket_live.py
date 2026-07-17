@@ -145,6 +145,56 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
         lambda: sandbox.delete_remote_branch(branch_name),
     )
 
+    compare_endpoint = f"projects/{target['project_key']}/repos/{target['repo_slug']}/compare"
+    compare_head_commit = sandbox.run("rev-parse", "HEAD").stdout.strip()
+    compare_fields = [
+        "-f",
+        f"from=refs/heads/{branch_name}",
+        "-f",
+        "to=refs/heads/master",
+    ]
+
+    compared_diff = run_json(
+        live_env,
+        "bitbucket",
+        "api",
+        "-X",
+        "GET",
+        f"{compare_endpoint}/diff",
+        *compare_fields,
+    )
+    assert compared_diff["diffs"]
+
+    compared_changes = run_cli(
+        live_env,
+        "bitbucket",
+        "api",
+        "-X",
+        "GET",
+        "--paginate",
+        "--jq",
+        ".values[].path.toString",
+        f"{compare_endpoint}/changes",
+        *compare_fields,
+    )
+    assert compared_changes.returncode == 0, compared_changes.stderr
+    assert "example.py" in compared_changes.stdout.splitlines()
+
+    compared_commits = run_cli(
+        live_env,
+        "bitbucket",
+        "api",
+        "-X",
+        "GET",
+        "--paginate",
+        "--jq",
+        ".values[].id",
+        f"{compare_endpoint}/commits",
+        *compare_fields,
+    )
+    assert compared_commits.returncode == 0, compared_commits.stderr
+    assert compare_head_commit in compared_commits.stdout.splitlines()
+
     branches = run_json(
         live_env,
         "bitbucket",

@@ -251,6 +251,41 @@ ssh example-user@example-host
 - `atlassian bitbucket pr build-status DEMO example-repo 42`
 - `atlassian bitbucket commit build-status abc123`
 
+### Bitbucket API
+
+`atlassian bitbucket api` is a generic authenticated REST command. Endpoint
+paths are relative to `rest/api/1.0` unless they already begin with `rest/`.
+Like `gh api`, adding `-f` or `-F` fields changes the default method to POST;
+use `-X GET` when fields should become query parameters.
+
+Compare two refs as structured JSON on Bitbucket Server 6.7.2:
+
+```bash
+atlassian bitbucket api -X GET \
+  'projects/DEMO/repos/example-repo/compare/diff' \
+  -f from='feature/DEMO-1234/example-change' \
+  -f to='DEMO'
+```
+
+List every changed file or commit while filtering each Bitbucket page with jq:
+
+```bash
+atlassian bitbucket api -X GET --paginate --jq '.values[]' \
+  'projects/DEMO/repos/example-repo/compare/changes' \
+  -f from='feature/DEMO-1234/example-change' \
+  -f to='DEMO'
+
+atlassian bitbucket api -X GET --paginate --jq '.values[]' \
+  'projects/DEMO/repos/example-repo/compare/commits' \
+  -f from='feature/DEMO-1234/example-change' \
+  -f to='DEMO'
+```
+
+The command returns the Bitbucket response body directly and does not add an
+`--output` wrapper. Bitbucket Server 6.7.2 returns structured JSON from
+`compare/diff`; it does not return unified diff text from that endpoint.
+GraphQL, `--template`, and `--cache` are not implemented.
+
 ## Header injection
 
 The CLI can accept externally generated HTTP headers without embedding OAuth logic.
