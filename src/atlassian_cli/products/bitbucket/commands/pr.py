@@ -1,6 +1,6 @@
 import os
 import sys
-from datetime import UTC, datetime
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
@@ -11,6 +11,7 @@ from typer._click.exceptions import UsageError as TyperUsageError
 from typer.core import TyperCommand
 
 from atlassian_cli.auth.models import ResolvedAuth
+from atlassian_cli.compat import UTC
 from atlassian_cli.core.errors import MissingCredentialError
 from atlassian_cli.output.interactive import InteractiveCollectionSource, browse_collection
 from atlassian_cli.output.modes import OutputMode, is_raw_output, normalized_output

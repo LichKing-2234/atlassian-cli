@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import datetime
 from io import StringIO
 from typing import Any
 
@@ -11,6 +11,7 @@ from rich.cells import cell_len
 from rich.console import Console
 from rich.markdown import Markdown
 
+from atlassian_cli.compat import UTC
 from atlassian_cli.core.errors import AtlassianCliError
 
 MISSING_JSON_VALUE = "__ATLASSIAN_MISSING_JSON_VALUE__"
