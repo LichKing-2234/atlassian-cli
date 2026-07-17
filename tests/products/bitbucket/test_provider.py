@@ -129,6 +129,44 @@ def test_bitbucket_provider_get_pull_request_diff_uses_text_endpoint() -> None:
     )
 
 
+def test_bitbucket_provider_request_api_returns_advanced_response() -> None:
+    calls = {}
+    response = object()
+
+    class FakeClient:
+        def request(self, **kwargs):
+            calls.update(kwargs)
+            return response
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.request_api(
+        "GET",
+        "rest/api/1.0/projects/DEMO/repos/example-repo/compare/changes",
+        headers={"Accept": "application/json"},
+        params={
+            "from": "feature/DEMO-1234/example-change",
+            "to": "DEMO",
+        },
+        json_body=None,
+        data=None,
+    )
+
+    assert result is response
+    assert calls == {
+        "method": "GET",
+        "path": "rest/api/1.0/projects/DEMO/repos/example-repo/compare/changes",
+        "headers": {"Accept": "application/json"},
+        "params": {
+            "from": "feature/DEMO-1234/example-change",
+            "to": "DEMO",
+        },
+        "json": None,
+        "data": None,
+        "advanced_mode": True,
+    }
+
+
 def test_bitbucket_provider_get_pull_request_diff_with_lines_uses_json_endpoint() -> None:
     calls = {}
 

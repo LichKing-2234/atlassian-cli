@@ -1,7 +1,17 @@
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class BitbucketProvider(Protocol):
+    def request_api(
+        self,
+        method: str,
+        path: str,
+        *,
+        headers: dict[str, str] | None,
+        params: dict[str, object] | None,
+        json_body: dict[str, object] | None,
+        data: bytes | None,
+    ) -> Any: ...
     def list_projects(self, *, start: int, limit: int) -> list[dict]: ...
     def get_project(self, project_key: str) -> dict: ...
     def list_repos(self, *, project_key: str | None, start: int, limit: int) -> list[dict]: ...

@@ -28,6 +28,26 @@ class BitbucketServerProvider:
         if session is not None:
             patch_session_headers(session, headers or {})
 
+    def request_api(
+        self,
+        method: str,
+        path: str,
+        *,
+        headers: dict[str, str] | None,
+        params: dict[str, object] | None,
+        json_body: dict[str, object] | None,
+        data: bytes | None,
+    ):
+        return self.client.request(
+            method=method,
+            path=path,
+            headers=headers,
+            params=params,
+            json=json_body,
+            data=data,
+            advanced_mode=True,
+        )
+
     def _paged_items(self, value, *, limit: int | None = None) -> list[dict]:
         if isinstance(value, dict):
             values = value.get("values", [])
