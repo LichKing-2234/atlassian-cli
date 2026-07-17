@@ -89,8 +89,10 @@ class PullRequestFinder:
         source_ref = raw.get("fromRef") or {}
         source_repo = source_ref.get("repository") or {}
         source_project = source_repo.get("project") or {}
+        source_project_key = source_project.get("key")
         return (
-            source_project.get("key") == project
+            isinstance(source_project_key, str)
+            and source_project_key.casefold() == project.casefold()
             and source_repo.get("slug") == repo
             and source_ref.get("displayId") == branch
         )

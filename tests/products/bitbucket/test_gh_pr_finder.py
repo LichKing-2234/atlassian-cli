@@ -134,6 +134,57 @@ def test_qualified_branch_requires_exact_source_project() -> None:
     assert result.number == 1235
 
 
+def test_current_branch_matches_canonical_project_key_case_insensitively() -> None:
+    branch = "feature/DEMO-1234/example-change"
+    clone_repository = RepositoryRef(SERVER, "demo", "example-repo")
+    provider = FakeProvider(
+        {
+            ("OPEN", 0): [
+                raw_pr(
+                    1234,
+                    "OPEN",
+                    "2026-07-15T12:00:00",
+                    "DEMO",
+                    branch,
+                )
+            ]
+        }
+    )
+
+    result = PullRequestFinder(provider, SERVER).find(
+        None,
+        RepositoryResolution(clone_repository, branch),
+        explicit_repo=False,
+    )
+
+    assert result == PullRequestRef(clone_repository, 1234)
+
+
+def test_current_branch_rejects_a_genuinely_different_source_project() -> None:
+    branch = "feature/DEMO-1234/example-change"
+    clone_repository = RepositoryRef(SERVER, "demo", "example-repo")
+    provider = FakeProvider(
+        {
+            ("OPEN", 0): [
+                raw_pr(
+                    1234,
+                    "OPEN",
+                    "2026-07-15T12:00:00",
+                    "~example-user",
+                    branch,
+                )
+            ]
+        }
+    )
+
+    with pytest.raises(NotFoundError, match=f"no pull request found for branch {branch}"):
+        PullRequestFinder(provider, SERVER).find(
+            None,
+            RepositoryResolution(clone_repository, branch),
+            explicit_repo=False,
+        )
+
+
 def test_detached_head_without_selector_is_not_found() -> None:
     with pytest.raises(NotFoundError, match="current branch"):
         PullRequestFinder(FakeProvider(), SERVER).find(
