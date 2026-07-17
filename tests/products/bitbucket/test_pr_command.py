@@ -433,6 +433,41 @@ def test_hidden_legacy_output_rejects_new_filters_before_provider(extra, monkeyp
     assert extra[0] in result.stderr
 
 
+@pytest.mark.parametrize("option", ["--author", "--base", "--head", "--search"])
+def test_hidden_legacy_output_rejects_explicit_empty_filters_before_provider(
+    option,
+    monkeypatch,
+) -> None:
+    provider_calls = []
+
+    def build_provider(*args):
+        provider_calls.append(args)
+        pytest.fail("provider called")
+
+    monkeypatch.setattr(pr_module, "build_provider", build_provider)
+
+    result = runner.invoke(
+        app,
+        [
+            "bitbucket",
+            "pr",
+            "list",
+            "-R",
+            "DEMO/example-repo",
+            "--output",
+            "json",
+            f"{option}=",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr == (
+        "DeprecationWarning: The option 'output' is deprecated.\n"
+        f"cannot use `{option}` with `--output`\n"
+    )
+    assert provider_calls == []
+
+
 def test_hidden_legacy_output_rejects_json_before_provider(monkeypatch) -> None:
     monkeypatch.setattr(pr_module, "build_provider", lambda *_: pytest.fail("provider called"))
 
@@ -505,6 +540,27 @@ def test_primary_list_forwards_all_supported_filters(monkeypatch) -> None:
         "merged",
         17,
     )
+
+
+@pytest.mark.parametrize(
+    ("option", "attribute"),
+    [
+        ("--author", "author"),
+        ("--base", "base"),
+        ("--head", "head"),
+        ("--search", "search"),
+    ],
+)
+def test_primary_list_preserves_explicit_empty_filters(option, attribute, monkeypatch) -> None:
+    calls = install_read_fakes(monkeypatch)
+
+    result = runner.invoke(
+        app,
+        primary_list_args(f"{option}=", "--json", "number"),
+    )
+
+    assert result.exit_code == 0
+    assert getattr(calls["lists"][0][1], attribute) == ""
 
 
 def test_primary_list_rejects_zero_limit_before_context_or_provider(monkeypatch) -> None:

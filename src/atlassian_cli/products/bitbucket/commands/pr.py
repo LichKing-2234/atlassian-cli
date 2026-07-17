@@ -243,15 +243,17 @@ def _list_run(
     if output is not None and fields is not None:
         raise GhPreflightError("cannot use `--output` with `--json`")
     if output is not None:
-        for option, value in (
-            ("--author", author),
-            ("--base", base),
-            ("--head", head),
-            ("--search", search),
-            ("--web", web),
+        for parameter, option in (
+            ("author", "--author"),
+            ("base", "--base"),
+            ("head", "--head"),
+            ("search", "--search"),
         ):
-            if value:
+            source = ctx.get_parameter_source(parameter)
+            if source is not None and source.name == "COMMANDLINE":
                 raise GhPreflightError(f"cannot use `{option}` with `--output`")
+        if web:
+            raise GhPreflightError("cannot use `--web` with `--output`")
     if state not in {"open", "closed", "merged", "all"}:
         raise GhPreflightError(f"invalid state: {state}")
     if limit < 1:
