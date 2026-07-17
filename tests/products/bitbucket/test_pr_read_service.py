@@ -499,6 +499,35 @@ def test_author_me_uses_dashboard_and_filters_to_the_resolved_repository() -> No
     assert provider.list_calls == []
 
 
+@pytest.mark.parametrize(
+    ("project_key", "repo_slug", "expected"),
+    [
+        ("demo", "example-repo", [1234]),
+        ("~example-user", "example-repo", []),
+        ("DEMO", "Example-repo", []),
+    ],
+)
+def test_dashboard_repository_match_casefolds_only_the_project_key(
+    project_key: str,
+    repo_slug: str,
+    expected: list[int],
+) -> None:
+    dashboard_pull_request = raw_pr()
+    repository = dashboard_pull_request["toRef"]["repository"]
+    repository["project"]["key"] = project_key
+    repository["slug"] = repo_slug
+    provider = FakeProvider([], dashboard_pull_requests=[dashboard_pull_request])
+
+    result = PullRequestReadService(provider).list(
+        REPO,
+        PullRequestListFilters(author="@me"),
+        {"number"},
+    )
+
+    assert [item["number"] for item in result.items] == expected
+    assert provider.dashboard_calls == [("AUTHOR", "OPEN", 0, 100)]
+
+
 def test_author_me_with_explicit_all_state_keeps_all_service_semantics() -> None:
     open_pull_request = raw_pr(pr_id=1234, state="OPEN")
     merged_pull_request = raw_pr(pr_id=1235, state="MERGED")
@@ -637,7 +666,6 @@ def test_direct_projection_maps_every_supported_direct_field() -> None:
         "updatedAt",
         "url",
     }
-
     result = PullRequestReadService(provider).get(PullRequestRef(REPO, 1234), fields)
 
     assert result == {
@@ -681,6 +709,46 @@ def test_direct_projection_maps_every_supported_direct_field() -> None:
             "https://bitbucket.example.com/projects/DEMO/repos/example-repo/pull-requests/1234"
         ),
     }
+
+
+def test_presenter_reviewers_include_all_statuses_without_changing_public_requests() -> None:
+    pull_request = raw_pr()
+    approved = {
+        "user": {
+            "id": 1003,
+            "name": "reviewer-two",
+            "displayName": "reviewer-two",
+        },
+        "approved": True,
+        "status": "APPROVED",
+    }
+    needs_work = {
+        "user": {
+            "id": 1004,
+            "name": "reviewer-three",
+            "displayName": "reviewer-three",
+        },
+        "approved": False,
+        "status": "NEEDS_WORK",
+    }
+    pull_request["reviewers"].extend([approved, needs_work])
+
+    result = PullRequestReadService(FakeProvider([pull_request])).get(
+        PullRequestRef(REPO, 1234),
+        {"reviewRequests", "_reviewers"},
+    )
+
+    assert [reviewer["login"] for reviewer in result["reviewRequests"]] == [
+        "reviewer-one",
+        "reviewer-three",
+    ]
+    assert [
+        (reviewer["user"]["login"], reviewer["status"]) for reviewer in result["_reviewers"]
+    ] == [
+        ("reviewer-one", "UNAPPROVED"),
+        ("reviewer-two", "APPROVED"),
+        ("reviewer-three", "NEEDS_WORK"),
+    ]
 
 
 def test_direct_projection_uses_slug_user_fallback_and_closed_date() -> None:

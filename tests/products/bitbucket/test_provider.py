@@ -381,7 +381,7 @@ def test_bitbucket_provider_add_pull_request_comment_posts_anchor_payload() -> N
     )
 
 
-def test_bitbucket_provider_build_status_methods_forward_to_sdk() -> None:
+def test_bitbucket_provider_build_status_reads_direct_rest_resource_with_limit_100() -> None:
     calls = {}
 
     class FakeClient:
@@ -389,8 +389,12 @@ def test_bitbucket_provider_build_status_methods_forward_to_sdk() -> None:
             calls["commits"] = (project_key, repo_slug, pr_id, start, limit)
             return {"values": [{"id": "abc123"}, {"id": "def456"}]}
 
-        def get_associated_build_statuses(self, commit):
-            calls["build"] = commit
+        def resource_url(self, resource, *, api_root):
+            calls["resource_url"] = (resource, api_root)
+            return f"{api_root}/1.0/{resource}"
+
+        def get(self, url, *, params):
+            calls["build"] = (url, params)
             return {"values": [{"key": "DEMO", "state": "SUCCESSFUL"}]}
 
     provider = build_provider_with_client(FakeClient())
@@ -401,7 +405,8 @@ def test_bitbucket_provider_build_status_methods_forward_to_sdk() -> None:
     assert commits == [{"id": "abc123"}, {"id": "def456"}]
     assert statuses == {"values": [{"key": "DEMO", "state": "SUCCESSFUL"}]}
     assert calls["commits"] == ("DEMO", "example-repo", 42, 0, 25)
-    assert calls["build"] == "abc123"
+    assert calls["resource_url"] == ("commits/abc123", "rest/build-status")
+    assert calls["build"] == ("rest/build-status/1.0/commits/abc123", {"limit": 100})
 
 
 def test_bitbucket_provider_exposes_pr_read_primitives() -> None:

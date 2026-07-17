@@ -15,6 +15,7 @@ ACTIVITY_FIELDS = {"comments", "mergedAt", "mergedBy"}
 COMMIT_FIELDS = {"commits"}
 MERGEABILITY_FIELDS = {"mergeable", "mergeStateStatus"}
 BUILD_FIELDS = {"statusCheckRollup"}
+PRESENTER_REVIEWERS_FIELD = "_reviewers"
 
 _STATE_MAP = {"open": "OPEN", "closed": "DECLINED", "merged": "MERGED", "all": "ALL"}
 _CHANGE_TYPE_MAP = {
@@ -125,6 +126,23 @@ def _review_requests(reviewers: object) -> list[dict]:
     ]
 
 
+def _presenter_reviewers(reviewers: object) -> list[dict]:
+    if not isinstance(reviewers, list):
+        return []
+    projected = []
+    for reviewer in reviewers:
+        if not isinstance(reviewer, Mapping):
+            continue
+        user = _user(reviewer.get("user"))
+        if user is None:
+            continue
+        status = reviewer.get("status")
+        if not status:
+            status = "APPROVED" if reviewer.get("approved") else "UNAPPROVED"
+        projected.append({"user": user, "status": str(status)})
+    return projected
+
+
 def _first_self_link(raw: Mapping[str, Any]) -> str:
     links = raw.get("links")
     self_links = links.get("self") if isinstance(links, Mapping) else None
@@ -161,6 +179,7 @@ def _direct_projection(raw: Mapping[str, Any]) -> dict[str, Any]:
         "number": int(raw["id"]),
         "reviewDecision": _review_decision(raw.get("reviewers", [])),
         "reviewRequests": _review_requests(raw.get("reviewers", [])),
+        PRESENTER_REVIEWERS_FIELD: _presenter_reviewers(raw.get("reviewers", [])),
         "state": {"OPEN": "OPEN", "DECLINED": "CLOSED", "MERGED": "MERGED"}[raw["state"]],
         "title": raw.get("title") or "",
         "updatedAt": _rfc3339(raw.get("updatedDate")),
@@ -230,7 +249,7 @@ def _status_context(raw_build: Mapping[str, Any]) -> dict:
     }
 
 
-def _parse_search(value: str | None) -> dict[str, Any]:
+def parse_search_query(value: str | None) -> dict[str, Any]:
     query: dict[str, Any] = {
         "terms": [],
         "scopes": set(),
@@ -342,7 +361,7 @@ class PullRequestReadService:
     ) -> PullRequestListResult:
         if filters.limit < 1:
             raise ValueError("limit must be greater than zero")
-        query = _parse_search(filters.search)
+        query = parse_search_query(filters.search)
         for key, value in (
             ("author", filters.author),
             ("base", filters.base),
@@ -448,9 +467,11 @@ class PullRequestReadService:
 
     @staticmethod
     def _belongs_to(repository: RepositoryRef, raw: Mapping[str, Any]) -> bool:
-        return _repository_identity(raw.get("toRef")) == (
-            repository.project_key,
-            repository.repo_slug,
+        project_key, repo_slug = _repository_identity(raw.get("toRef"))
+        return (
+            isinstance(project_key, str)
+            and project_key.casefold() == repository.project_key.casefold()
+            and repo_slug == repository.repo_slug
         )
 
     def _dashboard_pull_requests(self, repository: RepositoryRef, state: str) -> list[dict]:

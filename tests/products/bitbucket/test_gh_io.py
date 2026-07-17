@@ -1,3 +1,4 @@
+import os
 from io import StringIO
 from subprocess import CompletedProcess
 
@@ -10,9 +11,20 @@ from atlassian_cli.products.bitbucket.gh_compat.io import (
     open_browser,
     page_output,
     stdout_is_tty,
+    terminal_width,
 )
 
 PR_URL = "https://bitbucket.example.com/projects/DEMO/repos/example-repo/pull-requests/1234"
+
+
+def test_terminal_width_uses_current_terminal_size(monkeypatch) -> None:
+    monkeypatch.setattr(
+        io_module.shutil,
+        "get_terminal_size",
+        lambda **_kwargs: os.terminal_size((117, 40)),
+    )
+
+    assert terminal_width() == 117
 
 
 def test_force_tty_uses_only_atlassian_namespace() -> None:

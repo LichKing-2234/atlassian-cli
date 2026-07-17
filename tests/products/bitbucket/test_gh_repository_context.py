@@ -93,8 +93,9 @@ def test_invalid_environment_selector_is_not_hidden_by_git() -> None:
         snapshot(),
         env={"ATLASSIAN_BITBUCKET_REPO": "not-a-repository"},
     )
-    with pytest.raises(ValidationError, match="PROJECT/REPOSITORY"):
+    with pytest.raises(ValidationError) as exc_info:
         resolver.resolve()
+    assert str(exc_info.value) == "repository must use PROJECT/REPOSITORY syntax"
 
 
 def test_default_remote_beats_branch_upstream_and_origin() -> None:
@@ -121,8 +122,9 @@ def test_foreign_host_origin_is_ignored() -> None:
         upstream_remote=None,
         remotes={"origin": "https://foreign.example.com/scm/DEMO/example-repo.git"},
     )
-    with pytest.raises(ValidationError, match="unable to determine"):
+    with pytest.raises(ValidationError) as exc_info:
         RepositoryResolver(SERVER, git, env={}).resolve()
+    assert str(exc_info.value) == "unable to determine a Bitbucket repository; use -R"
 
 
 def test_single_fallback_remote_is_selected() -> None:
@@ -150,8 +152,9 @@ def test_non_tty_remote_ambiguity_lists_names() -> None:
             "two": "https://bitbucket.example.com/scm/~example-user/example-repo.git",
         },
     )
-    with pytest.raises(ValidationError, match="one, two"):
+    with pytest.raises(ValidationError) as exc_info:
         RepositoryResolver(SERVER, ambiguous, env={}, can_prompt=False).resolve()
+    assert str(exc_info.value) == "multiple Bitbucket remotes match: one, two; use -R"
 
 
 def test_tty_ambiguity_uses_injected_chooser() -> None:

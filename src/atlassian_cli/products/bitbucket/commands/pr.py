@@ -29,6 +29,7 @@ from atlassian_cli.products.bitbucket.gh_compat.io import (
     open_browser,
     page_output,
     stdout_is_tty,
+    terminal_width,
 )
 from atlassian_cli.products.bitbucket.gh_compat.pr_finder import PullRequestFinder
 from atlassian_cli.products.bitbucket.gh_compat.pr_output import (
@@ -54,8 +55,10 @@ from atlassian_cli.products.bitbucket.gh_compat.selectors import (
 from atlassian_cli.products.bitbucket.services.build_status import BuildStatusService
 from atlassian_cli.products.bitbucket.services.pr import PullRequestService
 from atlassian_cli.products.bitbucket.services.pr_read import (
+    PRESENTER_REVIEWERS_FIELD,
     PullRequestListFilters,
     PullRequestReadService,
+    parse_search_query,
 )
 from atlassian_cli.products.factory import build_provider
 
@@ -69,7 +72,7 @@ VIEW_NON_TTY_FIELDS = {
     "body",
     "deletions",
     "number",
-    "reviewRequests",
+    PRESENTER_REVIEWERS_FIELD,
     "state",
     "title",
     "url",
@@ -239,6 +242,7 @@ def _list_run(
     web: bool,
     output: OutputMode | None,
 ) -> None:
+    parse_search_query(search)
     fields = validate_json_fields(json_fields, web=web, surface="pr list")
     if output is not None and fields is not None:
         raise GhPreflightError("cannot use `--output` with `--json`")
@@ -317,6 +321,16 @@ def _list_run(
         requested_fields,
         count_total=count_total,
     )
+    filtered = state != "open" or any(value is not None for value in (author, base, head, search))
+    if fields is None and not result.items:
+        if tty:
+            message = (
+                f"no pull requests match your search in {repository.slug}"
+                if filtered
+                else f"no open pull requests in {repository.slug}"
+            )
+            typer.echo(message, err=True)
+        return
     color = color_enabled(tty, environment)
     if fields is not None:
         rendered = render_json(result.items, color=color)
@@ -325,12 +339,11 @@ def _list_run(
             result.items,
             repository=repository.slug,
             total=result.total_count,
-            filtered=(
-                state != "open" or any(value is not None for value in (author, base, head, search))
-            ),
+            filtered=filtered,
             tty=tty,
             color=color,
             now=datetime.now(UTC),
+            width=terminal_width(),
         )
     page_output(
         rendered,
@@ -438,6 +451,7 @@ def _view_run(
             color=color,
             comments=comments,
             now=datetime.now(UTC),
+            width=terminal_width(),
         )
     page_output(
         rendered,

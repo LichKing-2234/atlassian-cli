@@ -40,6 +40,10 @@ def color_enabled(tty: bool, env: Environment | None = None) -> bool:
     return bool(tty) and "NO_COLOR" not in environment and environment.get("CLICOLOR") != "0"
 
 
+def terminal_width() -> int:
+    return shutil.get_terminal_size(fallback=(80, 24)).columns
+
+
 def _configured_command(environment: Environment, product_key: str, standard_key: str) -> str:
     product_value = environment.get(product_key, "")
     if product_value.strip():

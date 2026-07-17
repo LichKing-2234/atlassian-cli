@@ -1204,7 +1204,7 @@ def test_view_comments_non_tty_outputs_only_raw_comments(contract, canonical_pr)
     ) == contract["golden"]["view_comments_non_tty"]
 ```
 
-Add TTY assertions for title/repository/number, state/author/ref summary, additions/deletions, check summary, reviewer state, Markdown body, comment preview versus full `--comments`, and the Bitbucket footer. In non-TTY human mode, `--comments` emits only the raw chronological comment blocks shown in the golden fixture, matching the pinned `viewRun` branch; it does not prepend PR detail. JSON and web modes still take precedence over this flag. Empty `pr list` raises `no open pull requests in DEMO/example-repo` or `no pull requests match your search in DEMO/example-repo`, exit-classified later as `1`.
+Add TTY assertions for title/repository/number, state/author/ref summary, additions/deletions, check summary, reviewer state, Markdown body, comment preview versus full `--comments`, and the Bitbucket footer. In non-TTY human mode, `--comments` emits only the raw chronological comment blocks shown in the golden fixture, matching the pinned `viewRun` branch; it does not prepend PR detail. JSON and web modes still take precedence over this flag. Empty human `pr list` is successful: TTY writes `no open pull requests in DEMO/example-repo` or `no pull requests match your search in DEMO/example-repo` to stderr, while non-TTY is silent. Empty JSON output is `[]` and also exits `0`.
 
 - [ ] **Step 4: Implement list/view presenters without a general rendering framework**
 

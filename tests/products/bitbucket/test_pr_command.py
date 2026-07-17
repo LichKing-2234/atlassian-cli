@@ -264,6 +264,92 @@ def test_invalid_state_fails_before_context_or_provider(monkeypatch) -> None:
     assert "invalid state" in result.stderr.lower()
 
 
+@pytest.mark.parametrize(
+    "search",
+    [
+        f"{negated}{qualifier}:DEMO"
+        for qualifier in ("assignee", "draft", "label", "milestone", "project", "app", "team")
+        for negated in ("", "-")
+    ],
+)
+def test_primary_list_rejects_every_n03_search_qualifier_before_context(
+    search: str,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        pr_module,
+        "require_primary_auth",
+        lambda *_args, **_kwargs: pytest.fail("context accessed"),
+    )
+    monkeypatch.setattr(pr_module, "build_provider", lambda *_: pytest.fail("provider called"))
+
+    result = runner.invoke(app, ["bitbucket", "pr", "list", "--search", search])
+
+    qualifier = search.lstrip("-").partition(":")[0]
+    assert result.exit_code == 1
+    assert result.stderr == f"Error: unsupported search qualifier: {qualifier}\n"
+
+
+@pytest.mark.parametrize(
+    ("search", "message"),
+    [
+        ("in:comments", "unsupported search qualifier: in:comments"),
+        ("state:invalid", "unsupported state search value: invalid"),
+        ("is:invalid", "unsupported is search value: invalid"),
+        ("review:invalid", "unsupported review search value: invalid"),
+        ("status:invalid", "unsupported status search value: invalid"),
+        ("author:", "search qualifier author requires a value"),
+        ("base:", "search qualifier base requires a value"),
+        ("head:", "search qualifier head requires a value"),
+        ("draft:", "unsupported search qualifier: draft"),
+        ("'Example pull request", "No closing quotation"),
+    ],
+)
+def test_primary_list_rejects_invalid_search_syntax_before_context(
+    search: str,
+    message: str,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        pr_module,
+        "require_primary_auth",
+        lambda *_args, **_kwargs: pytest.fail("context accessed"),
+    )
+    monkeypatch.setattr(pr_module, "build_provider", lambda *_: pytest.fail("provider called"))
+
+    result = runner.invoke(app, ["bitbucket", "pr", "list", "--search", search])
+
+    assert result.exit_code == 1
+    assert result.stderr == f"Error: {message}\n"
+
+
+def test_primary_list_web_rejects_search_before_context_or_browser(monkeypatch) -> None:
+    monkeypatch.setattr(
+        pr_module,
+        "require_primary_auth",
+        lambda *_args, **_kwargs: pytest.fail("context accessed"),
+    )
+    monkeypatch.setattr(
+        pr_module,
+        "resolve_repository",
+        lambda *_args, **_kwargs: pytest.fail("repo resolved"),
+    )
+    monkeypatch.setattr(pr_module, "build_provider", lambda *_: pytest.fail("provider called"))
+    monkeypatch.setattr(
+        pr_module,
+        "open_browser",
+        lambda *_args, **_kwargs: pytest.fail("browser called"),
+    )
+
+    result = runner.invoke(
+        app,
+        ["bitbucket", "pr", "list", "--web", "--search", "draft:true"],
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr == "Error: unsupported search qualifier: draft\n"
+
+
 def test_view_repo_without_selector_fails_before_git_or_provider(monkeypatch) -> None:
     monkeypatch.setattr(
         pr_module,
@@ -307,6 +393,7 @@ def install_read_fakes(
     tty: bool = False,
     color: bool = False,
     total_count: int = 1,
+    items: list[dict] | None = None,
 ):
     calls: dict[str, object] = {"providers": 0, "lists": [], "pages": []}
 
@@ -320,8 +407,9 @@ def install_read_fakes(
 
         def list(self, repository, filters, fields, *, count_total=False):
             calls["lists"].append((repository, filters, fields, count_total))
-            item = {field: LIST_PR[field] for field in fields}
-            return PullRequestListResult([item], total_count if count_total else None)
+            selected_items = [LIST_PR] if items is None else items
+            projected = [{field: item[field] for field in fields} for item in selected_items]
+            return PullRequestListResult(projected, total_count if count_total else None)
 
     def page_output(text, **kwargs):
         calls["pages"].append((text, kwargs))
@@ -385,6 +473,45 @@ def primary_list_args(*extra: str) -> list[str]:
         "DEMO/example-repo",
         *extra,
     ]
+
+
+@pytest.mark.parametrize(
+    ("tty", "extra", "expected_stderr"),
+    [
+        (True, (), "no open pull requests in DEMO/example-repo\n"),
+        (
+            True,
+            ("--search", "Example pull request"),
+            "no pull requests match your search in DEMO/example-repo\n",
+        ),
+        (False, (), ""),
+    ],
+)
+def test_primary_empty_human_list_exits_zero_without_paging(
+    tty: bool,
+    extra: tuple[str, ...],
+    expected_stderr: str,
+    monkeypatch,
+) -> None:
+    calls = install_read_fakes(monkeypatch, tty=tty, total_count=0, items=[])
+
+    result = runner.invoke(app, primary_list_args(*extra))
+
+    assert result.exit_code == 0
+    assert result.stdout == ""
+    assert result.stderr == expected_stderr
+    assert calls["pages"] == []
+
+
+def test_primary_empty_json_list_remains_successful_array(monkeypatch) -> None:
+    calls = install_read_fakes(monkeypatch, tty=True, total_count=0, items=[])
+
+    result = runner.invoke(app, primary_list_args("--json", "number"))
+
+    assert result.exit_code == 0
+    assert result.stdout == "[]\n"
+    assert result.stderr == ""
+    assert len(calls["pages"]) == 1
 
 
 def test_hidden_legacy_output_selects_v019_renderer_and_warns(monkeypatch) -> None:
@@ -635,6 +762,23 @@ def test_primary_list_tty_counts_total_for_human_output(monkeypatch) -> None:
     assert calls["pages"][0][1]["tty"] is True
 
 
+def test_primary_list_injects_detected_terminal_width(monkeypatch) -> None:
+    install_read_fakes(monkeypatch, tty=True)
+    captured = {}
+    monkeypatch.setattr(pr_module, "terminal_width", lambda: 47, raising=False)
+
+    def render_pr_list(*_args, **kwargs):
+        captured["width"] = kwargs["width"]
+        return "example response\n"
+
+    monkeypatch.setattr(pr_module, "render_pr_list", render_pr_list)
+
+    result = runner.invoke(app, primary_list_args())
+
+    assert result.exit_code == 0
+    assert captured["width"] == 47
+
+
 def test_primary_list_tty_json_uses_color_and_pager_without_counting(monkeypatch) -> None:
     calls = install_read_fakes(monkeypatch, tty=True, color=True)
 
@@ -763,6 +907,12 @@ VIEW_PR = {
     "headRefName": "feature/DEMO-1234/example-change",
     "number": 1234,
     "reviewRequests": [{"login": "reviewer-one", "name": "reviewer-one"}],
+    "_reviewers": [
+        {
+            "user": {"login": "reviewer-one", "name": "reviewer-one"},
+            "status": "UNAPPROVED",
+        }
+    ],
     "state": "OPEN",
     "statusCheckRollup": [],
     "title": "Example pull request",
@@ -973,7 +1123,29 @@ def test_primary_view_human_uses_presenter_fields_and_view_pager_prefix(monkeypa
     assert result.exit_code == 0
     assert result.stdout.startswith("title:\tExample pull request\n")
     assert calls["gets"][0][1] == pr_module.VIEW_NON_TTY_FIELDS
+    assert "_reviewers" in calls["gets"][0][1]
+    assert "reviewRequests" not in calls["gets"][0][1]
     assert calls["pages"][0][1]["error_prefix"] == "failed to start pager"
+
+
+def test_primary_view_injects_detected_terminal_width(monkeypatch) -> None:
+    install_view_fakes(monkeypatch, tty=True)
+    captured = {}
+    monkeypatch.setattr(pr_module, "terminal_width", lambda: 53, raising=False)
+
+    def render_pr_view(*_args, **kwargs):
+        captured["width"] = kwargs["width"]
+        return "example response\n"
+
+    monkeypatch.setattr(pr_module, "render_pr_view", render_pr_view)
+
+    result = runner.invoke(
+        app,
+        primary_view_args("1234", "-R", "DEMO/example-repo"),
+    )
+
+    assert result.exit_code == 0
+    assert captured["width"] == 53
 
 
 def test_primary_view_tty_json_uses_color_and_pager(monkeypatch) -> None:

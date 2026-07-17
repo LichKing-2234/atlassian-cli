@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 from rich.cells import cell_len
 
-from atlassian_cli.core.errors import AtlassianCliError
 from atlassian_cli.products.bitbucket.gh_compat.pr_output import (
     JSON_FIELDS,
     MISSING_JSON_VALUE,
@@ -68,6 +67,17 @@ def canonical_pr() -> dict:
                 "name": "Example Collaborator",
             }
         ],
+        "_reviewers": [
+            {
+                "user": {
+                    "id": "example-user-id",
+                    "is_bot": False,
+                    "login": "reviewer-one",
+                    "name": "Example Collaborator",
+                },
+                "status": "UNAPPROVED",
+            }
+        ],
         "state": "OPEN",
         "statusCheckRollup": [],
         "title": "Example pull request",
@@ -113,6 +123,11 @@ def test_unknown_field_lists_available_fields() -> None:
     message = str(exc.value)
     assert message.startswith('Unknown JSON field: "unknownField"\nAvailable fields:\n')
     assert message.splitlines()[2:] == [f"  {field}" for field in sorted(JSON_FIELDS)]
+
+
+def test_private_reviewer_projection_is_not_json_selectable() -> None:
+    with pytest.raises(GhPreflightError, match='Unknown JSON field: "_reviewers"'):
+        validate_json_fields("_reviewers", web=False, surface="pr view")
 
 
 @pytest.mark.parametrize(
@@ -273,24 +288,20 @@ def test_relative_time_matches_pinned_go_gh_boundaries_in_list_and_view(
     assert expected in view_output
 
 
-@pytest.mark.parametrize(
-    ("filtered", "message"),
-    [
-        (False, "no open pull requests in DEMO/example-repo"),
-        (True, "no pull requests match your search in DEMO/example-repo"),
-    ],
-)
-def test_empty_list_raises_exact_no_results_error(filtered: bool, message: str) -> None:
-    with pytest.raises(AtlassianCliError, match=f"^{re.escape(message)}$"):
+@pytest.mark.parametrize("tty", [False, True])
+def test_empty_list_has_no_stdout_content(tty: bool) -> None:
+    assert (
         render_pr_list(
             [],
             repository="DEMO/example-repo",
             total=0,
-            filtered=filtered,
-            tty=True,
+            filtered=False,
+            tty=tty,
             color=False,
             now=NOW,
         )
+        == ""
+    )
 
 
 def test_list_collapses_title_whitespace(canonical_pr: dict) -> None:
@@ -338,6 +349,38 @@ def test_list_tty_uses_display_cell_width_for_wide_and_combining_titles(
     created_columns = {cell_len(row[: row.index("about 1 day ago")]) for row in rows}
     assert len(branch_columns) == 1
     assert len(created_columns) == 1
+
+
+@pytest.mark.parametrize(
+    ("width", "expect_full_values"),
+    [(46, False), (120, True)],
+)
+def test_list_tty_bounds_wide_character_columns_to_terminal_width(
+    canonical_pr: dict,
+    width: int,
+    expect_full_values: bool,
+) -> None:
+    canonical_pr["title"] = "Example pull request 示例 Example pull request"
+    rendered = strip_ansi(
+        render_pr_list(
+            [canonical_pr],
+            repository="DEMO/example-repo",
+            total=1,
+            filtered=False,
+            tty=True,
+            color=True,
+            now=NOW,
+            width=width,
+        )
+    )
+    table_lines = rendered.splitlines()[3:]
+
+    assert table_lines
+    assert all(cell_len(line) <= width for line in table_lines)
+    assert ("…" not in "\n".join(table_lines)) is expect_full_values
+    if expect_full_values:
+        assert canonical_pr["title"] in rendered
+        assert canonical_pr["headRefName"] in rendered
 
 
 def test_view_non_tty_matches_golden(contract: dict, canonical_pr: dict) -> None:
@@ -582,7 +625,7 @@ def test_view_tty_comment_age_switches_to_date_at_30_days(
     ],
 )
 def test_view_maps_bitbucket_reviewer_states(canonical_pr: dict, state: str, display: str) -> None:
-    canonical_pr["reviewRequests"][0]["status"] = state
+    canonical_pr["_reviewers"][0]["status"] = state
 
     rendered = strip_ansi(
         render_pr_view(
@@ -598,9 +641,9 @@ def test_view_maps_bitbucket_reviewer_states(canonical_pr: dict, state: str, dis
 
 
 def test_view_sorts_reviewer_names_case_sensitively(canonical_pr: dict) -> None:
-    second = deepcopy(canonical_pr["reviewRequests"][0])
-    second["login"] = "Reviewer-two"
-    canonical_pr["reviewRequests"].append(second)
+    second = deepcopy(canonical_pr["_reviewers"][0])
+    second["user"]["login"] = "Reviewer-two"
+    canonical_pr["_reviewers"].append(second)
 
     rendered = render_pr_view(
         canonical_pr,

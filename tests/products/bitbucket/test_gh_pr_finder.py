@@ -105,6 +105,27 @@ def test_branch_ranks_open_before_newer_closed_then_newest_open() -> None:
     assert result.number == 1234
 
 
+def test_branch_selector_splits_only_on_the_first_colon() -> None:
+    assert PullRequestFinder._split_branch(
+        "DEMO:feature:DEMO-1234:example-change",
+        "DEMO",
+    ) == ("DEMO", "feature:DEMO-1234:example-change")
+
+
+@pytest.mark.parametrize(
+    ("selector", "expected"),
+    [
+        (":feature/DEMO-1234/example-change", ("DEMO", ":feature/DEMO-1234/example-change")),
+        ("DEMO:", ("DEMO", "DEMO:")),
+    ],
+)
+def test_branch_selector_keeps_blank_side_as_part_of_the_branch(
+    selector: str,
+    expected: tuple[str, str],
+) -> None:
+    assert PullRequestFinder._split_branch(selector, "DEMO") == expected
+
+
 def test_qualified_branch_requires_exact_source_project() -> None:
     provider = FakeProvider(
         {
@@ -183,6 +204,60 @@ def test_current_branch_rejects_a_genuinely_different_source_project() -> None:
             RepositoryResolution(clone_repository, branch),
             explicit_repo=False,
         )
+
+
+def test_branch_selector_rejects_source_repository_slug_mismatch() -> None:
+    branch = "feature/DEMO-1234/example-change"
+    pull_request = raw_pr(1234, "OPEN", "2026-07-15T12:00:00", "DEMO", branch)
+    pull_request["fromRef"]["repository"]["slug"] = "Example-repo"
+    provider = FakeProvider({("OPEN", 0): [pull_request]})
+
+    with pytest.raises(NotFoundError, match=f"no pull request found for branch {branch}"):
+        PullRequestFinder(provider, SERVER).find(
+            branch,
+            resolution(),
+            explicit_repo=False,
+        )
+
+
+def test_omitted_selector_finds_current_branch() -> None:
+    branch = "feature/DEMO-1234/example-change"
+    provider = FakeProvider(
+        {
+            ("OPEN", 0): [
+                raw_pr(1234, "OPEN", "2026-07-15T12:00:00", "DEMO", branch),
+            ]
+        }
+    )
+
+    result = PullRequestFinder(provider, SERVER).find(
+        None,
+        resolution(branch),
+        explicit_repo=False,
+    )
+
+    assert result == PullRequestRef(REPO, 1234)
+
+
+def test_same_created_time_uses_numeric_id_as_final_tie_break() -> None:
+    branch = "feature/DEMO-1234/example-change"
+    created = "2026-07-15T12:00:00"
+    provider = FakeProvider(
+        {
+            ("OPEN", 0): [
+                raw_pr(1234, "OPEN", created, "DEMO", branch),
+                raw_pr(1235, "OPEN", created, "DEMO", branch),
+            ]
+        }
+    )
+
+    result = PullRequestFinder(provider, SERVER).find(
+        branch,
+        resolution(),
+        explicit_repo=False,
+    )
+
+    assert result == PullRequestRef(REPO, 1235)
 
 
 def test_detached_head_without_selector_is_not_found() -> None:

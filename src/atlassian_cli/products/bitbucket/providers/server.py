@@ -294,7 +294,11 @@ class BitbucketServerProvider:
         )
 
     def get_associated_build_statuses(self, commit: str) -> dict:
-        return self.client.get_associated_build_statuses(commit)
+        url = self.client.resource_url(
+            f"commits/{commit}",
+            api_root="rest/build-status",
+        )
+        return self.client.get(url, params={"limit": 100})
 
     def create_pull_request(self, project_key: str, repo_slug: str, payload: dict) -> dict:
         return self.client.create_pull_request(project_key, repo_slug, data=payload)

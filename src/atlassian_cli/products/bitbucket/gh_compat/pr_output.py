@@ -231,16 +231,47 @@ def _state_color(state: object) -> str:
     return {"OPEN": "32", "CLOSED": "31", "MERGED": "35"}.get(str(state), "")
 
 
-def _format_tty_table(rows: list[list[str]], colors: list[list[str | None]]) -> str:
+def _truncate_display(value: str, width: int) -> str:
+    if cell_len(value) <= width:
+        return value
+    if width <= 0:
+        return ""
+    if width == 1:
+        return "…"
+    prefix = ""
+    for character in value:
+        candidate = f"{prefix}{character}"
+        if cell_len(candidate) > width - 1:
+            break
+        prefix = candidate
+    return f"{prefix}…"
+
+
+def _format_tty_table(
+    rows: list[list[str]],
+    colors: list[list[str | None]],
+    *,
+    max_width: int | None = None,
+) -> str:
     widths = [max(cell_len(row[index]) for row in rows) for index in range(len(rows[0]))]
+    spacing = 2
+    if max_width is not None:
+        content_budget = max_width - spacing * (len(widths) - 1)
+        while sum(widths) > content_budget and any(width > 1 for width in widths):
+            widest = max(
+                (index for index, width in enumerate(widths) if width > 1),
+                key=lambda index: widths[index],
+            )
+            widths[widest] -= 1
     rendered_rows: list[str] = []
     for row_index, row in enumerate(rows):
         cells: list[str] = []
         for index, value in enumerate(row):
+            value = _truncate_display(value, widths[index])
             code = colors[row_index][index]
             content = _style(value, code, color=code is not None) if code else value
             if index < len(row) - 1:
-                content += " " * (widths[index] - cell_len(value) + 2)
+                content += " " * (widths[index] - cell_len(value) + spacing)
             cells.append(content)
         rendered_rows.append("".join(cells))
     return "\n".join(rendered_rows)
@@ -255,11 +286,10 @@ def render_pr_list(
     tty: bool,
     color: bool,
     now: datetime,
+    width: int | None = None,
 ) -> str:
     if not pull_requests:
-        if filtered:
-            raise AtlassianCliError(f"no pull requests match your search in {repository}")
-        raise AtlassianCliError(f"no open pull requests in {repository}")
+        return ""
 
     if not tty:
         lines = []
@@ -309,7 +339,7 @@ def render_pr_list(
                 "2" if color else None,
             ]
         )
-    table = _format_tty_table(table_rows, table_colors)
+    table = _format_tty_table(table_rows, table_colors, max_width=width)
     return f"\n{header}\n\n{table}\n"
 
 
@@ -332,14 +362,14 @@ def _reviewer_state(value: object) -> str:
 
 def _reviewer_list(pull_request: dict, *, color: bool) -> str:
     reviewers: list[tuple[bool, str, str]] = []
-    for review_request in pull_request.get("reviewRequests") or []:
-        if not isinstance(review_request, dict):
+    for reviewer_projection in pull_request.get("_reviewers") or []:
+        if not isinstance(reviewer_projection, dict):
             continue
-        reviewer = review_request.get("requestedReviewer", review_request)
+        reviewer = reviewer_projection.get("user")
         name = _user_name(reviewer)
         if not name:
             continue
-        display = _reviewer_state(review_request.get("status") or review_request.get("state"))
+        display = _reviewer_state(reviewer_projection.get("status"))
         reviewers.append((display == "Requested", name, display))
     reviewers.sort(key=lambda item: (item[0], item[1]))
 
