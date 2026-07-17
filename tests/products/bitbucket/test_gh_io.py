@@ -1,5 +1,5 @@
 import os
-from io import StringIO
+from io import BytesIO, StringIO, TextIOWrapper
 from subprocess import CompletedProcess
 
 import pytest
@@ -11,6 +11,7 @@ from atlassian_cli.products.bitbucket.gh_compat.io import (
     open_browser,
     page_output,
     stdout_is_tty,
+    stream_output,
     terminal_width,
 )
 
@@ -141,6 +142,95 @@ def test_pager_precedence_writes_content_to_stdin() -> None:
         run=lambda args, text: calls.append((args, text)) or CompletedProcess(args, 0),
     )
     assert calls == [(["cat", "-n"], "example response\n")]
+
+
+def test_stream_output_writes_binary_chunks_without_transcoding() -> None:
+    buffer = BytesIO()
+    stdout = TextIOWrapper(buffer, encoding="utf-8")
+
+    stream_output(
+        [b"\xff\x00", "DEMO"],
+        tty=False,
+        env={},
+        error_prefix="error starting pager",
+        stdout=stdout,
+    )
+
+    assert buffer.getvalue() == b"\xff\x00DEMO"
+
+
+def test_stream_output_uses_one_pager_for_all_chunks(monkeypatch) -> None:
+    calls = []
+
+    class FakeStdin:
+        def __init__(self) -> None:
+            self.value = bytearray()
+
+        def write(self, value: bytes) -> None:
+            self.value.extend(value)
+
+        def flush(self) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+    class FakeProcess:
+        def __init__(self) -> None:
+            self.stdin = FakeStdin()
+
+        def wait(self) -> int:
+            return 0
+
+    process = FakeProcess()
+
+    def fake_popen(args, **kwargs):
+        calls.append((args, kwargs))
+        return process
+
+    monkeypatch.setattr(io_module.subprocess, "Popen", fake_popen)
+    stream_output(
+        [b"DEMO", b"-1"],
+        tty=True,
+        env={"ATLASSIAN_PAGER": "cat -n"},
+        error_prefix="error starting pager",
+    )
+
+    assert len(calls) == 1
+    assert calls[0][0] == ["cat", "-n"]
+    assert bytes(process.stdin.value) == b"DEMO-1"
+
+
+def test_stream_output_ignores_broken_pipe_while_closing_pager(monkeypatch) -> None:
+    class ClosedStdin:
+        def write(self, _value: bytes) -> None:
+            raise BrokenPipeError
+
+        def flush(self) -> None:
+            pass
+
+        def close(self) -> None:
+            raise BrokenPipeError
+
+    class ClosedProcess:
+        stdin = ClosedStdin()
+
+        @staticmethod
+        def wait() -> int:
+            return 0
+
+    monkeypatch.setattr(
+        io_module.subprocess,
+        "Popen",
+        lambda *_args, **_kwargs: ClosedProcess(),
+    )
+
+    stream_output(
+        [b"example response"],
+        tty=True,
+        env={"ATLASSIAN_PAGER": "example-pager"},
+        error_prefix="error starting pager",
+    )
 
 
 def test_empty_product_pager_falls_back_to_standard_pager() -> None:

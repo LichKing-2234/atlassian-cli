@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Sequence
 from types import SimpleNamespace
 
@@ -19,7 +20,7 @@ BASE_ARGS = [
     "--auth",
     "pat",
     "--token",
-    "example response",
+    "example-user-id",
     "bitbucket",
     "api",
 ]
@@ -62,10 +63,12 @@ class FakeProvider:
         *,
         request_headers: dict[str, str] | None = None,
         error: Exception | None = None,
+        error_after: int | None = None,
     ) -> None:
         self.responses = iter(responses)
         self.request_headers = request_headers or {}
         self.error = error
+        self.error_after = error_after
         self.calls: list[dict] = []
 
     def request_api(
@@ -87,7 +90,9 @@ class FakeProvider:
             "data": data,
         }
         self.calls.append(call)
-        if self.error is not None:
+        if self.error is not None and (
+            self.error_after is None or len(self.calls) > self.error_after
+        ):
             raise self.error
 
         response = next(self.responses)
@@ -113,9 +118,15 @@ def invoke_api(
     input: str | None = None,
     request_headers: dict[str, str] | None = None,
     error: Exception | None = None,
+    error_after: int | None = None,
     env: dict[str, str] | None = None,
 ):
-    provider = FakeProvider(responses, request_headers=request_headers, error=error)
+    provider = FakeProvider(
+        responses,
+        request_headers=request_headers,
+        error=error,
+        error_after=error_after,
+    )
     monkeypatch.setattr(api_module, "build_provider", lambda _context: provider)
     result = runner.invoke(
         app,
@@ -152,6 +163,16 @@ def test_bitbucket_api_outputs_raw_text(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert result.stdout == "example response"
+
+
+def test_bitbucket_api_preserves_binary_response_bytes(monkeypatch) -> None:
+    response = make_response(None, headers={"Content-Type": "application/octet-stream"})
+    response._content = b"\xff\x00DEMO"
+
+    result, _provider = invoke_api(monkeypatch, [COMPARE_CHANGES], [response])
+
+    assert result.exit_code == 0
+    assert result.stdout_bytes == b"\xff\x00DEMO"
 
 
 def test_bitbucket_api_fields_derive_post_with_json_body(monkeypatch) -> None:
@@ -421,6 +442,21 @@ def test_bitbucket_api_paginate_runs_jq_per_page(monkeypatch) -> None:
     assert len(provider.calls) == 2
 
 
+def test_bitbucket_api_paginate_preserves_completed_pages_on_later_failure(monkeypatch) -> None:
+    page = {"isLastPage": False, "nextPageStart": 100, "values": [{"id": "DEMO-1"}]}
+    result, _provider = invoke_api(
+        monkeypatch,
+        [COMPARE_CHANGES, "--paginate"],
+        [make_response(page)],
+        error=OSError("example response"),
+        error_after=1,
+    )
+
+    assert result.exit_code == 1
+    assert result.stdout == json.dumps(page, separators=(",", ":"))
+    assert "example response" in result.stderr
+
+
 def test_bitbucket_api_slurp_wraps_paginated_pages(monkeypatch) -> None:
     pages = [
         {"isLastPage": False, "nextPageStart": 100, "values": [{"id": "DEMO-1"}]},
@@ -434,6 +470,17 @@ def test_bitbucket_api_slurp_wraps_paginated_pages(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert json.loads(result.stdout) == pages
+
+
+def test_bitbucket_api_silent_slurp_outputs_nothing(monkeypatch) -> None:
+    result, _provider = invoke_api(
+        monkeypatch,
+        [COMPARE_CHANGES, "--paginate", "--slurp", "--silent"],
+        [make_response({"isLastPage": True, "values": []})],
+    )
+
+    assert result.exit_code == 0
+    assert result.stdout == ""
 
 
 def test_bitbucket_api_include_outputs_status_sorted_headers_and_body(monkeypatch) -> None:
@@ -492,11 +539,11 @@ def test_bitbucket_api_tty_colors_json_and_uses_pager(monkeypatch) -> None:
     captured = {}
     monkeypatch.delenv("NO_COLOR", raising=False)
 
-    def capture_page(text, **kwargs) -> None:
-        captured["text"] = text
+    def capture_stream(chunks, **kwargs) -> None:
+        captured["text"] = b"".join(chunks)
         captured["kwargs"] = kwargs
 
-    monkeypatch.setattr(api_module, "page_output", capture_page)
+    monkeypatch.setattr(api_module, "stream_output", capture_stream)
     result, _provider = invoke_api(
         monkeypatch,
         [COMPARE_CHANGES],
@@ -505,8 +552,29 @@ def test_bitbucket_api_tty_colors_json_and_uses_pager(monkeypatch) -> None:
     )
 
     assert result.exit_code == 0
-    assert "\x1b[" in captured["text"]
+    assert b"\x1b[" in captured["text"]
     assert captured["kwargs"]["tty"] is True
+
+
+def test_bitbucket_api_tty_formats_structured_jq_output(monkeypatch) -> None:
+    captured = {}
+    monkeypatch.delenv("NO_COLOR", raising=False)
+
+    def capture_stream(chunks, **_kwargs) -> None:
+        captured["text"] = b"".join(chunks)
+
+    monkeypatch.setattr(api_module, "stream_output", capture_stream)
+    result, _provider = invoke_api(
+        monkeypatch,
+        [COMPARE_CHANGES, "--jq", "{id:.values[0].id}"],
+        [make_response({"values": [{"id": "DEMO-1"}]})],
+        env={"ATLASSIAN_FORCE_TTY": "1"},
+    )
+
+    assert result.exit_code == 0
+    assert b"\x1b[" in captured["text"]
+    plain = re.sub(rb"\x1b\[[0-9;]*m", b"", captured["text"])
+    assert b'  "id"' in plain
 
 
 def test_bitbucket_api_invalid_jq_exits_one(monkeypatch) -> None:
@@ -539,6 +607,45 @@ def test_bitbucket_api_verbose_redacts_credentials_and_configured_headers(monkey
     assert "> Cookie: REDACTED" in result.stdout
     assert "< HTTP/1.1 200 OK" in result.stdout
     assert '{"status":"DEMO"}' in result.stdout
+
+
+def test_bitbucket_api_verbose_redacts_known_secrets_outside_headers(monkeypatch) -> None:
+    result, _provider = invoke_api(
+        monkeypatch,
+        [
+            f"{COMPARE_CHANGES}?marker=example-user-id",
+            "--verbose",
+        ],
+        [make_response("example-user-id")],
+    )
+
+    assert result.exit_code == 0
+    assert "example-user-id" not in result.stdout
+    assert result.stdout.count("REDACTED") >= 2
+
+
+def test_redact_text_removes_url_encoded_secret_values() -> None:
+    value = "?first=example+response&second=feature%2FDEMO-1234%2Fexample-change"
+
+    redacted = api_module._redact_text(
+        value,
+        {"example response", "feature/DEMO-1234/example-change"},
+    )
+
+    assert redacted == "?first=REDACTED&second=REDACTED"
+
+
+def test_bitbucket_api_redacts_known_secrets_from_network_errors(monkeypatch) -> None:
+    result, _provider = invoke_api(
+        monkeypatch,
+        [COMPARE_CHANGES],
+        [],
+        error=OSError("example response: example-user-id"),
+    )
+
+    assert result.exit_code == 1
+    assert "example-user-id" not in result.stderr
+    assert "example response: REDACTED" in result.stderr
 
 
 def test_bitbucket_api_verbose_http_error_exits_one(monkeypatch) -> None:

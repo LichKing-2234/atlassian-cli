@@ -38,15 +38,26 @@ class BitbucketServerProvider:
         json_body: dict[str, object] | None,
         data: bytes | None,
     ):
-        return self.client.request(
-            method=method,
-            path=path,
-            headers=headers,
-            params=params,
-            json=json_body,
-            data=data,
-            advanced_mode=True,
-        )
+        url = self.client.url_joiner(self.client.url, path)
+        retry_handler = self.client._retry_handler()
+        while True:
+            response = self.client._session.request(
+                method=method,
+                url=url,
+                headers=headers,
+                params=params,
+                json=json_body,
+                data=data,
+                timeout=self.client.timeout,
+                verify=self.client.verify_ssl,
+                proxies=self.client.proxies,
+                cert=self.client.cert,
+                allow_redirects=False,
+            )
+            if not retry_handler(response):
+                break
+        response.encoding = "utf-8"
+        return response
 
     def _paged_items(self, value, *, limit: int | None = None) -> list[dict]:
         if isinstance(value, dict):

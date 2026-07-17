@@ -7,8 +7,8 @@ Status: Approved
 Add a generic REST transport at `atlassian bitbucket api <endpoint>`. Its
 command grammar, request construction, pagination controls, output modes, and
 exit behavior follow `gh api` where those semantics apply to Bitbucket Server.
-The initial documented and live-verified use case is the arbitrary-ref compare
-capability requested by issue #31: compare diff, changes, and commits.
+The initial documented and live-verified use case is arbitrary-ref comparison:
+diff, changes, and commits.
 
 This is a raw API command, not a new normalized `compare` command group. It
 does not transform Bitbucket response shapes into GitHub response shapes or
@@ -34,7 +34,7 @@ behavior. Later baseline changes require a separate compatibility review.
   behavior.
 - Reuse the configured Bitbucket URL, authentication session, custom headers,
   TLS settings, and proxy settings.
-- Live-verify the three Bitbucket compare endpoints needed by issue #31.
+- Live-verify the three Bitbucket compare endpoints.
 - Keep the command transport-oriented: return the server response without a
   normalized schema or `--output` option.
 
@@ -110,6 +110,10 @@ Endpoint forms are resolved as follows:
 - A single leading slash is ignored before applying these rules.
 - Existing query parameters are preserved and merged with parameters produced
   by `-f` or `-F`.
+- Redirect responses are returned without being followed. Unlike `gh`, this
+  transport can carry configured custom secret headers that the HTTP client
+  cannot reliably strip on a cross-origin redirect, so the configured server
+  remains the complete authentication boundary.
 
 The placeholders `{project}`, `{repo}`, and `{branch}` are available in the
 endpoint and typed `-F` values. `{project}` and `{repo}` use the repository
@@ -141,6 +145,9 @@ applied before typed fields, matching the pinned `gh` implementation.
 - If `-f`, `-F`, or `--input` is present and `-X` was not explicitly supplied,
   the method becomes POST.
 - For GET requests, parsed fields are URL query parameters.
+- Query parameters follow `gh api v2.96.0` encoding: booleans are lowercase,
+  null is an empty value, arrays repeat a `key[]` parameter, and nested objects
+  are flattened by subkey.
 - For other methods without `--input`, parsed fields are a JSON request body.
   `Content-Type: application/json; charset=utf-8` is added unless overridden.
 - With `--input`, the file or stdin is the unmodified request body and parsed
@@ -175,7 +182,8 @@ which supports commands such as `--paginate --jq '.values[]'`.
 
 ## Output Behavior
 
-- The default output is the response body without a normalized wrapper.
+- The default output is the response body bytes without a normalized wrapper or
+  text transcoding.
 - A `204` response writes no body.
 - `--include` writes the HTTP version, status, reason, sorted response headers,
   a blank line, and then the body. Paginated included responses are separated by
@@ -187,6 +195,8 @@ which supports commands such as `--paginate --jq '.values[]'`.
 - JSON may be colored when stdout is a TTY. Non-TTY output is uncolored.
 - Successful non-silent output uses the existing pager rules. Piped output does
   not invoke a pager.
+- Paginated output is written one completed page at a time through a single
+  output stream, so a later request failure does not discard earlier pages.
 - `--verbose` writes the request and response to stdout. Authorization, proxy
   authorization, cookies, configured secret-bearing headers, and known token
   values are redacted. Request bodies are not treated as secrets and match the

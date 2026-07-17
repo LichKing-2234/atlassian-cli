@@ -19,7 +19,7 @@
 - Use only the repository-approved neutral placeholder set in code, tests, docs, fixtures, commits, and PR metadata.
 - Follow TDD: add each behavioral test first, observe the expected failure, then add the minimum implementation.
 - Any new command must update `tests/e2e/coverage_manifest.py` and its live e2e path.
-- Use the shared `/Users/admin/atlassian-cli/.venv` from this worktree.
+- Use the repository virtual environment.
 
 ---
 
@@ -82,7 +82,7 @@ def test_parse_api_fields_rejects_unknown_placeholder() -> None:
 Run:
 
 ```sh
-/Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/products/bitbucket/test_api_fields.py
+.venv/bin/python -m pytest -q tests/products/bitbucket/test_api_fields.py
 ```
 
 Expected: collection fails because `api_fields.py` does not exist.
@@ -186,9 +186,9 @@ items[][name]=value     -> append or reuse the last object when compatible
 - [ ] **Step 8: Run Task 1 tests and formatting**
 
 ```sh
-/Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/products/bitbucket/test_api_fields.py
-/Users/admin/atlassian-cli/.venv/bin/ruff format --check src/atlassian_cli/products/bitbucket/api_fields.py tests/products/bitbucket/test_api_fields.py
-/Users/admin/atlassian-cli/.venv/bin/ruff check src/atlassian_cli/products/bitbucket/api_fields.py tests/products/bitbucket/test_api_fields.py
+.venv/bin/python -m pytest -q tests/products/bitbucket/test_api_fields.py
+.venv/bin/ruff format --check src/atlassian_cli/products/bitbucket/api_fields.py tests/products/bitbucket/test_api_fields.py
+.venv/bin/ruff check src/atlassian_cli/products/bitbucket/api_fields.py tests/products/bitbucket/test_api_fields.py
 ```
 
 Expected: all pass.
@@ -365,9 +365,9 @@ values. Never normalize or merge page bodies in the service.
 - [ ] **Step 12: Run Task 2 tests and formatting**
 
 ```sh
-/Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/products/bitbucket/test_provider.py tests/products/bitbucket/test_api_service.py
-/Users/admin/atlassian-cli/.venv/bin/ruff format --check src/atlassian_cli/products/bitbucket/providers src/atlassian_cli/products/bitbucket/services/api.py tests/products/bitbucket/test_provider.py tests/products/bitbucket/test_api_service.py
-/Users/admin/atlassian-cli/.venv/bin/ruff check src/atlassian_cli/products/bitbucket/providers src/atlassian_cli/products/bitbucket/services/api.py tests/products/bitbucket/test_provider.py tests/products/bitbucket/test_api_service.py
+.venv/bin/python -m pytest -q tests/products/bitbucket/test_provider.py tests/products/bitbucket/test_api_service.py
+.venv/bin/ruff format --check src/atlassian_cli/products/bitbucket/providers src/atlassian_cli/products/bitbucket/services/api.py tests/products/bitbucket/test_provider.py tests/products/bitbucket/test_api_service.py
+.venv/bin/ruff check src/atlassian_cli/products/bitbucket/providers src/atlassian_cli/products/bitbucket/services/api.py tests/products/bitbucket/test_provider.py tests/products/bitbucket/test_api_service.py
 ```
 
 Expected: all pass.
@@ -478,7 +478,7 @@ Add `jq>=1.10.0` to runtime dependencies and refresh `uv.lock`:
 
 ```sh
 uv lock
-uv pip install --python /Users/admin/atlassian-cli/.venv/bin/python -e '.[dev]'
+uv pip install --python .venv/bin/python -e '.[dev]'
 ```
 
 Write tests with fake responses for:
@@ -526,9 +526,9 @@ configured header value before writing. Never log secrets through exceptions.
 - [ ] **Step 11: Run Task 3 focused and regression tests**
 
 ```sh
-/Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/products/bitbucket/test_api_command.py tests/test_cli_help.py tests/products/bitbucket/test_pr_command.py
-/Users/admin/atlassian-cli/.venv/bin/ruff format --check pyproject.toml src/atlassian_cli/cli.py src/atlassian_cli/products/bitbucket/commands/api.py tests/products/bitbucket/test_api_command.py tests/test_cli_help.py
-/Users/admin/atlassian-cli/.venv/bin/ruff check pyproject.toml src/atlassian_cli/cli.py src/atlassian_cli/products/bitbucket/commands/api.py tests/products/bitbucket/test_api_command.py tests/test_cli_help.py
+.venv/bin/python -m pytest -q tests/products/bitbucket/test_api_command.py tests/test_cli_help.py tests/products/bitbucket/test_pr_command.py
+.venv/bin/ruff format --check pyproject.toml src/atlassian_cli/cli.py src/atlassian_cli/products/bitbucket/commands/api.py tests/products/bitbucket/test_api_command.py tests/test_cli_help.py
+.venv/bin/ruff check pyproject.toml src/atlassian_cli/cli.py src/atlassian_cli/products/bitbucket/commands/api.py tests/products/bitbucket/test_api_command.py tests/test_cli_help.py
 ```
 
 Expected: all pass.
@@ -536,7 +536,7 @@ Expected: all pass.
 - [ ] **Step 12: Build and smoke-test the local PyOxidizer bundle**
 
 ```sh
-/Users/admin/atlassian-cli/.venv/bin/python .github/scripts/build-pyoxidizer-artifact.py --target-os darwin --target-arch arm64 --version 0.1.19 --archive-format tar.gz
+.venv/bin/python .github/scripts/build-pyoxidizer-artifact.py --target-os darwin --target-arch arm64 --version 0.1.19 --archive-format tar.gz
 dist/atlassian/atlassian bitbucket api --help
 ```
 
@@ -582,7 +582,7 @@ manifest only after its manifest test fails.
 - [ ] **Step 2: Run documentation/manifest tests and verify RED**
 
 ```sh
-/Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/test_readme.py tests/e2e/test_coverage_manifest.py
+.venv/bin/python -m pytest -q tests/test_readme.py tests/e2e/test_coverage_manifest.py
 ```
 
 Expected: README and manifest assertions fail.
@@ -617,21 +617,24 @@ Do not add fixed internal refs, project names, or repository names to the test.
 - [ ] **Step 6: Run the live e2e and verify GREEN**
 
 ```sh
-ATLASSIAN_E2E=1 /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/e2e/test_bitbucket_live.py::test_bitbucket_branch_and_pr_round_trip_live
+ATLASSIAN_E2E=1 .venv/bin/python -m pytest -q tests/e2e/test_bitbucket_live.py::test_bitbucket_branch_and_pr_round_trip_live
 ```
 
 Expected: pass against the direct reachable Bitbucket Server 6.7.2 host. If the
 configured `-api` host returns its known IP-restriction response, use the same
-temporary direct-host override established for PR #33 and do not persist any
+temporary direct-host override established for the current change and do not persist any
 credential or private hostname in the repository.
 
 - [ ] **Step 7: Run the public-data scan**
 
 ```sh
-rg -n "release/[0-9]|@[A-Za-z0-9._%+-]+\.[A-Za-z]{2,}" README.md tests docs/superpowers/specs/2026-07-17-atlassian-cli-bitbucket-api-design.md docs/superpowers/plans/2026-07-17-atlassian-cli-bitbucket-api.md
+git diff origin/main --unified=0 -- README.md tests | \
+  rg '^\+[^+].*(release/[0-9]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})'
 ```
 
-Expected: no newly added internal or production-like sample data.
+Expected: no newly added internal or production-like sample data. Manually
+review the added lines in this spec and plan against the same rule because a
+scan command embedded in the plan can match its own patterns.
 
 - [ ] **Step 8: Commit Task 4**
 
@@ -646,17 +649,17 @@ git commit -m "docs: document Bitbucket compare API usage"
 
 **Files:**
 - Modify only if verification exposes a scoped defect
-- Update PR #33 metadata through GitHub after all local and live checks pass
+- Update the current pull request metadata after all local and live checks pass
 
 **Interfaces:**
 - Final source suite and lint gates
 - Final standalone binary at `~/.local/bin`
-- GitHub PR #33 includes issue #31 API capability and remains ready for review
+- The current pull request includes the generic compare API capability and remains ready for review
 
 - [ ] **Step 1: Run focused API tests together**
 
 ```sh
-/Users/admin/atlassian-cli/.venv/bin/python -m pytest -q \
+.venv/bin/python -m pytest -q \
   tests/products/bitbucket/test_api_fields.py \
   tests/products/bitbucket/test_api_service.py \
   tests/products/bitbucket/test_api_command.py \
@@ -671,9 +674,9 @@ Expected: all pass.
 - [ ] **Step 2: Run repository quality gates**
 
 ```sh
-/Users/admin/atlassian-cli/.venv/bin/ruff format --check .
-/Users/admin/atlassian-cli/.venv/bin/python -m pytest -q
-/Users/admin/atlassian-cli/.venv/bin/ruff check README.md pyproject.toml src tests docs
+.venv/bin/ruff format --check .
+.venv/bin/python -m pytest -q
+.venv/bin/ruff check README.md pyproject.toml src tests docs
 ```
 
 Expected: all pass with the existing intentional skips only.
@@ -681,7 +684,7 @@ Expected: all pass with the existing intentional skips only.
 - [ ] **Step 3: Re-run the affected live e2e from final HEAD**
 
 ```sh
-ATLASSIAN_E2E=1 /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/e2e/test_bitbucket_live.py::test_bitbucket_branch_and_pr_round_trip_live
+ATLASSIAN_E2E=1 .venv/bin/python -m pytest -q tests/e2e/test_bitbucket_live.py::test_bitbucket_branch_and_pr_round_trip_live
 ```
 
 Expected: pass. A live-environment failure is a blocker and must be reported as
@@ -708,25 +711,25 @@ changes.
 - [ ] **Step 6: Push and wait for GitHub verification**
 
 ```sh
-git push origin feat/gh-pr-read-parity
-gh pr checks 33 --repo LichKing-2234/atlassian-cli --watch
+git push origin HEAD
+gh pr checks --watch
 ```
 
 Expected: the verify check passes.
 The verify job includes the pinned manylinux 2.28 PyOxidizer smoke build and its
 GLIBC symbol check; this must remain green after adding jq.
 
-- [ ] **Step 7: Update PR #33 title/body without private data**
+- [ ] **Step 7: Update the current pull request title/body without private data**
 
-Keep the Conventional Commit PR title. Update the body to state that the PR now
-closes issue #32 and provides issue #31 through the generic
-`atlassian bitbucket api` command. Include local suite, live e2e, standalone
+Keep the Conventional Commit PR title. Update the body to state that the change
+provides gh-compatible pull request reads and compare capability through the
+generic `atlassian bitbucket api` command. Include local suite, live e2e, standalone
 binary, and CI results using only public-safe identifiers.
 
 - [ ] **Step 8: Verify final remote state**
 
 ```sh
-gh pr view 33 --repo LichKing-2234/atlassian-cli --json isDraft,mergeStateStatus,headRefOid,statusCheckRollup,url
+gh pr view --json isDraft,mergeStateStatus,headRefOid,statusCheckRollup,url
 git status --short --branch
 ```
 

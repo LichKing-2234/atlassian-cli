@@ -6,13 +6,14 @@ import shutil
 import subprocess
 import sys
 import webbrowser
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from subprocess import CompletedProcess
 from typing import TextIO
 
 Environment = Mapping[str, str]
 BrowserRunner = Callable[[list[str]], CompletedProcess]
 PagerRunner = Callable[[list[str], str], CompletedProcess]
+OutputChunk = str | bytes
 
 
 def _environment(env: Environment | None) -> Environment:
@@ -123,3 +124,67 @@ def page_output(
         return
 
     stdout.write(text)
+
+
+def _write_chunk(stdout: TextIO, chunk: OutputChunk) -> None:
+    if isinstance(chunk, bytes):
+        binary = getattr(stdout, "buffer", None)
+        if binary is None:
+            raise TypeError("binary output requires a byte-capable stdout")
+        binary.write(chunk)
+    else:
+        stdout.write(chunk)
+    stdout.flush()
+
+
+def stream_output(
+    chunks: Iterable[OutputChunk],
+    *,
+    tty: bool,
+    env: Environment | None,
+    error_prefix: str,
+    stdout: TextIO | None = None,
+    stderr: TextIO | None = None,
+) -> None:
+    stdout = sys.stdout if stdout is None else stdout
+    stderr = sys.stderr if stderr is None else stderr
+    if not tty:
+        for chunk in chunks:
+            _write_chunk(stdout, chunk)
+        return
+
+    environment = _environment(env)
+    command = _configured_command(environment, "ATLASSIAN_PAGER", "PAGER")
+    if command:
+        args = shlex.split(command)
+    elif shutil.which("less"):
+        args = ["less", "-FRX"]
+    else:
+        for chunk in chunks:
+            _write_chunk(stdout, chunk)
+        return
+
+    try:
+        process = subprocess.Popen(args, stdin=subprocess.PIPE, shell=False)
+    except Exception as error:
+        stderr.write(f"{error_prefix}: {error}\n")
+        for chunk in chunks:
+            _write_chunk(stdout, chunk)
+        return
+
+    assert process.stdin is not None
+    try:
+        for chunk in chunks:
+            payload = chunk.encode() if isinstance(chunk, str) else chunk
+            process.stdin.write(payload)
+            process.stdin.flush()
+    except BrokenPipeError:
+        pass
+    finally:
+        try:
+            process.stdin.close()
+        except BrokenPipeError:
+            pass
+        return_code = process.wait()
+    if return_code:
+        stderr.write(f"{error_prefix}: pager exited with status {return_code}\n")

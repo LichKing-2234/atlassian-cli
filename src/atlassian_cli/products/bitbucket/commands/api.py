@@ -5,7 +5,7 @@ import os
 import sys
 from collections.abc import Iterable
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote, quote_plus, urlsplit
 
 import click
 import jq
@@ -22,8 +22,8 @@ from atlassian_cli.products.bitbucket.gh_compat.auth import require_primary_auth
 from atlassian_cli.products.bitbucket.gh_compat.exit_policy import run_gh_read
 from atlassian_cli.products.bitbucket.gh_compat.io import (
     color_enabled,
-    page_output,
     stdout_is_tty,
+    stream_output,
 )
 from atlassian_cli.products.bitbucket.gh_compat.selectors import ServerIdentity
 from atlassian_cli.products.bitbucket.services.api import (
@@ -146,30 +146,38 @@ def _is_json_response(response) -> bool:
     return media_type.endswith("/json") or media_type.endswith("+json")
 
 
-def _raw_body(response, *, color: bool) -> str:
+def _raw_body(response, *, color: bool) -> bytes:
     if response.status_code == 204:
-        return ""
+        return b""
     text = response.text
     if color and text and _is_json_response(response):
-        return highlight(text, JsonLexer(), TerminalFormatter()).rstrip("\n")
-    return text
+        return highlight(text, JsonLexer(), TerminalFormatter()).rstrip("\n").encode()
+    return response.content
 
 
-def _format_jq_value(value: object) -> str:
+def _format_jq_value(value: object, *, tty: bool, color: bool) -> str:
     if isinstance(value, str):
         return value
     if value is None:
         return ""
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    if tty and isinstance(value, (dict, list)):
+        rendered = json.dumps(value, ensure_ascii=False, indent=2)
+    else:
+        rendered = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    if color:
+        return highlight(rendered, JsonLexer(), TerminalFormatter()).rstrip("\n")
+    return rendered
 
 
-def _render_jq(response, expression: str) -> str:
+def _render_jq(response, expression: str, *, tty: bool, color: bool) -> bytes:
     try:
         payload = response.json()
         results = jq.compile(expression).input_value(payload).all()
     except Exception as exc:
         raise ValueError(str(exc)) from exc
-    return "".join(f"{_format_jq_value(value)}\n" for value in results)
+    return "".join(
+        f"{_format_jq_value(value, tty=tty, color=color)}\n" for value in results
+    ).encode()
 
 
 def _secret_values(context) -> set[str]:
@@ -185,6 +193,18 @@ def _secret_values(context) -> set[str]:
     }
 
 
+def _redact_text(value: str, secrets: set[str]) -> str:
+    variants = {
+        variant
+        for secret in secrets
+        for variant in (secret, quote(secret, safe=""), quote_plus(secret, safe=""))
+        if variant
+    }
+    for secret in sorted(variants, key=len, reverse=True):
+        value = value.replace(secret, "REDACTED")
+    return value
+
+
 def _redacted_header(name: str, value: str, secrets: set[str]) -> str:
     secret_names = {
         "authorization",
@@ -194,26 +214,34 @@ def _redacted_header(name: str, value: str, secrets: set[str]) -> str:
         "accesstoken",
         "x-api-key",
     }
-    if name.lower() in secret_names or any(secret in value for secret in secrets):
+    if name.lower() in secret_names:
         return "REDACTED"
-    return value
+    return _redact_text(value, secrets)
 
 
 def _render_verbose(response, *, secrets: set[str]) -> str:
     request = response.request
     parsed = urlsplit(request.url)
-    path = parsed.path + (f"?{parsed.query}" if parsed.query else "")
+    request_url = _redact_text(request.url, secrets)
+    path = _redact_text(
+        parsed.path + (f"?{parsed.query}" if parsed.query else ""),
+        secrets,
+    )
     lines = [
-        f"* Request to {request.url}",
+        f"* Request to {request_url}",
         f"> {request.method} {path} HTTP/1.1",
-        f"> Host: {parsed.netloc}",
+        f"> Host: {_redact_text(parsed.netloc, secrets)}",
     ]
     lines.extend(
         f"> {name}: {_redacted_header(name, value, secrets)}"
         for name, value in request.headers.items()
     )
     if request.body:
-        body = request.body.decode() if isinstance(request.body, bytes) else str(request.body)
+        body = (
+            request.body.decode(errors="replace")
+            if isinstance(request.body, bytes)
+            else str(request.body)
+        )
         lines.extend([">", body])
 
     lines.extend(["", f"< HTTP/{_http_version(response)} {response.status_code} {response.reason}"])
@@ -221,7 +249,7 @@ def _render_verbose(response, *, secrets: set[str]) -> str:
         f"< {name}: {_redacted_header(name, response.headers[name], secrets)}"
         for name in sorted(response.headers, key=str.lower)
     )
-    lines.extend(["", response.text])
+    lines.extend(["", _redact_text(response.text, secrets)])
     return "\n".join(lines)
 
 
@@ -246,16 +274,61 @@ def _error_message(response) -> str:
     return f"{message} (HTTP {response.status_code})"
 
 
-def _write_output(text: str, *, silent: bool) -> None:
-    if not text or silent:
-        return
+def _response_chunks(
+    responses: Iterable[object],
+    *,
+    context,
+    include: bool,
+    jq_expression: str | None,
+    silent: bool,
+    slurp: bool,
+    verbose: bool,
+) -> Iterable[bytes]:
     tty = stdout_is_tty(sys.stdout.isatty, os.environ)
-    page_output(
-        text,
-        tty=tty,
-        env=os.environ,
-        error_prefix="failed to start pager",
-    )
+    color = color_enabled(tty, os.environ)
+    secrets = _secret_values(context)
+    slurp_started = False
+
+    for index, response in enumerate(responses):
+        if verbose:
+            if index:
+                yield b"\n"
+            yield _render_verbose(response, secrets=secrets).encode()
+            if response.status_code >= 300:
+                typer.echo(
+                    f"atlassian: {_redact_text(_error_message(response), secrets)}",
+                    err=True,
+                )
+                raise typer.Exit(1)
+        else:
+            if include:
+                if index:
+                    yield b"\n"
+                yield _response_headers(response).encode()
+            if response.status_code >= 300:
+                yield _raw_body(response, color=color)
+                typer.echo(
+                    f"atlassian: {_redact_text(_error_message(response), secrets)}",
+                    err=True,
+                )
+                raise typer.Exit(1)
+            if response.status_code == 204:
+                continue
+            if slurp and not silent:
+                try:
+                    payload = response.json()
+                except ValueError as exc:
+                    raise ValueError("response body is not valid JSON") from exc
+                yield b"," if slurp_started else b"["
+                yield json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()
+                slurp_started = True
+            elif jq_expression is not None:
+                yield _render_jq(response, jq_expression, tty=tty, color=color)
+            elif not silent:
+                yield _raw_body(response, color=color)
+
+    if slurp and not silent:
+        yield b"]" if slurp_started else b"[]"
 
 
 def _render_responses(
@@ -269,45 +342,20 @@ def _render_responses(
     verbose: bool,
 ) -> None:
     tty = stdout_is_tty(sys.stdout.isatty, os.environ)
-    color = color_enabled(tty, os.environ)
-    chunks: list[str] = []
-    slurped: list[object] = []
-    secrets = _secret_values(context) if verbose else set()
-
-    for index, response in enumerate(responses):
-        if verbose:
-            if index:
-                chunks.append("\n")
-            chunks.append(_render_verbose(response, secrets=secrets))
-            if response.status_code >= 300:
-                _write_output("".join(chunks), silent=False)
-                typer.echo(f"atlassian: {_error_message(response)}", err=True)
-                raise typer.Exit(1)
-        else:
-            if include:
-                if index:
-                    chunks.append("\n")
-                chunks.append(_response_headers(response))
-            if response.status_code >= 300:
-                chunks.append(_raw_body(response, color=color))
-                _write_output("".join(chunks), silent=False)
-                typer.echo(f"atlassian: {_error_message(response)}", err=True)
-                raise typer.Exit(1)
-            if response.status_code == 204:
-                continue
-            if slurp:
-                try:
-                    slurped.append(response.json())
-                except ValueError as exc:
-                    raise ValueError("response body is not valid JSON") from exc
-            elif jq_expression is not None:
-                chunks.append(_render_jq(response, jq_expression))
-            elif not silent:
-                chunks.append(_raw_body(response, color=color))
-
-    if slurp and not silent:
-        chunks.append(json.dumps(slurped, ensure_ascii=False, separators=(",", ":")))
-    _write_output("".join(chunks), silent=False)
+    stream_output(
+        _response_chunks(
+            responses,
+            context=context,
+            include=include,
+            jq_expression=jq_expression,
+            silent=silent,
+            slurp=slurp,
+            verbose=verbose,
+        ),
+        tty=tty and not silent,
+        env=os.environ,
+        error_prefix="failed to start pager",
+    )
 
 
 def _api_run(
@@ -355,25 +403,33 @@ def _api_run(
     )
     input_body = _read_input_file(input_file) if input_file is not None else None
 
-    responses = BitbucketApiService(build_provider(context)).iter_responses(
-        ApiRequest(
-            endpoint=resolved_endpoint,
-            method=resolved_method,
-            headers=parsed_headers,
-            fields=fields,
-            input_body=input_body,
-        ),
-        paginate=paginate,
-    )
-    _render_responses(
-        responses,
-        context=context,
-        include=include,
-        jq_expression=jq_expression,
-        silent=silent,
-        slurp=slurp,
-        verbose=verbose,
-    )
+    try:
+        responses = BitbucketApiService(build_provider(context)).iter_responses(
+            ApiRequest(
+                endpoint=resolved_endpoint,
+                method=resolved_method,
+                headers=parsed_headers,
+                fields=fields,
+                input_body=input_body,
+            ),
+            paginate=paginate,
+        )
+        _render_responses(
+            responses,
+            context=context,
+            include=include,
+            jq_expression=jq_expression,
+            silent=silent,
+            slurp=slurp,
+            verbose=verbose,
+        )
+    except typer.Exit:
+        raise
+    except Exception as exc:
+        redacted = _redact_text(str(exc), _secret_values(context))
+        if redacted == str(exc):
+            raise
+        raise ValueError(redacted) from None
 
 
 def api_command(

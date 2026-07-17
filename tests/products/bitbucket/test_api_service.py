@@ -127,6 +127,34 @@ def test_api_service_sends_get_fields_as_query_parameters() -> None:
     ]
 
 
+def test_api_service_encodes_typed_get_fields_like_gh() -> None:
+    provider = FakeProvider([FakeResponse()])
+    service = BitbucketApiService(provider)
+
+    list(
+        service.iter_responses(
+            make_request(
+                fields={
+                    "enabled": True,
+                    "disabled": False,
+                    "missing": None,
+                    "labels": ["DEMO", "DEMO-1"],
+                    "properties": {"name": "DEMO"},
+                }
+            ),
+            paginate=False,
+        )
+    )
+
+    assert provider.calls[0]["params"] == {
+        "enabled": "true",
+        "disabled": "false",
+        "missing": "",
+        "labels[]": ["DEMO", "DEMO-1"],
+        "name": "DEMO",
+    }
+
+
 def test_api_service_sends_non_get_fields_as_json() -> None:
     provider = FakeProvider([FakeResponse()])
     service = BitbucketApiService(provider)
@@ -243,6 +271,30 @@ def test_api_service_preserves_user_limit_from_endpoint() -> None:
 
     assert provider.calls[0]["path"].endswith("?limit=25")
     assert "limit" not in provider.calls[0]["params"]
+
+
+def test_api_service_preserves_blank_and_repeated_query_values_when_paginating() -> None:
+    provider = FakeProvider(
+        [
+            FakeResponse({"isLastPage": False, "nextPageStart": 10, "values": []}),
+            FakeResponse({"isLastPage": True, "values": []}),
+        ]
+    )
+    service = BitbucketApiService(provider)
+
+    list(
+        service.iter_responses(
+            make_request(
+                endpoint=(
+                    "projects/DEMO/repos/example-repo/compare/changes"
+                    "?filter=&state=OPEN&state=MERGED&start=5"
+                )
+            ),
+            paginate=True,
+        )
+    )
+
+    assert provider.calls[1]["path"].endswith("?filter=&state=OPEN&state=MERGED&start=10")
 
 
 @pytest.mark.parametrize(

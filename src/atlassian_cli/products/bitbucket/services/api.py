@@ -49,9 +49,49 @@ def _query_values(path: str) -> dict[str, list[str]]:
     return values
 
 
+def _add_query_param(params: dict[str, object], key: str, value: object) -> None:
+    if isinstance(value, dict):
+        for subkey, item in value.items():
+            _add_query_param(params, subkey, item)
+        return
+    if isinstance(value, list):
+        for item in value:
+            _add_query_param(params, f"{key}[]", item)
+        return
+
+    if isinstance(value, bool):
+        encoded: object = str(value).lower()
+    elif value is None:
+        encoded = ""
+    elif isinstance(value, (int, str)):
+        encoded = value
+    else:
+        raise ValueError(f"unsupported API query parameter type: {type(value).__name__}")
+
+    if key not in params:
+        params[key] = encoded
+        return
+    existing = params[key]
+    if isinstance(existing, list):
+        existing.append(encoded)
+    else:
+        params[key] = [existing, encoded]
+
+
+def _query_params(fields: dict[str, object]) -> dict[str, object]:
+    params: dict[str, object] = {}
+    for key, value in fields.items():
+        _add_query_param(params, key, value)
+    return params
+
+
 def _replace_query_value(path: str, key: str, value: object) -> str:
     parsed = urlsplit(path)
-    pairs = [(name, item) for name, item in parse_qsl(parsed.query) if name != key]
+    pairs = [
+        (name, item)
+        for name, item in parse_qsl(parsed.query, keep_blank_values=True)
+        if name != key
+    ]
     pairs.append((key, str(value)))
     return urlunsplit(("", "", parsed.path, urlencode(pairs), ""))
 
@@ -118,7 +158,7 @@ class BitbucketApiService:
                 method,
                 path,
                 headers=headers,
-                params=params,
+                params=_query_params(params) if params is not None else None,
                 json_body=json_body,
                 data=data,
             )

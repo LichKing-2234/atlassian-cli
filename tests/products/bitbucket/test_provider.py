@@ -1,3 +1,7 @@
+from atlassian import Bitbucket
+from requests import Response
+from requests.adapters import BaseAdapter
+
 from atlassian_cli.products.bitbucket.providers.server import BitbucketServerProvider
 
 
@@ -131,12 +135,32 @@ def test_bitbucket_provider_get_pull_request_diff_uses_text_endpoint() -> None:
 
 def test_bitbucket_provider_request_api_returns_advanced_response() -> None:
     calls = {}
-    response = object()
 
-    class FakeClient:
+    class FakeResponse:
+        encoding = None
+
+    response = FakeResponse()
+
+    class FakeSession:
         def request(self, **kwargs):
             calls.update(kwargs)
             return response
+
+    class FakeClient:
+        url = "https://bitbucket.example.com"
+        timeout = 30
+        verify_ssl = True
+        proxies = None
+        cert = None
+        _session = FakeSession()
+
+        @staticmethod
+        def url_joiner(url, path):
+            return f"{url}/{path}"
+
+        @staticmethod
+        def _retry_handler():
+            return lambda _response: False
 
     provider = build_provider_with_client(FakeClient())
 
@@ -155,7 +179,10 @@ def test_bitbucket_provider_request_api_returns_advanced_response() -> None:
     assert result is response
     assert calls == {
         "method": "GET",
-        "path": "rest/api/1.0/projects/DEMO/repos/example-repo/compare/changes",
+        "url": (
+            "https://bitbucket.example.com/"
+            "rest/api/1.0/projects/DEMO/repos/example-repo/compare/changes"
+        ),
         "headers": {"Accept": "application/json"},
         "params": {
             "from": "feature/DEMO-1234/example-change",
@@ -163,8 +190,93 @@ def test_bitbucket_provider_request_api_returns_advanced_response() -> None:
         },
         "json": None,
         "data": None,
-        "advanced_mode": True,
+        "timeout": 30,
+        "verify": True,
+        "proxies": None,
+        "cert": None,
+        "allow_redirects": False,
     }
+
+
+def test_bitbucket_provider_request_api_preserves_raw_body_and_repeated_query_values() -> None:
+    class RecordingAdapter(BaseAdapter):
+        def __init__(self) -> None:
+            self.request = None
+
+        def send(self, request, **_kwargs):
+            self.request = request
+            response = Response()
+            response.status_code = 200
+            response.reason = "OK"
+            response.headers["Content-Type"] = "application/json"
+            response._content = b"{}"
+            response.request = request
+            return response
+
+        def close(self) -> None:
+            pass
+
+    client = Bitbucket(url="https://bitbucket.example.com", token="example response")
+    adapter = RecordingAdapter()
+    client._session.mount("https://", adapter)
+    provider = build_provider_with_client(client)
+
+    response = provider.request_api(
+        "PATCH",
+        "rest/api/1.0/projects/DEMO?existing=",
+        headers={"Content-Type": "application/octet-stream"},
+        params={
+            "enabled": "true",
+            "missing": "",
+            "labels[]": ["DEMO", "DEMO-1"],
+        },
+        json_body=None,
+        data=b"\x00example response",
+    )
+
+    assert response.status_code == 200
+    assert adapter.request is not None
+    assert adapter.request.url == (
+        "https://bitbucket.example.com/rest/api/1.0/projects/DEMO"
+        "?existing=&enabled=true&missing=&labels%5B%5D=DEMO&labels%5B%5D=DEMO-1"
+    )
+    assert adapter.request.body == b"\x00example response"
+
+
+def test_bitbucket_provider_request_api_does_not_follow_redirects() -> None:
+    class RedirectAdapter(BaseAdapter):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def send(self, request, **_kwargs):
+            self.calls += 1
+            response = Response()
+            response.status_code = 302
+            response.reason = "Found"
+            response.headers["Location"] = "https://redirect.example.com/example response"
+            response._content = b""
+            response.request = request
+            return response
+
+        def close(self) -> None:
+            pass
+
+    client = Bitbucket(url="https://bitbucket.example.com", token="example response")
+    adapter = RedirectAdapter()
+    client._session.mount("https://", adapter)
+    provider = build_provider_with_client(client)
+
+    response = provider.request_api(
+        "GET",
+        "rest/api/1.0/projects/DEMO",
+        headers={"Accept": "application/json"},
+        params=None,
+        json_body=None,
+        data=None,
+    )
+
+    assert response.status_code == 302
+    assert adapter.calls == 1
 
 
 def test_bitbucket_provider_get_pull_request_diff_with_lines_uses_json_endpoint() -> None:
