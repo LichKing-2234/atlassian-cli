@@ -214,6 +214,30 @@ def test_pr_help_hides_callable_legacy_commands() -> None:
         assert hidden not in output
 
 
+def test_bitbucket_api_help_matches_supported_gh_rest_surface() -> None:
+    result = runner.invoke(app, ["bitbucket", "api", "--help"], env=ci_output_env())
+    output = strip_ansi(result.output)
+
+    assert result.exit_code == 0
+    assert "<endpoint>" in output
+    for option in (
+        "--field",
+        "--header",
+        "--include",
+        "--input",
+        "--jq",
+        "--method",
+        "--paginate",
+        "--raw-field",
+        "--silent",
+        "--slurp",
+        "--verbose",
+    ):
+        assert option in output
+    for absent in ("--cache", "--hostname", "--output", "--preview", "--template"):
+        assert absent not in output
+
+
 @pytest.mark.parametrize("command", ["get", "build-status", "approve", "unapprove"])
 def test_hidden_legacy_pr_commands_remain_callable(command: str) -> None:
     result = runner.invoke(app, ["bitbucket", "pr", command, "--help"], env=ci_output_env())

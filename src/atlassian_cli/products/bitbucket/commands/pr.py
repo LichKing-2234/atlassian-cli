@@ -10,9 +10,7 @@ import typer
 from typer._click.exceptions import UsageError as TyperUsageError
 from typer.core import TyperCommand
 
-from atlassian_cli.auth.models import ResolvedAuth
 from atlassian_cli.compat import UTC
-from atlassian_cli.core.errors import MissingCredentialError
 from atlassian_cli.output.interactive import InteractiveCollectionSource, browse_collection
 from atlassian_cli.output.modes import OutputMode, is_raw_output, normalized_output
 from atlassian_cli.output.renderers import render_output
@@ -23,6 +21,7 @@ from atlassian_cli.products.bitbucket.browser import (
     render_pull_request_preview,
 )
 from atlassian_cli.products.bitbucket.commands.pr_comment import app as pr_comment_app
+from atlassian_cli.products.bitbucket.gh_compat.auth import require_primary_auth
 from atlassian_cli.products.bitbucket.gh_compat.exit_policy import run_gh_read
 from atlassian_cli.products.bitbucket.gh_compat.io import (
     can_prompt,
@@ -95,15 +94,6 @@ def build_pr_service(context) -> PullRequestService:
 
 def build_build_status_service(context) -> BuildStatusService:
     return BuildStatusService(provider=build_provider(context))
-
-
-def require_primary_auth(auth: ResolvedAuth) -> None:
-    has_authorization_header = any(
-        name.lower() == "authorization" and bool(value) for name, value in auth.headers.items()
-    )
-    has_basic = bool(auth.username and (auth.password or auth.token))
-    if not (auth.token or has_basic or has_authorization_header):
-        raise MissingCredentialError("authentication required")
 
 
 def _normalize_json_argv(args: list[str]) -> list[str]:

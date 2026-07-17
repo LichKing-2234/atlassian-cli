@@ -29,6 +29,7 @@ from atlassian_cli.config.template import ensure_default_config
 from atlassian_cli.core.context import LazyExecutionContext
 from atlassian_cli.core.errors import ConfigError
 from atlassian_cli.output.modes import OutputMode, is_machine_output
+from atlassian_cli.products.bitbucket.commands.api import GhApiCommand, api_command
 from atlassian_cli.products.bitbucket.commands.branch import app as bitbucket_branch_app
 from atlassian_cli.products.bitbucket.commands.commit import app as bitbucket_commit_app
 from atlassian_cli.products.bitbucket.commands.pr import app as bitbucket_pr_app
@@ -65,6 +66,7 @@ bitbucket_app.add_typer(bitbucket_repo_app, name="repo")
 bitbucket_app.add_typer(bitbucket_branch_app, name="branch")
 bitbucket_app.add_typer(bitbucket_commit_app, name="commit")
 bitbucket_app.add_typer(bitbucket_pr_app, name="pr")
+bitbucket_app.command("api", cls=GhApiCommand)(api_command)
 
 app.add_typer(jira_app, name="jira")
 app.add_typer(confluence_app, name="confluence")
