@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from io import StringIO
 from typing import Any
 
+from rich.cells import cell_len
 from rich.console import Console
 from rich.markdown import Markdown
 
@@ -192,20 +193,34 @@ def _fuzzy_ago(now: datetime, value: object) -> str:
     seconds = max(0, int((now - instant).total_seconds()))
     if seconds < 60:
         return "less than a minute ago"
-    if seconds < 90 * 60:
-        minutes = max(1, round(seconds / 60))
+    if seconds < 60 * 60:
+        minutes = seconds // 60
         return f"about {minutes} minute{'s' if minutes != 1 else ''} ago"
     if seconds < 24 * 60 * 60:
-        hours = max(1, round(seconds / (60 * 60)))
+        hours = seconds // (60 * 60)
         return f"about {hours} hour{'s' if hours != 1 else ''} ago"
-    if seconds < 45 * 24 * 60 * 60:
-        days = max(1, round(seconds / (24 * 60 * 60)))
+    if seconds < 30 * 24 * 60 * 60:
+        days = seconds // (24 * 60 * 60)
         return f"about {days} day{'s' if days != 1 else ''} ago"
-    if seconds < 18 * 30 * 24 * 60 * 60:
-        months = max(1, round(seconds / (30 * 24 * 60 * 60)))
+    if seconds < 365 * 24 * 60 * 60:
+        months = seconds // (24 * 60 * 60) // 30
         return f"about {months} month{'s' if months != 1 else ''} ago"
-    years = max(1, round(seconds / (365 * 24 * 60 * 60)))
+    years = seconds // (24 * 60 * 60) // 365
     return f"about {years} year{'s' if years != 1 else ''} ago"
+
+
+def _fuzzy_ago_abbr(now: datetime, value: object) -> str:
+    instant = _parse_time(value)
+    if instant is None:
+        return ""
+    seconds = max(0, int((now - instant).total_seconds()))
+    if seconds < 60 * 60:
+        return f"{seconds // 60}m"
+    if seconds < 24 * 60 * 60:
+        return f"{seconds // (60 * 60)}h"
+    if seconds < 30 * 24 * 60 * 60:
+        return f"{seconds // (24 * 60 * 60)}d"
+    return f"{instant:%b} {instant.day:2d}, {instant.year}"
 
 
 def _collapse_whitespace(value: object) -> str:
@@ -217,7 +232,7 @@ def _state_color(state: object) -> str:
 
 
 def _format_tty_table(rows: list[list[str]], colors: list[list[str | None]]) -> str:
-    widths = [max(len(row[index]) for row in rows) for index in range(len(rows[0]))]
+    widths = [max(cell_len(row[index]) for row in rows) for index in range(len(rows[0]))]
     rendered_rows: list[str] = []
     for row_index, row in enumerate(rows):
         cells: list[str] = []
@@ -225,7 +240,7 @@ def _format_tty_table(rows: list[list[str]], colors: list[list[str | None]]) -> 
             code = colors[row_index][index]
             content = _style(value, code, color=code is not None) if code else value
             if index < len(row) - 1:
-                content += " " * (widths[index] - len(value) + 2)
+                content += " " * (widths[index] - cell_len(value) + 2)
             cells.append(content)
         rendered_rows.append("".join(cells))
     return "\n".join(rendered_rows)
@@ -326,7 +341,7 @@ def _reviewer_list(pull_request: dict, *, color: bool) -> str:
             continue
         display = _reviewer_state(review_request.get("status") or review_request.get("state"))
         reviewers.append((display == "Requested", name, display))
-    reviewers.sort(key=lambda item: (item[0], item[1].casefold()))
+    reviewers.sort(key=lambda item: (item[0], item[1]))
 
     formatted = []
     for _, name, display in reviewers:
@@ -365,7 +380,8 @@ def _check_summary(pull_request: dict, *, color: bool) -> str:
 def _render_markdown(value: object, *, width: int, color: bool) -> str:
     text = str(value or "")
     if not text:
-        return _style("No description provided", "2", color=color)
+        message = _style("No description provided", "2", color=color)
+        return f"\n  {message}\n"
     output = StringIO()
     console = Console(
         file=output,
@@ -413,26 +429,38 @@ def _tty_comments(
 ) -> str:
     all_comments = _sorted_comments(pull_request)
     comments = all_comments if show_all else all_comments[-1:]
-    blocks = []
-    for index, comment in enumerate(comments):
-        newest = index == len(comments) - 1
-        author = _style(_user_name(comment.get("author")), "1", color=color)
-        relative = _fuzzy_ago(now, comment.get("createdAt"))
-        header = f"{author} • {relative}"
-        if newest:
-            header += f" • {_style('Newest comment', '1;36', color=color)}"
-        body = _render_markdown(comment.get("body"), width=width, color=color)
-        footer = ""
-        if comment.get("url"):
-            footer = _style(f"\nView the full review: {comment['url']}", "2", color=color)
-        blocks.append(f"{header}\n{body}{footer}")
-    rendered = "\n\n".join(blocks)
+    rendered = ""
     if not show_all and len(all_comments) > 1:
         hidden = len(all_comments) - 1
         noun = "comment" if hidden == 1 else "comments"
-        prefix = _style(f"Not showing {hidden} {noun}", "2", color=color)
+        notice = f"———————— Not showing {hidden} {noun} ————————"
+        rendered += f"{_style(notice, '2', color=color)}\n\n\n"
+
+    for index, comment in enumerate(comments):
+        newest = index == len(comments) - 1
+        author = _style(_user_name(comment.get("author")), "1", color=color)
+        relative = _fuzzy_ago_abbr(now, comment.get("createdAt"))
+        header = f"{author}{_style(f' • {relative}', '1', color=color)}"
+        if comment.get("createdAt") != comment.get("updatedAt"):
+            header += _style(" • Edited", "1", color=color)
+        if newest:
+            header += _style(" • ", "1", color=color)
+            header += _style("Newest comment", "1;36", color=color)
+        if comment.get("body"):
+            body = f"{_render_markdown(comment['body'], width=width, color=color)}\n"
+        else:
+            message = _style("No body provided", "2", color=color)
+            body = f"\n  {message}\n\n"
+        footer = ""
+        if comment.get("url"):
+            footer = _style(f"View the full review: {comment['url']}\n\n", "2", color=color)
+        rendered += f"{header}\n{body}{footer}"
+        if newest:
+            rendered += "\n"
+
+    if not show_all and len(all_comments) > 1:
         suffix = _style("Use --comments to view the full conversation", "2", color=color)
-        rendered = f"{prefix}\n\n{rendered}\n\n{suffix}"
+        rendered += f"{suffix}\n"
     return rendered
 
 
@@ -502,6 +530,6 @@ def render_pr_view(
         color=color,
     )
     if rendered_comments:
-        rendered += f"{rendered_comments}\n\n"
+        rendered += rendered_comments
     footer = f"View this pull request in Bitbucket: {pull_request.get('url') or ''}"
     return f"{rendered}{_style(footer, '2', color=color)}\n"

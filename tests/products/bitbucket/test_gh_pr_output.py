@@ -1,10 +1,11 @@
 import json
 import re
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from rich.cells import cell_len
 
 from atlassian_cli.core.errors import AtlassianCliError
 from atlassian_cli.products.bitbucket.gh_compat.pr_output import (
@@ -231,6 +232,48 @@ def test_list_tty_colors_state_id_branch_and_created_time(canonical_pr: dict) ->
 
 
 @pytest.mark.parametrize(
+    ("age_seconds", "expected"),
+    [
+        (60 * 60 - 1, "about 59 minutes ago"),
+        (60 * 60, "about 1 hour ago"),
+        (24 * 60 * 60 - 1, "about 23 hours ago"),
+        (24 * 60 * 60, "about 1 day ago"),
+        (30 * 24 * 60 * 60 - 1, "about 29 days ago"),
+        (30 * 24 * 60 * 60, "about 1 month ago"),
+        (365 * 24 * 60 * 60 - 1, "about 12 months ago"),
+        (365 * 24 * 60 * 60, "about 1 year ago"),
+    ],
+)
+def test_relative_time_matches_pinned_go_gh_boundaries_in_list_and_view(
+    canonical_pr: dict, age_seconds: int, expected: str
+) -> None:
+    created_at = (NOW - timedelta(seconds=age_seconds)).isoformat().replace("+00:00", "Z")
+    canonical_pr["createdAt"] = created_at
+    canonical_pr["comments"] = []
+
+    list_output = render_pr_list(
+        [canonical_pr],
+        repository="DEMO/example-repo",
+        total=1,
+        filtered=False,
+        tty=True,
+        color=False,
+        now=NOW,
+    )
+    view_output = render_pr_view(
+        canonical_pr,
+        repository="DEMO/example-repo",
+        tty=True,
+        color=False,
+        comments=False,
+        now=NOW,
+    )
+
+    assert expected in list_output
+    assert expected in view_output
+
+
+@pytest.mark.parametrize(
     ("filtered", "message"),
     [
         (False, "no open pull requests in DEMO/example-repo"),
@@ -262,6 +305,39 @@ def test_list_collapses_title_whitespace(canonical_pr: dict) -> None:
         now=NOW,
     )
     assert "\tExample pull request\t" in rendered
+
+
+def test_list_tty_uses_display_cell_width_for_wide_and_combining_titles(
+    canonical_pr: dict,
+) -> None:
+    pull_requests = []
+    for title in (
+        "Example pull request 示例",
+        "Example pull request ✅",
+        "Example pull request e\u0301",
+    ):
+        pull_request = deepcopy(canonical_pr)
+        pull_request["title"] = title
+        pull_requests.append(pull_request)
+
+    rendered = strip_ansi(
+        render_pr_list(
+            pull_requests,
+            repository="DEMO/example-repo",
+            total=3,
+            filtered=False,
+            tty=True,
+            color=True,
+            now=NOW,
+        )
+    )
+    rows = rendered.splitlines()[-3:]
+    branch = "feature/DEMO-1234/example-change"
+
+    branch_columns = {cell_len(row[: row.index(branch)]) for row in rows}
+    created_columns = {cell_len(row[: row.index("about 1 day ago")]) for row in rows}
+    assert len(branch_columns) == 1
+    assert len(created_columns) == 1
 
 
 def test_view_non_tty_matches_golden(contract: dict, canonical_pr: dict) -> None:
@@ -339,6 +415,28 @@ def test_view_tty_renders_markdown_body_at_injected_width(canonical_pr: dict) ->
     assert "example response with\nenough words to wrap" in strip_ansi(rendered)
 
 
+def test_view_tty_empty_pr_body_matches_pinned_block(canonical_pr: dict) -> None:
+    canonical_pr["body"] = ""
+    canonical_pr["comments"] = []
+
+    rendered = strip_ansi(
+        render_pr_view(
+            canonical_pr,
+            repository="DEMO/example-repo",
+            tty=True,
+            color=True,
+            comments=False,
+            now=NOW,
+        )
+    )
+
+    assert (
+        "Reviewers: reviewer-one (Requested)\n\n\n"
+        "  No description provided\n\n\n"
+        "View this pull request in Bitbucket:"
+    ) in rendered
+
+
 def test_view_tty_comment_preview_shows_only_latest_unless_requested(
     canonical_pr: dict,
 ) -> None:
@@ -376,7 +474,103 @@ def test_view_tty_comment_preview_shows_only_latest_unless_requested(
 
     assert "older example comment" not in preview
     assert "example comment" in preview
+    assert (
+        "———————— Not showing 1 comment ————————\n\n\n"
+        "reviewer-one • 1d • Newest comment\n"
+        "example comment\n\n"
+        "Use --comments to view the full conversation\n"
+        "View this pull request in Bitbucket:"
+    ) in preview
     assert full.index("older example comment") < full.index("example comment")
+    assert "Not showing" not in full
+    assert "Use --comments" not in full
+
+
+def test_view_tty_comment_marks_edited_before_newest(canonical_pr: dict) -> None:
+    canonical_pr["comments"][0]["updatedAt"] = "2026-07-15T13:00:00Z"
+
+    rendered = strip_ansi(
+        render_pr_view(
+            canonical_pr,
+            repository="DEMO/example-repo",
+            tty=True,
+            color=True,
+            comments=False,
+            now=NOW,
+        )
+    )
+
+    assert "reviewer-one • 1d • Edited • Newest comment\n" in rendered
+
+
+def test_view_tty_comment_header_matches_pinned_ansi(canonical_pr: dict) -> None:
+    canonical_pr["comments"][0]["updatedAt"] = "2026-07-15T13:00:00Z"
+
+    rendered = render_pr_view(
+        canonical_pr,
+        repository="DEMO/example-repo",
+        tty=True,
+        color=True,
+        comments=False,
+        now=NOW,
+    )
+
+    assert (
+        "\x1b[1mreviewer-one\x1b[0m"
+        "\x1b[1m • 1d\x1b[0m"
+        "\x1b[1m • Edited\x1b[0m"
+        "\x1b[1m • \x1b[0m"
+        "\x1b[1;36mNewest comment\x1b[0m\n"
+    ) in rendered
+
+
+def test_view_tty_empty_comment_body_matches_pinned_block(canonical_pr: dict) -> None:
+    canonical_pr["comments"][0]["body"] = ""
+
+    rendered = strip_ansi(
+        render_pr_view(
+            canonical_pr,
+            repository="DEMO/example-repo",
+            tty=True,
+            color=True,
+            comments=False,
+            now=NOW,
+        )
+    )
+
+    assert (
+        "reviewer-one • 1d • Newest comment\n\n"
+        "  No body provided\n\n\n"
+        "View this pull request in Bitbucket:"
+    ) in rendered
+
+
+@pytest.mark.parametrize(
+    ("age_seconds", "expected"),
+    [
+        (30 * 24 * 60 * 60 - 1, "29d"),
+        (30 * 24 * 60 * 60, "Jun 16, 2026"),
+    ],
+)
+def test_view_tty_comment_age_switches_to_date_at_30_days(
+    canonical_pr: dict, age_seconds: int, expected: str
+) -> None:
+    created_at = (NOW - timedelta(seconds=age_seconds)).isoformat().replace("+00:00", "Z")
+    canonical_pr["comments"][0]["createdAt"] = created_at
+    canonical_pr["comments"][0]["updatedAt"] = created_at
+
+    rendered = strip_ansi(
+        render_pr_view(
+            canonical_pr,
+            repository="DEMO/example-repo",
+            tty=True,
+            color=True,
+            comments=False,
+            now=NOW,
+        )
+    )
+
+    assert f"reviewer-one • {expected} • Newest comment\n" in rendered
 
 
 @pytest.mark.parametrize(
@@ -401,6 +595,23 @@ def test_view_maps_bitbucket_reviewer_states(canonical_pr: dict, state: str, dis
         )
     )
     assert f"reviewer-one ({display})" in rendered
+
+
+def test_view_sorts_reviewer_names_case_sensitively(canonical_pr: dict) -> None:
+    second = deepcopy(canonical_pr["reviewRequests"][0])
+    second["login"] = "Reviewer-two"
+    canonical_pr["reviewRequests"].append(second)
+
+    rendered = render_pr_view(
+        canonical_pr,
+        repository="DEMO/example-repo",
+        tty=False,
+        color=False,
+        comments=False,
+        now=NOW,
+    )
+
+    assert "reviewers:\tReviewer-two (Requested), reviewer-one (Requested)\n" in rendered
 
 
 @pytest.mark.parametrize(
