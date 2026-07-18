@@ -131,6 +131,30 @@ def test_non_tty_checks_are_headerless_tsv_with_zero_elapsed_time() -> None:
     )
 
 
+def test_tabular_checks_collapse_provider_control_whitespace() -> None:
+    checks = project_checks(
+        [
+            _build(
+                "FAILED",
+                name="Example\npull\trequest",
+                description="example\r\n response",
+                url="https://bitbucket.example.com/\nexample-response",
+            )
+        ]
+    )
+
+    non_tty = render_checks(checks, tty=False, color=False, width=120)
+    tty = render_checks(checks, tty=True, color=False, width=120)
+
+    assert non_tty == (
+        "Example pull request\tfail\t0\t"
+        "https://bitbucket.example.com/ example-response\texample response\n"
+    )
+    assert "Example pull request" in tty
+    assert "example response" in tty
+    assert "https://bitbucket.example.com/ example-response" in tty
+
+
 def test_tty_checks_include_summary_tallies_symbols_and_table() -> None:
     checks = project_checks(
         [
@@ -166,5 +190,4 @@ def test_tty_checks_apply_gh_status_colors() -> None:
         width=120,
     )
 
-    assert "\x1b[" in rendered
-    assert "X" in rendered
+    assert "\x1b[31mX\x1b[0m" in rendered

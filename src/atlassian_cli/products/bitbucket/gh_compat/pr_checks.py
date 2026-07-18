@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -39,12 +40,16 @@ class CheckCounts:
 
     @classmethod
     def from_checks(cls, checks: Sequence[Mapping[str, object]]) -> CheckCounts:
-        buckets = [str(check.get("bucket") or "") for check in checks]
-        return cls(
-            failed=buckets.count("fail"),
-            passed=buckets.count("pass"),
-            pending=buckets.count("pending"),
-        )
+        failed = passed = pending = 0
+        for check in checks:
+            match str(check.get("bucket") or ""):
+                case "fail":
+                    failed += 1
+                case "pass":
+                    passed += 1
+                case "pending":
+                    pending += 1
+        return cls(failed=failed, passed=passed, pending=pending)
 
 
 def _project_check(build: Mapping[str, object]) -> dict[str, object]:
@@ -108,6 +113,10 @@ def _summary(counts: CheckCounts, *, color: bool) -> str:
     return f"{_style(headline, '1', color=color)}\n{tallies}"
 
 
+def _tabular_cell(value: object) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
 def render_checks(
     checks: Sequence[Mapping[str, object]],
     *,
@@ -119,11 +128,11 @@ def render_checks(
         rows = [
             "\t".join(
                 (
-                    str(check.get("name") or ""),
+                    _tabular_cell(check.get("name")),
                     str(check.get("bucket") or ""),
                     "0",
-                    str(check.get("link") or ""),
-                    str(check.get("description") or ""),
+                    _tabular_cell(check.get("link")),
+                    _tabular_cell(check.get("description")),
                 )
             )
             for check in checks
@@ -142,10 +151,10 @@ def render_checks(
         rows.append(
             [
                 symbol,
-                str(check.get("name") or ""),
-                str(check.get("description") or ""),
+                _tabular_cell(check.get("name")),
+                _tabular_cell(check.get("description")),
                 "",
-                str(check.get("link") or ""),
+                _tabular_cell(check.get("link")),
             ]
         )
         colors.append([code if color else None, None, None, None, None])
