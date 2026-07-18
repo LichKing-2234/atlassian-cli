@@ -172,24 +172,6 @@ def test_hidden_legacy_missing_pat_keeps_usage_exit(monkeypatch) -> None:
     assert "pat authentication requires a token" in result.stderr
 
 
-def test_old_list_positionals_are_rejected_with_gh_exit() -> None:
-    result = runner.invoke(
-        app,
-        [
-            "--url",
-            "https://bitbucket.example.com",
-            "bitbucket",
-            "pr",
-            "list",
-            "DEMO",
-            "example-repo",
-        ],
-    )
-
-    assert result.exit_code == 1
-    assert "unexpected extra arguments" in result.output.lower()
-
-
 def test_json_missing_value_fails_before_context_or_provider(monkeypatch) -> None:
     monkeypatch.setattr(pr_module, "build_provider", lambda *_: pytest.fail("provider called"))
 
@@ -531,8 +513,8 @@ def install_legacy_list_fake(monkeypatch):
     return calls
 
 
-def primary_list_args(*extra: str) -> list[str]:
-    return [
+def primary_list_args(*extra: str, include_repo: bool = True) -> list[str]:
+    args = [
         "--url",
         "https://bitbucket.example.com",
         "--username",
@@ -542,10 +524,59 @@ def primary_list_args(*extra: str) -> list[str]:
         "bitbucket",
         "pr",
         "list",
-        "-R",
-        "DEMO/example-repo",
-        *extra,
     ]
+    if include_repo:
+        args.extend(["-R", "DEMO/example-repo"])
+    return [*args, *extra]
+
+
+def test_primary_list_accepts_project_repo_positionals(monkeypatch) -> None:
+    calls = install_read_fakes(monkeypatch)
+
+    result = runner.invoke(
+        app,
+        primary_list_args(
+            "DEMO",
+            "example-repo",
+            "--json",
+            "number",
+            include_repo=False,
+        ),
+    )
+
+    assert result.exit_code == 0
+    assert calls["lists"][0][0].slug == "DEMO/example-repo"
+
+
+@pytest.mark.parametrize("positionals", [["DEMO"], ["DEMO", "example-repo", "extra"]])
+def test_primary_list_rejects_incomplete_or_extra_positionals(
+    positionals: list[str], monkeypatch
+) -> None:
+    monkeypatch.setattr(pr_module, "build_provider", lambda *_: pytest.fail("provider called"))
+
+    result = runner.invoke(app, ["bitbucket", "pr", "list", *positionals])
+
+    assert result.exit_code == 1
+
+
+def test_primary_list_rejects_positionals_with_repo_option(monkeypatch) -> None:
+    monkeypatch.setattr(pr_module, "build_provider", lambda *_: pytest.fail("provider called"))
+
+    result = runner.invoke(
+        app,
+        [
+            "bitbucket",
+            "pr",
+            "list",
+            "DEMO",
+            "example-repo",
+            "-R",
+            "DEMO/example-repo",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "cannot use `PROJECT_KEY REPO_SLUG` with `--repo`" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -600,9 +631,20 @@ def test_hidden_legacy_output_selects_v019_renderer_and_warns(monkeypatch) -> No
 
 @pytest.mark.parametrize(
     ("state", "legacy_state"),
-    [("open", "OPEN"), ("closed", "DECLINED"), ("merged", "MERGED"), ("all", "ALL")],
+    [
+        ("OPEN", "OPEN"),
+        ("open", "OPEN"),
+        ("DECLINED", "DECLINED"),
+        ("declined", "DECLINED"),
+        ("MERGED", "MERGED"),
+        ("merged", "MERGED"),
+        ("ALL", "ALL"),
+        ("all", "ALL"),
+    ],
 )
-def test_hidden_legacy_output_maps_states(state: str, legacy_state: str, monkeypatch) -> None:
+def test_hidden_legacy_output_normalizes_native_states(
+    state: str, legacy_state: str, monkeypatch
+) -> None:
     calls = install_legacy_list_fake(monkeypatch)
 
     result = runner.invoke(app, primary_list_args("--state", state, "--output", "json"))
@@ -690,14 +732,38 @@ def test_hidden_legacy_output_rejects_json_before_provider(monkeypatch) -> None:
     assert "cannot use `--output` with `--json`" in result.stderr
 
 
-@pytest.mark.parametrize("state", ["open", "closed", "merged", "all"])
-def test_primary_list_forwards_supported_states(state: str, monkeypatch) -> None:
+@pytest.mark.parametrize(
+    ("state", "normalized"),
+    [
+        ("OPEN", "OPEN"),
+        ("open", "OPEN"),
+        ("DECLINED", "DECLINED"),
+        ("declined", "DECLINED"),
+        ("MERGED", "MERGED"),
+        ("merged", "MERGED"),
+        ("ALL", "ALL"),
+        ("all", "ALL"),
+    ],
+)
+def test_primary_list_accepts_native_states_case_insensitively(
+    state: str, normalized: str, monkeypatch
+) -> None:
     calls = install_read_fakes(monkeypatch)
 
     result = runner.invoke(app, primary_list_args("--state", state, "--json", "number"))
 
     assert result.exit_code == 0
-    assert calls["lists"][0][1].state == state
+    assert calls["lists"][0][1].state == normalized
+
+
+@pytest.mark.parametrize("state", ["closed", "draft", "superseded"])
+def test_primary_list_rejects_non_native_states_before_context(state: str, monkeypatch) -> None:
+    monkeypatch.setattr(pr_module, "build_provider", lambda *_: pytest.fail("provider called"))
+
+    result = runner.invoke(app, ["bitbucket", "pr", "list", "--state", state])
+
+    assert result.exit_code == 1
+    assert f"invalid state: {state}" in result.stderr
 
 
 def test_primary_list_forwards_all_supported_filters(monkeypatch) -> None:
@@ -737,7 +803,7 @@ def test_primary_list_forwards_all_supported_filters(monkeypatch) -> None:
         "main",
         "feature/DEMO-1234/example-change",
         '"Example pull request" in:title',
-        "merged",
+        "MERGED",
         17,
     )
 

@@ -17,6 +17,7 @@ MERGEABILITY_FIELDS = {"mergeable", "mergeStateStatus"}
 BUILD_FIELDS = {"statusCheckRollup"}
 PRESENTER_REVIEWERS_FIELD = "_reviewers"
 
+BITBUCKET_PULL_REQUEST_STATES = frozenset({"OPEN", "DECLINED", "MERGED", "ALL"})
 _STATE_MAP = {"open": "OPEN", "closed": "DECLINED", "merged": "MERGED", "all": "ALL"}
 _CHANGE_TYPE_MAP = {
     "ADD": "ADDED",
@@ -43,6 +44,13 @@ class PullRequestListFilters:
 class PullRequestListResult:
     items: list[dict]
     total_count: int | None
+
+
+def normalize_pull_request_state(value: str) -> str:
+    normalized = value.upper()
+    if normalized not in BITBUCKET_PULL_REQUEST_STATES:
+        raise ValueError(f"invalid state: {value}")
+    return normalized
 
 
 def _rfc3339(value: object) -> str | None:
