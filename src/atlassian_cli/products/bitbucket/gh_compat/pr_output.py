@@ -223,7 +223,7 @@ def _collapse_whitespace(value: object) -> str:
 
 
 def _state_color(state: object) -> str:
-    return {"OPEN": "32", "CLOSED": "31", "MERGED": "35"}.get(str(state), "")
+    return {"OPEN": "32", "DECLINED": "31", "MERGED": "35"}.get(str(state), "")
 
 
 def _truncate_display(value: str, width: int) -> str:

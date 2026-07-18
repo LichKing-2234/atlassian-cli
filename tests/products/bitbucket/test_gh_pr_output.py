@@ -246,6 +246,33 @@ def test_list_tty_colors_state_id_branch_and_created_time(canonical_pr: dict) ->
     assert "\x1b[2mabout 1 day ago\x1b[0m" in rendered
 
 
+def test_list_retains_and_colors_native_declined_state(canonical_pr: dict) -> None:
+    canonical_pr["state"] = "DECLINED"
+
+    non_tty = render_pr_list(
+        [canonical_pr],
+        repository="DEMO/example-repo",
+        total=1,
+        filtered=True,
+        tty=False,
+        color=False,
+        now=NOW,
+    )
+    tty = render_pr_list(
+        [canonical_pr],
+        repository="DEMO/example-repo",
+        total=1,
+        filtered=True,
+        tty=True,
+        color=True,
+        now=NOW,
+    )
+
+    assert "\tDECLINED\t" in non_tty
+    assert "CLOSED" not in non_tty
+    assert "\x1b[31m#1234\x1b[0m" in tty
+
+
 @pytest.mark.parametrize(
     ("age_seconds", "expected"),
     [

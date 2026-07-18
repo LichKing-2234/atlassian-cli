@@ -18,7 +18,6 @@ BUILD_FIELDS = {"statusCheckRollup"}
 PRESENTER_REVIEWERS_FIELD = "_reviewers"
 
 BITBUCKET_PULL_REQUEST_STATES = frozenset({"OPEN", "DECLINED", "MERGED", "ALL"})
-_STATE_MAP = {"open": "OPEN", "closed": "DECLINED", "merged": "MERGED", "all": "ALL"}
 _CHANGE_TYPE_MAP = {
     "ADD": "ADDED",
     "DELETE": "DELETED",
@@ -32,7 +31,7 @@ _STATUS_VALUES = {"pending", "success", "failure"}
 
 @dataclass(frozen=True)
 class PullRequestListFilters:
-    state: str = "open"
+    state: str = "OPEN"
     limit: int = 30
     author: str | None = None
     base: str | None = None
@@ -188,7 +187,7 @@ def _direct_projection(raw: Mapping[str, Any]) -> dict[str, Any]:
         "reviewDecision": _review_decision(raw.get("reviewers", [])),
         "reviewRequests": _review_requests(raw.get("reviewers", [])),
         PRESENTER_REVIEWERS_FIELD: _presenter_reviewers(raw.get("reviewers", [])),
-        "state": {"OPEN": "OPEN", "DECLINED": "CLOSED", "MERGED": "MERGED"}[raw["state"]],
+        "state": raw["state"],
         "title": raw.get("title") or "",
         "updatedAt": _rfc3339(raw.get("updatedDate")),
         "url": _first_self_link(raw),
@@ -278,8 +277,9 @@ def parse_search_query(value: str | None) -> dict[str, Any]:
             query["scopes"].add(scope)
             continue
         if separator and key in {"state", "is"}:
-            normalized = qualifier_value.lower()
-            if normalized not in _STATE_MAP:
+            try:
+                normalized = normalize_pull_request_state(qualifier_value)
+            except ValueError:
                 raise ValueError(f"unsupported {key} search value: {qualifier_value}")
             query["qualifiers"].append(("state", normalized, negated))
             query["has_state"] = True
@@ -378,8 +378,8 @@ class PullRequestReadService:
             if value is not None:
                 query["qualifiers"].append((key, value, False))
 
-        state = _STATE_MAP[filters.state]
-        if filters.state == "open" and query["has_state"]:
+        state = normalize_pull_request_state(filters.state)
+        if state == "OPEN" and query["has_state"]:
             state = "ALL"
         author_me_qualifiers = [
             (value, negated)
@@ -517,7 +517,7 @@ class PullRequestReadService:
                 status_qualifiers.append((value, negated))
                 continue
             if key == "state":
-                matches = _STATE_MAP[value] in {"ALL", raw.get("state")}
+                matches = value in {"ALL", raw.get("state")}
             elif key == "author" and _same_text(value, "@me"):
                 matches = raw.get("id") in me_ids
             elif key == "author":
