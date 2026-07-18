@@ -417,7 +417,7 @@ otherwise, validation completes before network or filesystem mutation.
 | Command | Atomic rule | Status |
 |---|---|---|
 | `checkout` | Omitted selector opens the 10-item TTY picker; non-TTY exits `1` | M |
-| `checks` | `--watch` and `--json` are mutually exclusive; `--fail-fast` and an explicitly supplied `--interval` each require `--watch`; interval must parse as a duration of at least one second | M |
+| `checks` | `--watch` and `--json` are mutually exclusive; `--fail-fast` and an explicitly supplied `--interval` each require `--watch`; interval is parsed as signed integer seconds, and non-positive durations return immediately between polls | M |
 | `comment` | Exactly one of `--body`, `--body-file`, `--editor`, or `--web`; `--create-if-none` requires `--edit-last`; `--yes` requires `--delete-last`; delete forbids a body; a non-TTY delete requires `--yes`; no mode/body in non-TTY exits `1` | M |
 | `create` body sources | `--body` and `--body-file` may be combined; file content wins regardless of argv order. `--template` cannot accompany either, and `--body-file -` consumes stdin once | M |
 | `create` fill sources | At most one of `--fill`, `--fill-first`, and `--fill-verbose` | M |

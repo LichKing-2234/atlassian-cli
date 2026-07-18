@@ -74,6 +74,23 @@ def test_readme_documents_gh_compatible_pr_reads_and_browser_migration() -> None
     assert "Its `closed` state maps" not in readme
 
 
+def test_readme_documents_gh_compatible_pr_checks() -> None:
+    readme = Path("README.md").read_text()
+
+    for value in (
+        "atlassian bitbucket pr checks 1234 -R DEMO/example-repo",
+        "atlassian bitbucket pr checks 1234 -R DEMO/example-repo --watch",
+        ("atlassian bitbucket pr checks 1234 -R DEMO/example-repo --json name,state,bucket,link"),
+        "pull request head commit",
+        "exit `0`",
+        "exit `1`",
+        "exit `8`",
+        "`--required` is unavailable on Bitbucket Server 6.7.2",
+        "`--jq` and `--template` remain deferred",
+    ):
+        assert value in readme
+
+
 def test_readme_mentions_full_local_e2e_suite() -> None:
     readme = Path("README.md").read_text()
     contributing = Path("CONTRIBUTING.md").read_text()

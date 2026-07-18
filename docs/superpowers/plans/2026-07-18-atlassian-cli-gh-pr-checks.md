@@ -259,7 +259,7 @@ assert checked == [{
 }]
 ```
 
-Use `build_live_provider()` so configured `agora-oauth` headers remain in force. Do not place credentials or live identifiers in the test.
+Use `build_live_provider()` so configured product headers remain in force. Do not place credentials or live identifiers in the test.
 
 - [ ] **Step 4: Run documentation tests and focused unit tests**
 
@@ -294,4 +294,3 @@ Scan changed README, docs, tests, fixtures, and source for identifiers outside t
 git add README.md tests/e2e/coverage_manifest.py tests/e2e/test_bitbucket_live.py tests/test_readme.py
 git commit -m "docs: document Bitbucket PR checks"
 ```
-
