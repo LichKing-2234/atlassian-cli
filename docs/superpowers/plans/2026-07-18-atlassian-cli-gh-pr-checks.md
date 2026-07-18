@@ -240,9 +240,9 @@ PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_readme.py tests/e2e/test
 
 Expected: failure because the README and manifest do not contain `pr checks`.
 
-- [ ] **Step 3: Update README, manifest, and live round trip**
+- [ ] **Step 3: Update README, manifest, and isolated live coverage**
 
-In the existing Bitbucket PR round-trip test, publish one neutral build status to the temporary head commit through the configured provider, then assert:
+In a dedicated self-isolating Bitbucket PR checks live test, create a temporary repository and pull request, publish one neutral build status to its head commit through the configured provider, then assert:
 
 ```python
 checked = run_json(
