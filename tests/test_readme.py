@@ -91,6 +91,20 @@ def test_readme_documents_gh_compatible_pr_checks() -> None:
         assert value in readme
 
 
+def test_readme_documents_gh_compatible_pr_edit() -> None:
+    readme = Path("README.md").read_text()
+
+    assert (
+        'atlassian bitbucket pr edit 1234 -R DEMO/example-repo --title "Example pull request"'
+        in readme
+    )
+    assert (
+        'atlassian bitbucket pr edit feature/DEMO-1234/example-change --body "example response"'
+    ) in readme
+    assert "title, body, destination branch, and individual reviewers" in readme
+    assert "assignees, labels, projects, and milestones" in readme
+
+
 def test_readme_mentions_full_local_e2e_suite() -> None:
     readme = Path("README.md").read_text()
     contributing = Path("CONTRIBUTING.md").read_text()

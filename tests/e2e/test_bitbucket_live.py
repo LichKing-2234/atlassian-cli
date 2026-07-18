@@ -163,9 +163,9 @@ def test_bitbucket_pr_checks_live(live_env, tmp_path, request) -> None:
         target["project_key"],
         target["repo_slug"],
         "--title",
-        "Example pull request",
+        "Example issue summary",
         "--description",
-        "example response",
+        "example comment",
         "--from-ref",
         f"refs/heads/{branch_name}",
         "--to-ref",
@@ -262,8 +262,8 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
         sandbox.create_initial_commit(
             "master",
             "README.md",
-            "# atlassian-cli e2e\n",
-            "test: seed e2e repo",
+            "# example response\n",
+            "test: seed example-repo",
         )
     remote_heads = sandbox.run("ls-remote", "--heads", "origin").stdout
     if "refs/heads/master" not in remote_heads:
@@ -435,6 +435,40 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
     assert viewed_from_branch["number"] == pr_id
 
     pr_url = viewed["url"]
+    edited = run_cli(
+        live_env,
+        "bitbucket",
+        "pr",
+        "edit",
+        str(pr_id),
+        "-R",
+        repo_selector,
+        "--title",
+        "Example pull request",
+        "--body",
+        "example response",
+    )
+    assert edited.returncode == 0, edited.stderr
+    assert edited.stdout.strip() == pr_url
+
+    viewed_after_edit = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "view",
+        str(pr_id),
+        "-R",
+        repo_selector,
+        "--json",
+        "number,title,body,url",
+    )
+    assert viewed_after_edit == {
+        "number": pr_id,
+        "title": "Example pull request",
+        "body": "example response",
+        "url": pr_url,
+    }
+
     viewed_from_url = run_json(
         live_env,
         "bitbucket",

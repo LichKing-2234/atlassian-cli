@@ -244,6 +244,8 @@ ssh example-user@example-host
 - `atlassian bitbucket pr checks 1234 -R DEMO/example-repo`
 - `atlassian bitbucket pr checks 1234 -R DEMO/example-repo --watch`
 - `atlassian bitbucket pr checks 1234 -R DEMO/example-repo --json name,state,bucket,link`
+- `atlassian bitbucket pr edit 1234 -R DEMO/example-repo --title "Example pull request"`
+- `atlassian bitbucket pr edit feature/DEMO-1234/example-change --body "example response"`
 - `atlassian bitbucket pr browse DEMO example-repo`
 - `atlassian bitbucket pr diff DEMO example-repo 42`
 - `atlassian bitbucket pr diff DEMO example-repo 42 --with-lines --output json`
@@ -358,6 +360,8 @@ On Bitbucket Server 6.7.2, the parser recognizes `reviews` and `latestReviews` b
 `pr checks` resolves the pull request with the same number, URL, branch, and current-branch rules as `pr view`. It reads build statuses only from the pull request head commit. Human output uses exit `0` when all checks pass, exit `1` when any check fails, and exit `8` while checks are pending. `--watch` polls the current PR head until checks finish, and `--fail-fast` stops on the first failure. JSON output selects from `bucket`, `completedAt`, `description`, `event`, `link`, `name`, `startedAt`, `state`, and `workflow`, and exits `0` after a successful read regardless of check state.
 
 `--required` is unavailable on Bitbucket Server 6.7.2 because its build-status records do not identify individual required checks. `--jq` and `--template` remain deferred to the shared gh-compatible formatter phase.
+
+`pr edit` accepts the same number, URL, branch, and current-branch selectors as `gh pr edit`. It can update the title, body, destination branch, and individual reviewers. Bitbucket pull requests do not have GitHub-equivalent assignees, labels, projects, and milestones, so those flags are not registered. Without edit flags, a TTY prompts for supported fields; non-interactive use requires an explicit edit flag. Successful edits print only the pull request URL.
 
 | Workflow | Current behavior |
 | --- | --- |

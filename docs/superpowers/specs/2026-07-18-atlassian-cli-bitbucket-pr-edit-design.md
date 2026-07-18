@@ -214,4 +214,3 @@ Follow red-green-refactor for each boundary:
   `python -m pytest -q`, and
   `ruff check README.md pyproject.toml src tests docs` using the shared virtual
   environment and the worktree source path.
-
