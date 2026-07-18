@@ -142,7 +142,7 @@ assert "closed" not in output
 Run:
 
 ```bash
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q \
+PYTHONPATH=src .venv/bin/python -m pytest -q \
   tests/products/bitbucket/test_pr_command.py \
   tests/test_cli_help.py
 ```
@@ -282,7 +282,7 @@ In `test_gh_pr_output.py`, add a human-list fixture whose state is `DECLINED` an
 Run:
 
 ```bash
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q \
+PYTHONPATH=src .venv/bin/python -m pytest -q \
   tests/products/bitbucket/test_pr_read_service.py \
   tests/products/bitbucket/test_gh_pr_output.py
 ```
@@ -317,7 +317,7 @@ Expected: both suites pass.
 - [ ] **Step 6: Run all Bitbucket unit tests**
 
 ```bash
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/products/bitbucket
+PYTHONPATH=src .venv/bin/python -m pytest -q tests/products/bitbucket
 ```
 
 Expected: all Bitbucket tests pass; update only assertions that intentionally encoded the replaced gh-state contract.
@@ -365,7 +365,7 @@ Remove the old assertion that `atlassian bitbucket pr list DEMO example-repo` is
 - [ ] **Step 2: Run the README test and verify RED**
 
 ```bash
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/test_readme.py
+PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_readme.py
 ```
 
 Expected: FAIL because README still documents only `-R` and the gh `closed` mapping.
@@ -417,7 +417,7 @@ In the parity design, replace the `pr list` breaking-migration language with the
 - [ ] **Step 6: Run the README test and documentation checks**
 
 ```bash
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/test_readme.py
+PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_readme.py
 git diff --unified=0 origin/main...HEAD -- README.md docs tests/e2e/test_bitbucket_live.py
 git diff --check
 ```
@@ -427,7 +427,7 @@ Expected: the README test passes; every sample identifier in the zero-context di
 - [ ] **Step 7: Run the affected live Bitbucket e2e**
 
 ```bash
-ATLASSIAN_E2E=1 PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q \
+ATLASSIAN_E2E=1 PYTHONPATH=src .venv/bin/python -m pytest -q \
   tests/e2e/test_bitbucket_live.py::test_bitbucket_branch_and_pr_round_trip_live
 ```
 
@@ -436,9 +436,9 @@ Expected: `1 passed`. If the configured live environment is unavailable, stop an
 - [ ] **Step 8: Run the repository quality gates**
 
 ```bash
-/Users/admin/atlassian-cli/.venv/bin/ruff format --check .
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q
-/Users/admin/atlassian-cli/.venv/bin/ruff check README.md pyproject.toml src tests docs
+.venv/bin/ruff format --check .
+PYTHONPATH=src .venv/bin/python -m pytest -q
+.venv/bin/ruff check README.md pyproject.toml src tests docs
 ```
 
 Expected: format and lint exit `0`; the full suite passes with only the repository's expected e2e skips when `ATLASSIAN_E2E` is not set.

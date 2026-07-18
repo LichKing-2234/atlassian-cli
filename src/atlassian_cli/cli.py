@@ -144,8 +144,8 @@ def root_callback(
 ) -> None:
     if ctx.invoked_subcommand is None:
         return
-    _maybe_notify_update(ctx, output=output)
     if ctx.invoked_subcommand not in PRODUCT_COMMANDS:
+        _maybe_notify_update(ctx, output=output)
         return
 
     product = Product(ctx.invoked_subcommand)
@@ -155,6 +155,7 @@ def root_callback(
         raise typer.BadParameter(str(exc), param_hint="--header") from exc
 
     def load_runtime_context():
+        _maybe_notify_update(ctx, output=output)
         created_template = ensure_default_config(config_file, default_path=DEFAULT_CONFIG_FILE)
         env = dict(os.environ)
         uses_cli_auth_overrides = any(

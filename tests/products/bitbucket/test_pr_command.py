@@ -5,6 +5,7 @@ from typer._click.exceptions import Abort as TyperAbort
 from typer._click.exceptions import BadParameter as TyperBadParameter
 from typer.testing import CliRunner
 
+import atlassian_cli.cli as cli_module
 from atlassian_cli.auth.models import AuthMode, ResolvedAuth
 from atlassian_cli.cli import app
 from atlassian_cli.core.errors import (
@@ -244,6 +245,54 @@ def test_invalid_state_fails_before_context_or_provider(monkeypatch) -> None:
 
     assert result.exit_code == 1
     assert "invalid state" in result.stderr.lower()
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected_error"),
+    [
+        (["DEMO"], "PROJECT_KEY and REPO_SLUG must be provided together"),
+        (
+            ["DEMO", "example-repo", "-R", "DEMO/example-repo"],
+            "cannot use `PROJECT_KEY REPO_SLUG` with `--repo`",
+        ),
+        (["--state", "closed"], "invalid state: closed"),
+        (["--search", "state:closed"], "unsupported state search value: closed"),
+    ],
+)
+def test_primary_list_invalid_input_skips_interactive_update_check(
+    arguments: list[str],
+    expected_error: str,
+    monkeypatch,
+) -> None:
+    update_checks: list[str] = []
+    monkeypatch.setattr(cli_module, "_stderr_is_interactive", lambda: True)
+    monkeypatch.setattr(
+        cli_module,
+        "check_for_update_notice",
+        lambda _version: update_checks.append("checked"),
+    )
+
+    result = runner.invoke(app, ["bitbucket", "pr", "list", *arguments])
+
+    assert result.exit_code == 1
+    assert expected_error in result.stderr
+    assert update_checks == []
+
+
+def test_primary_list_valid_input_runs_interactive_update_check(monkeypatch) -> None:
+    install_read_fakes(monkeypatch)
+    update_checks: list[str] = []
+    monkeypatch.setattr(cli_module, "_stderr_is_interactive", lambda: True)
+    monkeypatch.setattr(
+        cli_module,
+        "check_for_update_notice",
+        lambda _version: update_checks.append("checked"),
+    )
+
+    result = runner.invoke(app, primary_list_args("--json", "number"))
+
+    assert result.exit_code == 0
+    assert update_checks == ["checked"]
 
 
 @pytest.mark.parametrize(
