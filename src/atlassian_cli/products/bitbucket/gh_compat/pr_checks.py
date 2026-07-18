@@ -5,6 +5,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from atlassian_cli.products.bitbucket.gh_compat.pr_output import (
+    MISSING_JSON_VALUE,
+    GhPreflightError,
     _format_tty_table,
     _style,
 )
@@ -87,6 +89,30 @@ def select_check_fields(
     fields: Sequence[str],
 ) -> list[dict[str, object]]:
     return [{field: check[field] for field in fields} for check in checks]
+
+
+def validate_check_fields(
+    value: str | Sequence[str] | None,
+    *,
+    web: bool,
+) -> tuple[str, ...] | None:
+    if value is None or (not isinstance(value, str) and not value):
+        return None
+
+    values = [value] if isinstance(value, str) else value
+    requested = [field.strip() for item in values for field in item.split(",")]
+    available = "\n".join(f"  {field}" for field in sorted(CHECK_FIELDS))
+    if MISSING_JSON_VALUE in requested:
+        raise GhPreflightError(
+            f"Specify one or more comma-separated fields for `--json`:\n{available}"
+        )
+    if web:
+        raise GhPreflightError("cannot use `--web` with `--json`")
+
+    unknown = next((field for field in requested if field not in CHECK_FIELDS), None)
+    if unknown is not None:
+        raise GhPreflightError(f'Unknown JSON field: "{unknown}"\nAvailable fields:\n{available}')
+    return tuple(dict.fromkeys(requested))
 
 
 def checks_exit_code(checks: Sequence[Mapping[str, object]]) -> int:

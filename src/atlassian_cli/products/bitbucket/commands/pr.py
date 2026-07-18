@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from datetime import datetime
 from functools import partial
 from pathlib import Path
@@ -30,6 +31,14 @@ from atlassian_cli.products.bitbucket.gh_compat.io import (
     page_output,
     stdout_is_tty,
     terminal_width,
+)
+from atlassian_cli.products.bitbucket.gh_compat.pr_checks import (
+    CheckCounts,
+    checks_exit_code,
+    project_checks,
+    render_checks,
+    select_check_fields,
+    validate_check_fields,
 )
 from atlassian_cli.products.bitbucket.gh_compat.pr_finder import PullRequestFinder
 from atlassian_cli.products.bitbucket.gh_compat.pr_output import (
@@ -411,6 +420,173 @@ def list_pull_requests(
 
 
 app.command("ls", cls=GhReadCommand, hidden=True)(list_pull_requests)
+
+
+def _load_pull_request_checks(provider, ref) -> list[dict[str, object]]:
+    pull_request = PullRequestReadService(provider).get(
+        ref,
+        {"headRefName", "headRefOid"},
+    )
+    head_commit = pull_request.get("headRefOid")
+    if not head_commit:
+        raise GhPreflightError("no commit found on the pull request")
+    summary = BuildStatusService(provider).for_commit(str(head_commit))
+    checks = project_checks(summary.get("results") or [])
+    if not checks:
+        branch = pull_request.get("headRefName") or ""
+        raise GhPreflightError(f"no checks reported on the '{branch}' branch")
+    return checks
+
+
+def _watch_pull_request_checks(
+    provider,
+    ref,
+    *,
+    fail_fast: bool,
+    interval: int,
+    tty: bool,
+    color: bool,
+    width: int,
+) -> int:
+    final_checks: list[dict[str, object]] | None = None
+    if tty:
+        typer.echo("\x1b[?1049h", nl=False)
+    try:
+        while True:
+            checks = _load_pull_request_checks(provider, ref)
+            final_checks = checks
+            counts = CheckCounts.from_checks(checks)
+            if tty and counts.pending:
+                typer.echo("\x1b[0;0H\x1b[J", nl=False)
+                typer.echo(
+                    f"Refreshing checks status every {interval} seconds. Press Ctrl+C to quit.\n"
+                )
+            typer.echo(
+                render_checks(checks, tty=tty, color=color, width=width),
+                nl=False,
+            )
+            if counts.pending == 0 or (fail_fast and counts.failed):
+                break
+            time.sleep(interval)
+    finally:
+        if tty:
+            typer.echo("\x1b[?1049l", nl=False)
+
+    assert final_checks is not None
+    if tty:
+        typer.echo(
+            render_checks(final_checks, tty=tty, color=color, width=width),
+            nl=False,
+        )
+    return checks_exit_code(final_checks)
+
+
+def _checks_run(
+    *,
+    ctx: typer.Context,
+    selector: str | None,
+    fail_fast: bool,
+    interval: int,
+    json_fields: list[str],
+    repo: str | None,
+    watch: bool,
+    web: bool,
+) -> None:
+    fields = validate_check_fields(json_fields, web=web)
+    if watch and fields is not None:
+        raise GhPreflightError("cannot use `--watch` with `--json` flag")
+    if repo is not None and selector is None:
+        raise GhPreflightError("argument required when using the --repo flag")
+    if fail_fast and not watch:
+        raise GhPreflightError("cannot use `--fail-fast` flag without `--watch` flag")
+    interval_source = ctx.get_parameter_source("interval")
+    if not watch and interval_source is not None and interval_source.name == "COMMANDLINE":
+        raise GhPreflightError("cannot use `--interval` flag without `--watch` flag")
+
+    context = ctx.obj
+    require_primary_auth(context.auth)
+    server = ServerIdentity.from_url(context.url)
+    embedded = (
+        parse_pull_request_url(selector, server).repository
+        if selector is not None and "://" in selector
+        else None
+    )
+    resolution = resolve_repository(
+        server,
+        explicit=repo,
+        embedded=embedded,
+        require_branch=selector is None,
+    )
+    provider = build_provider(context)
+    ref = PullRequestFinder(provider, server).find(
+        selector,
+        resolution,
+        explicit_repo=repo is not None,
+    )
+
+    environment = os.environ
+    tty = stdout_is_tty(sys.stdout.isatty, environment)
+    if web:
+        pull_request = PullRequestReadService(provider).get(ref, {"url"})
+        url = str(pull_request["url"])
+        _browser_notice(url, tty=tty)
+        open_browser(url)
+        return
+
+    color = color_enabled(tty, environment)
+    width = terminal_width()
+    if watch:
+        raise typer.Exit(
+            _watch_pull_request_checks(
+                provider,
+                ref,
+                fail_fast=fail_fast,
+                interval=interval,
+                tty=tty,
+                color=color,
+                width=width,
+            )
+        )
+
+    checks = _load_pull_request_checks(provider, ref)
+    if fields is not None:
+        rendered = render_json(select_check_fields(checks, fields), color=color)
+        exit_code = 0
+    else:
+        rendered = render_checks(checks, tty=tty, color=color, width=width)
+        exit_code = checks_exit_code(checks)
+    page_output(
+        rendered,
+        tty=tty,
+        env=environment,
+        error_prefix="failed to start pager",
+    )
+    raise typer.Exit(exit_code)
+
+
+@app.command("checks", cls=GhReadCommand)
+def check_pull_request(
+    ctx: typer.Context,
+    selector: str | None = typer.Argument(None, metavar="[<number> | <url> | <branch>]"),
+    fail_fast: bool = typer.Option(False, "--fail-fast"),
+    interval: int = typer.Option(10, "--interval", "-i"),
+    json_fields: list[str] = typer.Option([], "--json"),
+    repo: str | None = typer.Option(None, "--repo", "-R"),
+    watch: bool = typer.Option(False, "--watch"),
+    web: bool = typer.Option(False, "--web", "-w"),
+) -> None:
+    run_gh_read(
+        lambda: _checks_run(
+            ctx=ctx,
+            selector=selector,
+            fail_fast=fail_fast,
+            interval=interval,
+            json_fields=json_fields,
+            repo=repo,
+            watch=watch,
+            web=web,
+        )
+    )
 
 
 def _view_run(

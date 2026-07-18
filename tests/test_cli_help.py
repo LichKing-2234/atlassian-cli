@@ -208,12 +208,31 @@ def test_pr_view_help_matches_first_slice() -> None:
         assert absent not in output
 
 
+def test_pr_checks_help_matches_gh_core_surface() -> None:
+    result = runner.invoke(app, ["bitbucket", "pr", "checks", "--help"], env=ci_output_env())
+    output = strip_ansi(result.output)
+
+    assert result.exit_code == 0
+    for value in (
+        "[<number> | <url> | <branch>]",
+        "--fail-fast",
+        "--interval",
+        "--json",
+        "--repo",
+        "--watch",
+        "--web",
+    ):
+        assert value in output
+    for absent in ("--jq", "--output", "--required", "--template"):
+        assert absent not in output
+
+
 def test_pr_help_hides_callable_legacy_commands() -> None:
     result = runner.invoke(app, ["bitbucket", "pr", "--help"], env=ci_output_env())
     output = strip_ansi(result.output)
 
     assert result.exit_code == 0
-    for visible in ("browse", "comment", "create", "diff", "list", "merge", "view"):
+    for visible in ("browse", "checks", "comment", "create", "diff", "list", "merge", "view"):
         assert visible in output
     for hidden in ("get", "build-status", "approve", "unapprove", "ls"):
         assert hidden not in output
