@@ -339,10 +339,14 @@ The non-conflicting compatibility commands remain independent hidden commands:
 
 They keep their v0.1.19 arguments, `--output`, renderer, and exit policy.
 
-Old forms that collide with the same primary command grammar are breaking
+`pr list` preserves the repository's established paired positionals while also
+supporting the gh-style selector. `pr list PROJECT REPO ...` and
+`pr list -R PROJECT/REPO ...` enter the same primary command path; a partial
+positional pair or mixing the pair with `-R` is invalid.
+
+Other old forms that collide with the same primary command grammar are breaking
 migrations rather than invisible parser extensions:
 
-- `pr list PROJECT REPO ...` -> `pr list -R PROJECT/REPO ...`
 - `pr diff PROJECT REPO ID ...` -> `pr diff ID -R PROJECT/REPO ...`
 - `pr create PROJECT REPO ...` -> `pr create -R PROJECT/REPO ...`
 - `pr merge PROJECT REPO ID ...` -> `pr merge ID -R PROJECT/REPO ...`
@@ -363,6 +367,10 @@ Behavioral migrations are explicit:
   fall back to the old static Markdown list when the browser cannot initialize or
   output is non-interactive. `pr list --web` retains the pinned behavior of
   opening the repository's pull request list in a web browser.
+- Primary `pr list --state` defaults to Bitbucket-native `OPEN` and accepts only
+  `OPEN`, `DECLINED`, `MERGED`, and `ALL`, case-insensitively. Search state
+  qualifiers and output preserve the same native names; GitHub `closed` is not
+  accepted as an alias for `DECLINED`.
 - Primary `pr diff` writes only diff or patch content. It no longer includes pull
   request detail around the diff.
 - Primary `pr checks` evaluates the head commit. Hidden `build-status` preserves
@@ -382,7 +390,8 @@ Behavioral migrations are explicit:
 
 ### Human Output
 
-- Primary command output follows `gh v2.96.0` layout, headings, ordering,
+- Except for the documented native PR state deviation, primary command output
+  follows `gh v2.96.0` layout, headings, ordering,
   pagination summaries, color policy, prompts, and stdout/stderr split with
   product nouns and URLs changed to Bitbucket.
 - `pr list` defaults to open pull requests and limit 30, fetching across
@@ -801,9 +810,9 @@ verified.
   surfaces are rejected as unknown parser inputs.
 - Approved oracle fixtures and atomic classifications exist before implementation
   starts, and the validator reports no mixed or unresolved atomic status.
-- Non-conflicting v0.1.19 compatibility commands, `pr browse`, and existing hidden
-  `--output` paths continue to parse. Conflicting positional, comment CRUD, and
-  exit-code migrations are documented.
+- Non-conflicting v0.1.19 compatibility commands, paired `pr list` positionals,
+  `pr browse`, and existing hidden `--output` paths continue to parse. Other
+  conflicting positional, comment CRUD, and exit-code migrations are documented.
 - `tests/e2e/coverage_manifest.py`, README, parity docs, and feature-specific live
   e2e coverage are updated with every implementation phase.
 - Live tests pass against Bitbucket Server 6.7.2 for all mapped REST and Git

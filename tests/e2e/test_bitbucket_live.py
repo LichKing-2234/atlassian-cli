@@ -242,6 +242,20 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
     )
     assert any(item["number"] == pr_id for item in listed)
 
+    listed_via_positionals = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "list",
+        target["project_key"],
+        target["repo_slug"],
+        "--state",
+        "open",
+        "--json",
+        "number,state",
+    )
+    assert any(item == {"number": pr_id, "state": "OPEN"} for item in listed_via_positionals)
+
     listed_via_alias = run_json(
         live_env,
         "bitbucket",

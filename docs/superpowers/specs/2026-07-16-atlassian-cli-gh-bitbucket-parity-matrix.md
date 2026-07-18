@@ -170,7 +170,7 @@ independently.
 | list | `-S, --search <query-using-milestone>` | Query requires milestones | N03 |
 | list | `-S, --search <query-using-project>` | Query requires GitHub Projects | N03 |
 | list | `-S, --search <query-using-app-or-team>` | Query requires GitHub App or team identity | N03 |
-| list | `-s, --state string` | `open\|closed\|merged\|all`; `closed` maps DECLINED | M |
+| list | `-s, --state string` | Bitbucket-native `OPEN\|DECLINED\|MERGED\|ALL`, case-insensitive; native names remain in output | D08 |
 | list | `-t, --template string` | Common formatter | M |
 | list | `-w, --web` | Open Bitbucket PR list | M |
 | lock | `-r, --reason string` | Entire conversation-lock operation is not registered | N03 |
@@ -425,6 +425,7 @@ otherwise, validation completes before network or filesystem mutation.
 | `create --recover` | TTY-only | M |
 | `create` non-TTY | Unless `--web` or a fill mode is used, require both explicit `--title` and explicit body input | M |
 | `edit` | `--body` and `--body-file` are mutually exclusive; no registered edit flags opens a TTY editor and exits `1` in non-TTY mode. Milestone options are N03 | M |
+| `list` repository | Accept either paired `PROJECT_KEY REPO_SLUG`, `-R PROJECT_KEY/REPO_SLUG`, or repository inference; reject a partial pair and paired positionals combined with `-R` | D07 |
 | `list` | Limit must be greater than zero; `--author` is accepted and N03 `--app` is not registered | M |
 | `merge` method | At most one of `--merge`, `--rebase`, and `--squash`; conditional capability rows above apply only after this validation | M |
 | `merge --body` and `--body-file` | Mutually exclusive before B13 capability preflight | M |
@@ -603,6 +604,8 @@ non-applicable autolink command group and are not accepted fields.
 | D04 | Deploy-key creation time | Non-empty human list renders `CREATED AT` as `-`; explicit JSON `createdAt` remains B23 |
 | D05 | Pull-request review atomicity | Comment and participant-state update are separate; attempt documented compensation on second-step failure and report any residue; do not claim an atomic review record |
 | D06 | Existing output compatibility | Existing per-command `--output` options stay hidden/deprecated and select the v0.1.19 renderer; new parity commands do not gain the option |
+| D07 | Pull-request list repository compatibility | Preserve paired `PROJECT_KEY REPO_SLUG` positionals alongside `-R PROJECT_KEY/REPO_SLUG` and repository inference; reject partial or mixed explicit forms before I/O |
+| D08 | Bitbucket-native pull-request states | Default to `OPEN`; accept only `OPEN`, `DECLINED`, `MERGED`, and `ALL` case-insensitively in list and search inputs; retain native state names in human and JSON output |
 
 ## Not-Applicable Evidence
 
@@ -623,7 +626,8 @@ non-applicable autolink command group and are not accepted fields.
 | `pr unapprove PROJECT REPO ID` | Hidden compatibility command |
 | `repo get PROJECT REPO` | Hidden compatibility command |
 | Old `pr comment` nested CRUD subcommands | Move `list`, `get`, `add`, `reply`, `edit`, and `delete` to documented Bitbucket extension `pr comments ...` |
-| Old positionals on same-name `pr list`, `diff`, `create`, and `merge` | Breaking migration to gh grammar; no double parser |
+| `pr list PROJECT REPO` | Retain on the primary command alongside `pr list -R PROJECT/REPO`; both forms use the same filtering, pagination, output, and exit policy |
+| Old positionals on same-name `pr diff`, `create`, and `merge` | Breaking migration to gh grammar; no double parser |
 | Old full-screen `pr list` browser | Move to `pr browse PROJECT REPO` with the old `--state`, `--start`, and `--limit`; keep interactive browsing plus static Markdown fallback. Primary `pr list` uses baseline line-oriented output and `--web` opens Bitbucket in a web browser |
 | Old `repo list --project` and `repo create --project/--name` | Breaking migration to gh grammar |
 | Existing per-command legacy `--output` | Retain as a hidden, deprecated compatibility input selecting the v0.1.19 renderer; do not add it to new commands |
