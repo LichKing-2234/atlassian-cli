@@ -217,7 +217,7 @@ def test_checks_human_output_uses_head_commit_and_gh_exit_codes(
 
 
 def test_checks_json_projects_fields_and_exits_zero_for_failures(monkeypatch) -> None:
-    calls = install_checks_fakes(monkeypatch, statuses=[[_build("FAILED")]])
+    calls = install_checks_fakes(monkeypatch, statuses=[[_build("FAILED")]], tty=True)
 
     result = runner.invoke(
         app,
@@ -236,6 +236,22 @@ def test_checks_json_projects_fields_and_exits_zero_for_failures(monkeypatch) ->
         '"name":"Example pull request","state":"FAILURE"}]\n'
     )
     assert calls["commits"] == ["abc123"]
+    assert calls["pages"] == []
+
+
+@pytest.mark.parametrize("interval", ["9223372037", "-9223372037"])
+def test_checks_rejects_interval_duration_overflow_before_provider(interval, monkeypatch) -> None:
+    monkeypatch.setattr(pr_module, "build_provider", lambda *_: pytest.fail("provider called"))
+
+    result = runner.invoke(
+        app,
+        _args("1234", "-R", "DEMO/example-repo", "--watch", "--interval", interval),
+    )
+
+    assert result.exit_code == 1
+    assert (
+        f'could not parse `--interval` flag: time: invalid duration "{interval}s"' in result.stderr
+    )
 
 
 @pytest.mark.parametrize(

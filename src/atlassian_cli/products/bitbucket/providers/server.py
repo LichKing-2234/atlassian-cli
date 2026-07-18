@@ -350,10 +350,25 @@ class BitbucketServerProvider:
         if not isinstance(page, dict):
             raise ValueError("invalid paginated Bitbucket build status response")
 
-        values = list(page.get("values", []))
+        values = []
         current_start = 0
         seen_starts = {current_start}
-        while page.get("isLastPage") is False:
+        while True:
+            page_values = page.get("values")
+            if not isinstance(page_values, list) or not all(
+                isinstance(item, dict) for item in page_values
+            ):
+                raise ValueError("invalid paginated Bitbucket build status values")
+            values.extend(page_values)
+
+            if "isLastPage" not in page:
+                return values
+            is_last_page = page["isLastPage"]
+            if not isinstance(is_last_page, bool):
+                raise ValueError("invalid Bitbucket pagination isLastPage")
+            if is_last_page:
+                return values
+
             next_start = page.get("nextPageStart")
             if (
                 isinstance(next_start, bool)
@@ -367,8 +382,6 @@ class BitbucketServerProvider:
             page = self.client.get(url, params={**params, "start": next_start})
             if not isinstance(page, dict):
                 raise ValueError("invalid paginated Bitbucket build status response")
-            values.extend(page.get("values", []))
-        return values
 
     def create_pull_request(self, project_key: str, repo_slug: str, payload: dict) -> dict:
         return self.client.create_pull_request(project_key, repo_slug, data=payload)

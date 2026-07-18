@@ -1,3 +1,4 @@
+import pytest
 from atlassian import Bitbucket
 from requests import Response
 from requests.adapters import BaseAdapter
@@ -691,6 +692,64 @@ def test_bitbucket_provider_lists_all_build_status_results() -> None:
         ("rest/build-status/1.0/commits/abc123", {"limit": 100}),
         ("rest/build-status/1.0/commits/abc123", {"limit": 100, "start": 100}),
     ]
+
+
+def test_bitbucket_provider_accepts_metadata_less_build_status_page() -> None:
+    class FakeClient:
+        def resource_url(self, resource, *, api_root):
+            return f"{api_root}/1.0/{resource}"
+
+        def get(self, url, *, params):
+            return {"values": [{"key": "DEMO-1234", "state": "SUCCESSFUL"}]}
+
+    provider = build_provider_with_client(FakeClient())
+
+    assert provider.list_associated_build_statuses("abc123") == [
+        {"key": "DEMO-1234", "state": "SUCCESSFUL"}
+    ]
+
+
+@pytest.mark.parametrize(
+    ("page", "message"),
+    [
+        ({"values": "example response", "isLastPage": True}, "values"),
+        ({"values": ["example response"], "isLastPage": True}, "values"),
+        ({"values": [], "isLastPage": "false", "nextPageStart": 100}, "isLastPage"),
+        ({"values": [], "isLastPage": None}, "isLastPage"),
+    ],
+)
+def test_bitbucket_provider_rejects_malformed_build_status_page(page, message) -> None:
+    class FakeClient:
+        def resource_url(self, resource, *, api_root):
+            return f"{api_root}/1.0/{resource}"
+
+        def get(self, url, *, params):
+            return page
+
+    provider = build_provider_with_client(FakeClient())
+
+    with pytest.raises(ValueError, match=message):
+        provider.list_associated_build_statuses("abc123")
+
+
+def test_bitbucket_provider_rejects_malformed_later_build_status_page() -> None:
+    class FakeClient:
+        def resource_url(self, resource, *, api_root):
+            return f"{api_root}/1.0/{resource}"
+
+        def get(self, url, *, params):
+            if params.get("start") == 100:
+                return {"values": "example response", "isLastPage": True}
+            return {
+                "values": [{"key": "DEMO-1234", "state": "SUCCESSFUL"}],
+                "isLastPage": False,
+                "nextPageStart": 100,
+            }
+
+    provider = build_provider_with_client(FakeClient())
+
+    with pytest.raises(ValueError, match="values"):
+        provider.list_associated_build_statuses("abc123")
 
 
 def test_bitbucket_provider_exposes_pr_read_primitives() -> None:

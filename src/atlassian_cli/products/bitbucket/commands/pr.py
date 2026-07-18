@@ -72,6 +72,8 @@ from atlassian_cli.products.bitbucket.services.pr_read import (
 )
 from atlassian_cli.products.factory import build_provider
 
+MAX_GH_DURATION_SECONDS = 9_223_372_036
+
 app = typer.Typer(help="Bitbucket pull request commands")
 app.add_typer(pr_comment_app, name="comment")
 
@@ -502,6 +504,10 @@ def _checks_run(
     interval_source = ctx.get_parameter_source("interval")
     if not watch and interval_source is not None and interval_source.name == "COMMANDLINE":
         raise GhPreflightError("cannot use `--interval` flag without `--watch` flag")
+    if abs(interval) > MAX_GH_DURATION_SECONDS:
+        raise GhPreflightError(
+            f'could not parse `--interval` flag: time: invalid duration "{interval}s"'
+        )
 
     context = ctx.obj
     require_primary_auth(context.auth)
@@ -550,18 +556,16 @@ def _checks_run(
 
     checks = _load_pull_request_checks(provider, ref)
     if fields is not None:
-        rendered = render_json(select_check_fields(checks, fields), color=color)
-        exit_code = 0
-    else:
-        rendered = render_checks(checks, tty=tty, color=color, width=width)
-        exit_code = checks_exit_code(checks)
+        typer.echo(render_json(select_check_fields(checks, fields), color=color), nl=False)
+        return
+    rendered = render_checks(checks, tty=tty, color=color, width=width)
     page_output(
         rendered,
         tty=tty,
         env=environment,
         error_prefix="failed to start pager",
     )
-    raise typer.Exit(exit_code)
+    raise typer.Exit(checks_exit_code(checks))
 
 
 @app.command("checks", cls=GhReadCommand)

@@ -6,7 +6,7 @@
 
 **Architecture:** Resolve the pull request through the existing gh-compatible repository and PR finder, read only its current head commit, then project Bitbucket build statuses into the pinned gh checks schema. Keep projection, sorting, rendering, and outcome calculation in one focused compatibility module; keep command orchestration and polling in the existing PR command module. Reuse the current provider and build-status service without adding a second REST abstraction.
 
-**Tech Stack:** Python 3.11+, Typer/Click, Rich display-width helpers, pytest, existing Bitbucket Server REST provider.
+**Tech Stack:** Python 3.12+, Typer/Click, Rich display-width helpers, pytest, existing Bitbucket Server REST provider.
 
 ## Global Constraints
 
@@ -74,7 +74,7 @@ Also assert:
 Run:
 
 ```bash
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/products/bitbucket/test_gh_pr_checks.py
+PYTHONPATH=src .venv/bin/python -m pytest -q tests/products/bitbucket/test_gh_pr_checks.py
 ```
 
 Expected: collection fails because `gh_compat.pr_checks` does not exist.
@@ -164,7 +164,7 @@ Tests must prove:
 Run:
 
 ```bash
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/products/bitbucket/test_pr_checks_command.py tests/test_cli_help.py
+PYTHONPATH=src .venv/bin/python -m pytest -q tests/products/bitbucket/test_pr_checks_command.py tests/test_cli_help.py
 ```
 
 Expected: failures because the public command is not registered.
@@ -194,7 +194,7 @@ Run the Step 2 command. Expected: all tests pass.
 Run:
 
 ```bash
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/products/bitbucket/test_pr_command.py tests/products/bitbucket/test_gh_pr_output.py
+PYTHONPATH=src .venv/bin/python -m pytest -q tests/products/bitbucket/test_pr_command.py tests/products/bitbucket/test_gh_pr_output.py
 ```
 
 Expected: all tests pass without changing `pr view`, `pr list`, or compatibility behavior.
@@ -235,7 +235,7 @@ Document that checks come from the PR head commit, `--required` is unavailable o
 Run:
 
 ```bash
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/test_readme.py tests/e2e/test_coverage_manifest.py
+PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_readme.py tests/e2e/test_coverage_manifest.py
 ```
 
 Expected: failure because the README and manifest do not contain `pr checks`.
@@ -270,7 +270,7 @@ Run the Step 2 command and all Task 1/2 test paths. Expected: all pass.
 Run:
 
 ```bash
-ATLASSIAN_E2E=1 PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q tests/e2e/test_bitbucket_live.py::test_bitbucket_branch_and_pr_round_trip_live
+ATLASSIAN_E2E=1 PYTHONPATH=src .venv/bin/python -m pytest -q tests/e2e/test_bitbucket_live.py::test_bitbucket_pr_checks_live
 ```
 
 Expected: pass against Bitbucket Server 6.7.2. If the environment is unavailable, report the live verification blocker explicitly.
@@ -278,9 +278,9 @@ Expected: pass against Bitbucket Server 6.7.2. If the environment is unavailable
 - [ ] **Step 6: Run repository quality gates**
 
 ```bash
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/ruff format --check .
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/python -m pytest -q
-PYTHONPATH=src /Users/admin/atlassian-cli/.venv/bin/ruff check README.md pyproject.toml src tests docs
+PYTHONPATH=src .venv/bin/ruff format --check .
+PYTHONPATH=src .venv/bin/python -m pytest -q
+PYTHONPATH=src .venv/bin/ruff check README.md pyproject.toml src tests docs
 git diff --check
 ```
 
