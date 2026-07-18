@@ -467,7 +467,7 @@ class PullRequestReadService:
             available.update(self._mergeability_fields(repository, raw))
         if fields & BUILD_FIELDS and "statusCheckRollup" not in available:
             head_sha = (raw.get("fromRef") or {}).get("latestCommit")
-            builds = self.provider.get_associated_build_statuses(str(head_sha)) if head_sha else {}
+            builds = self.provider.list_associated_build_statuses(str(head_sha)) if head_sha else []
             available["statusCheckRollup"] = [
                 _status_context(item) for item in _extract_values(builds)
             ]
@@ -537,7 +537,7 @@ class PullRequestReadService:
             return True, {}
         head_ref = raw.get("fromRef")
         head_sha = head_ref.get("latestCommit") if isinstance(head_ref, Mapping) else None
-        builds = self.provider.get_associated_build_statuses(str(head_sha)) if head_sha else {}
+        builds = self.provider.list_associated_build_statuses(str(head_sha)) if head_sha else []
         statuses = [_status_context(item) for item in _extract_values(builds)]
         rollup_state = _rollup_state(statuses)
         for value, negated in status_qualifiers:

@@ -49,8 +49,8 @@ class BuildStatusService:
         self.provider = provider
 
     def for_commit(self, commit: str) -> dict:
-        raw = self.provider.get_associated_build_statuses(commit)
-        return self._commit_summary(commit, raw)
+        statuses = self.provider.list_associated_build_statuses(commit)
+        return self._commit_summary(commit, statuses)
 
     def for_commit_raw(self, commit: str) -> dict:
         return self.provider.get_associated_build_statuses(commit)

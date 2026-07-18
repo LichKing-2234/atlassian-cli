@@ -241,6 +241,9 @@ ssh example-user@example-host
 - `atlassian bitbucket pr list -R DEMO/example-repo --json number,title,state,url`
 - `atlassian bitbucket pr view 1234 -R DEMO/example-repo`
 - `atlassian bitbucket pr view feature/DEMO-1234/example-change -R DEMO/example-repo`
+- `atlassian bitbucket pr checks 1234 -R DEMO/example-repo`
+- `atlassian bitbucket pr checks 1234 -R DEMO/example-repo --watch`
+- `atlassian bitbucket pr checks 1234 -R DEMO/example-repo --json name,state,bucket,link`
 - `atlassian bitbucket pr browse DEMO example-repo`
 - `atlassian bitbucket pr diff DEMO example-repo 42`
 - `atlassian bitbucket pr diff DEMO example-repo 42 --with-lines --output json`
@@ -346,15 +349,20 @@ Examples:
 - `atlassian bitbucket commit build-status abc123`
 - `atlassian jira issue get DEMO-1 --output json`
 
-### Bitbucket pull request reads
+### Bitbucket pull request reads and checks
 
 `pr list` is line-oriented and defaults to Bitbucket state `OPEN` with a limit of 30. `--state` accepts the native `OPEN`, `DECLINED`, `MERGED`, and `ALL` values case-insensitively and preserves native state names in output. Repositories may be supplied as `PROJECT_KEY REPO_SLUG`, with `-R PROJECT_KEY/REPO_SLUG`, through `ATLASSIAN_BITBUCKET_REPO=DEMO/example-repo`, or from local Git context. `--web` conflicts with `--json`. Base JSON field selection is available without `--jq` or `--template` in this phase.
 
 On Bitbucket Server 6.7.2, the parser recognizes `reviews` and `latestReviews` but reports the B30 capability failure, `mergeCommit` reports B31, and `potentialMergeCommit` reports B25.
 
+`pr checks` resolves the pull request with the same number, URL, branch, and current-branch rules as `pr view`. It reads build statuses only from the pull request head commit. Human output uses exit `0` when all checks pass, exit `1` when any check fails, and exit `8` while checks are pending. `--watch` polls the current PR head until checks finish, and `--fail-fast` stops on the first failure. JSON output selects from `bucket`, `completedAt`, `description`, `event`, `link`, `name`, `startedAt`, `state`, and `workflow`, and exits `0` after a successful read regardless of check state.
+
+`--required` is unavailable on Bitbucket Server 6.7.2 because its build-status records do not identify individual required checks. `--jq` and `--template` remain deferred to the shared gh-compatible formatter phase.
+
 | Workflow | Current behavior |
 | --- | --- |
 | `pr list PROJECT REPO` | Preserved; `pr list -R PROJECT/REPO` is also supported |
+| `pr build-status PROJECT REPO ID --latest-only` | `pr checks ID -R PROJECT/REPO` |
 | Full-screen `pr list PROJECT REPO` | `pr browse PROJECT REPO` |
 | Existing `pr list --output MODE` | Remains a hidden, deprecated D06 compatibility input |
 | `get`, `build-status`, `approve`, and `unapprove` | Remain callable compatibility commands |
@@ -387,6 +395,9 @@ Bitbucket pull request diff behavior:
 
 Bitbucket pull request comments and build status behavior:
 
+- `atlassian bitbucket pr checks 1234 -R DEMO/example-repo` shows gh-compatible checks for the pull request head commit.
+- `atlassian bitbucket pr checks 1234 -R DEMO/example-repo --watch` polls until the head checks finish.
+- `atlassian bitbucket pr checks 1234 -R DEMO/example-repo --json name,state,bucket,link` returns selected check fields for automation.
 - `atlassian bitbucket pr comment list DEMO example-repo 42` lists pull request comments.
 - `atlassian bitbucket pr comment add DEMO example-repo 42 "example comment" --path example.py --line 12 --line-type ADDED` creates an inline pull request comment.
 - `atlassian bitbucket pr comment edit DEMO example-repo 42 1001 "example comment" --version 3` requires the current comment version.

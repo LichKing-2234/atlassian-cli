@@ -222,18 +222,16 @@ class FakeProvider:
         self.auxiliary_calls.append("mergeability")
         return {"canMerge": True, "conflicted": False, "vetoes": []}
 
-    def get_associated_build_statuses(self, commit: str) -> dict:
+    def list_associated_build_statuses(self, commit: str) -> list[dict]:
         self.auxiliary_calls.append("builds")
-        return {
-            "values": [
-                {
-                    "key": "DEMO",
-                    "state": "SUCCESSFUL",
-                    "url": "https://ci.example.com/builds/1234",
-                    "dateAdded": 1784120400000,
-                }
-            ]
-        }
+        return [
+            {
+                "key": "DEMO",
+                "state": "SUCCESSFUL",
+                "url": "https://ci.example.com/builds/1234",
+                "dateAdded": 1784120400000,
+            }
+        ]
 
 
 def test_basic_list_fields_do_not_trigger_auxiliary_reads() -> None:
@@ -1033,9 +1031,9 @@ def test_mergeability_mapping(payload: dict, mergeable: str, merge_state: str) -
 
 def test_empty_build_response_returns_empty_rollup_for_resolved_head() -> None:
     class EmptyBuildProvider(FakeProvider):
-        def get_associated_build_statuses(self, commit: str) -> dict:
+        def list_associated_build_statuses(self, commit: str) -> list[dict]:
             self.auxiliary_calls.append(f"builds:{commit}")
-            return {"values": []}
+            return []
 
     provider = EmptyBuildProvider([raw_pr()])
 
@@ -1197,20 +1195,18 @@ def test_search_maps_each_review_value(review: str, expected: int) -> None:
 )
 def test_search_maps_each_status_value(status: str, expected: int) -> None:
     class StatusProvider(FakeProvider):
-        def get_associated_build_statuses(self, commit: str) -> dict:
+        def list_associated_build_statuses(self, commit: str) -> list[dict]:
             self.auxiliary_calls.append(f"builds:{commit}")
-            return {
-                "values": [
-                    {
-                        "key": "DEMO",
-                        "state": {
-                            "DEMO": "SUCCESSFUL",
-                            "DEMO-1": "INPROGRESS",
-                            "DEMO-1234": "FAILED",
-                        }[commit],
-                    }
-                ]
-            }
+            return [
+                {
+                    "key": "DEMO",
+                    "state": {
+                        "DEMO": "SUCCESSFUL",
+                        "DEMO-1": "INPROGRESS",
+                        "DEMO-1234": "FAILED",
+                    }[commit],
+                }
+            ]
 
     successful = raw_pr(pr_id=1234)
     successful["fromRef"]["latestCommit"] = "DEMO"

@@ -340,6 +340,49 @@ class BitbucketServerProvider:
         )
         return self.client.get(url, params={"limit": 100})
 
+    def list_associated_build_statuses(self, commit: str) -> list[dict]:
+        url = self.client.resource_url(
+            f"commits/{commit}",
+            api_root="rest/build-status",
+        )
+        params = {"limit": 100}
+        page = self.client.get(url, params=params)
+        if not isinstance(page, dict):
+            raise ValueError("invalid paginated Bitbucket build status response")
+
+        values = []
+        current_start = 0
+        seen_starts = {current_start}
+        while True:
+            page_values = page.get("values")
+            if not isinstance(page_values, list) or not all(
+                isinstance(item, dict) for item in page_values
+            ):
+                raise ValueError("invalid paginated Bitbucket build status values")
+            values.extend(page_values)
+
+            if "isLastPage" not in page:
+                return values
+            is_last_page = page["isLastPage"]
+            if not isinstance(is_last_page, bool):
+                raise ValueError("invalid Bitbucket pagination isLastPage")
+            if is_last_page:
+                return values
+
+            next_start = page.get("nextPageStart")
+            if (
+                isinstance(next_start, bool)
+                or not isinstance(next_start, int)
+                or next_start <= current_start
+                or next_start in seen_starts
+            ):
+                raise ValueError(f"invalid Bitbucket pagination nextPageStart: {next_start!r}")
+            seen_starts.add(next_start)
+            current_start = next_start
+            page = self.client.get(url, params={**params, "start": next_start})
+            if not isinstance(page, dict):
+                raise ValueError("invalid paginated Bitbucket build status response")
+
     def create_pull_request(self, project_key: str, repo_slug: str, payload: dict) -> dict:
         return self.client.create_pull_request(project_key, repo_slug, data=payload)
 

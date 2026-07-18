@@ -88,6 +88,146 @@ def test_bitbucket_repo_create_live(live_env) -> None:
         registry.run()
 
 
+def test_bitbucket_pr_checks_live(live_env, tmp_path, request) -> None:
+    registry = CleanupRegistry()
+    request.addfinalizer(registry.run)
+    created_repo = run_json(
+        live_env,
+        "bitbucket",
+        "repo",
+        "create",
+        "--project",
+        live_env.bitbucket_create_project,
+        "--name",
+        unique_name("example-repo"),
+        "--output",
+        "json",
+    )
+    repo_slug = created_repo["slug"]
+    registry.add(
+        f"bitbucket repo delete {repo_slug}",
+        lambda: _delete_repo(live_env, repo_slug),
+    )
+    target = {
+        "project_key": live_env.bitbucket_create_project,
+        "repo_slug": repo_slug,
+    }
+    raw_repo = run_json(
+        live_env,
+        "bitbucket",
+        "repo",
+        "get",
+        target["project_key"],
+        target["repo_slug"],
+        "--output",
+        "raw-json",
+    )
+    ssh_clone_url = next(
+        (
+            link["href"]
+            for link in raw_repo.get("links", {}).get("clone", [])
+            if link.get("name") == "ssh"
+        ),
+        None,
+    )
+    assert ssh_clone_url is not None
+
+    branch_name = unique_name("feature/DEMO-1234/example-change")
+    sandbox = GitSandbox.clone(ssh_clone_url, tmp_path / "repo")
+    sandbox.configure_identity()
+    if not sandbox.has_head():
+        sandbox.create_initial_commit(
+            "master",
+            "README.md",
+            "example response\n",
+            "test: seed example-repo",
+        )
+    remote_heads = sandbox.run("ls-remote", "--heads", "origin").stdout
+    if "refs/heads/master" not in remote_heads:
+        sandbox.push_head_to_branch("master")
+
+    sandbox.create_commit(
+        branch_name,
+        "example.py",
+        f"{branch_name}\n",
+        f"test: add {branch_name}",
+    )
+    sandbox.push(branch_name)
+    head_commit = sandbox.run("rev-parse", "HEAD").stdout.strip()
+
+    created_pr = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "create",
+        target["project_key"],
+        target["repo_slug"],
+        "--title",
+        "Example pull request",
+        "--description",
+        "example response",
+        "--from-ref",
+        f"refs/heads/{branch_name}",
+        "--to-ref",
+        "refs/heads/master",
+        "--output",
+        "json",
+    )
+    pr_id = created_pr["id"]
+    repo_selector = f"{target['project_key']}/{target['repo_slug']}"
+
+    provider = build_live_provider(Product.BITBUCKET, live_env)
+    build_response = provider.request_api(
+        "POST",
+        f"rest/build-status/1.0/commits/{head_commit}",
+        headers=None,
+        params=None,
+        json_body={
+            "description": "example response",
+            "key": "DEMO-1234",
+            "name": "Example pull request",
+            "state": "SUCCESSFUL",
+            "url": "https://bitbucket.example.com/example-response",
+        },
+        data=None,
+    )
+    assert build_response.status_code < 300, build_response.text
+
+    checked = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "checks",
+        str(pr_id),
+        "-R",
+        repo_selector,
+        "--json",
+        "name,state,bucket,link",
+    )
+    assert checked == [
+        {
+            "bucket": "pass",
+            "link": "https://bitbucket.example.com/example-response",
+            "name": "Example pull request",
+            "state": "SUCCESS",
+        }
+    ]
+
+    for extra in ((), ("--watch",)):
+        result = run_cli(
+            live_env,
+            "bitbucket",
+            "pr",
+            "checks",
+            str(pr_id),
+            "-R",
+            repo_selector,
+            *extra,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "Example pull request\tpass\t0\t" in result.stdout
+
+
 def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) -> None:
     registry = CleanupRegistry()
     request.addfinalizer(registry.run)

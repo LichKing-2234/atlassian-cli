@@ -73,13 +73,38 @@ class GhPreflightError(AtlassianCliError):
     """A gh-compatible argument or capability error."""
 
 
-def _available_fields() -> str:
-    return "\n".join(f"  {field}" for field in sorted(JSON_FIELDS))
+def _available_fields(fields: Sequence[str]) -> str:
+    return "\n".join(f"  {field}" for field in sorted(fields))
 
 
 def _requested_fields(value: str | Sequence[str]) -> list[str]:
     values = [value] if isinstance(value, str) else value
     return [field.strip() for item in values for field in item.split(",")]
+
+
+def validate_json_field_names(
+    value: str | Sequence[str] | None,
+    *,
+    web: bool,
+    available_fields: Sequence[str],
+) -> tuple[str, ...] | None:
+    if value is None or (not isinstance(value, str) and not value):
+        return None
+
+    requested = _requested_fields(value)
+    available = _available_fields(available_fields)
+    if MISSING_JSON_VALUE in requested:
+        raise GhPreflightError(
+            f"Specify one or more comma-separated fields for `--json`:\n{available}"
+        )
+    if web:
+        raise GhPreflightError("cannot use `--web` with `--json`")
+
+    unknown = next((field for field in requested if field not in available_fields), None)
+    if unknown is not None:
+        raise GhPreflightError(f'Unknown JSON field: "{unknown}"\nAvailable fields:\n{available}')
+
+    return tuple(dict.fromkeys(requested))
 
 
 def validate_json_fields(
@@ -88,24 +113,14 @@ def validate_json_fields(
     web: bool,
     surface: str,
 ) -> tuple[str, ...] | None:
-    if value is None or (not isinstance(value, str) and not value):
+    deduplicated = validate_json_field_names(
+        value,
+        web=web,
+        available_fields=JSON_FIELDS,
+    )
+    if deduplicated is None:
         return None
 
-    requested = _requested_fields(value)
-    if MISSING_JSON_VALUE in requested:
-        raise GhPreflightError(
-            f"Specify one or more comma-separated fields for `--json`:\n{_available_fields()}"
-        )
-    if web:
-        raise GhPreflightError("cannot use `--web` with `--json`")
-
-    unknown = next((field for field in requested if field not in JSON_FIELDS), None)
-    if unknown is not None:
-        raise GhPreflightError(
-            f'Unknown JSON field: "{unknown}"\nAvailable fields:\n{_available_fields()}'
-        )
-
-    deduplicated = tuple(dict.fromkeys(requested))
     for field in deduplicated:
         blocker = BLOCKED_FIELDS.get(field)
         if blocker is None:
