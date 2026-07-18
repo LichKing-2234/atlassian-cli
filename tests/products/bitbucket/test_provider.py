@@ -113,6 +113,23 @@ def test_bitbucket_provider_merge_pull_request_forwards_message_and_version() ->
     )
 
 
+def test_bitbucket_provider_update_pull_request_forwards_payload() -> None:
+    calls = {}
+    payload = {"version": 7, "title": "Example pull request"}
+
+    class FakeClient:
+        def update_pull_request(self, project_key, repo_slug, pr_id, data):
+            calls["args"] = (project_key, repo_slug, pr_id, data)
+            return {**data, "id": pr_id}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.update_pull_request("DEMO", "example-repo", 1234, payload)
+
+    assert result["id"] == 1234
+    assert calls["args"] == ("DEMO", "example-repo", 1234, payload)
+
+
 def test_bitbucket_provider_get_pull_request_diff_uses_text_endpoint() -> None:
     calls = {}
 

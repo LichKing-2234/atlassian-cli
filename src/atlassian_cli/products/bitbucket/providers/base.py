@@ -113,6 +113,13 @@ class BitbucketProvider(Protocol):
     def get_associated_build_statuses(self, commit: str) -> dict: ...
     def list_associated_build_statuses(self, commit: str) -> list[dict]: ...
     def create_pull_request(self, project_key: str, repo_slug: str, payload: dict) -> dict: ...
+    def update_pull_request(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        payload: dict,
+    ) -> dict: ...
     def merge_pull_request(
         self,
         project_key: str,
