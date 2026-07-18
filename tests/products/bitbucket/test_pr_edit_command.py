@@ -320,7 +320,7 @@ def test_edit_tty_without_flags_loads_once_and_prompts(monkeypatch) -> None:
 
 
 def test_edit_prompt_cancellation_exits_two(monkeypatch) -> None:
-    install_edit_fakes(monkeypatch, prompt=True)
+    calls = install_edit_fakes(monkeypatch, prompt=True)
     prompt_calls = []
 
     def cancel(*args, **kwargs):
@@ -337,6 +337,7 @@ def test_edit_prompt_cancellation_exits_two(monkeypatch) -> None:
 
     assert result.exit_code == 2
     assert len(prompt_calls) == 1
+    assert calls["edits"] == []
 
 
 def test_edit_service_failure_exits_one_without_success_url(monkeypatch) -> None:
