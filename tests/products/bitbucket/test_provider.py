@@ -5,9 +5,14 @@ from requests.adapters import BaseAdapter
 from atlassian_cli.products.bitbucket.providers.server import BitbucketServerProvider
 
 
-def build_provider_with_client(client) -> BitbucketServerProvider:
+def build_provider_with_client(
+    client,
+    *,
+    headers: dict[str, str] | None = None,
+) -> BitbucketServerProvider:
     provider = BitbucketServerProvider.__new__(BitbucketServerProvider)
     provider.client = client
+    provider._headers = headers or {}
     return provider
 
 
@@ -241,6 +246,96 @@ def test_bitbucket_provider_request_api_preserves_raw_body_and_repeated_query_va
         "?existing=&enabled=true&missing=&labels%5B%5D=DEMO&labels%5B%5D=DEMO-1"
     )
     assert adapter.request.body == b"\x00example response"
+
+
+def test_bitbucket_provider_request_api_preserves_configured_content_headers() -> None:
+    class RecordingAdapter(BaseAdapter):
+        def __init__(self) -> None:
+            self.request = None
+
+        def send(self, request, **_kwargs):
+            self.request = request
+            response = Response()
+            response.status_code = 200
+            response._content = b"{}"
+            response.request = request
+            return response
+
+        def close(self) -> None:
+            pass
+
+    client = Bitbucket(url="https://bitbucket.example.com", token="example response")
+    adapter = RecordingAdapter()
+    client._session.mount("https://", adapter)
+    provider = build_provider_with_client(
+        client,
+        headers={
+            "accept": "application/example",
+            "content-type": "application/example+json",
+        },
+    )
+
+    provider.request_api(
+        "POST",
+        "rest/api/1.0/projects/DEMO",
+        headers={},
+        params=None,
+        json_body={"status": "DEMO"},
+        data=None,
+    )
+
+    assert adapter.request is not None
+    assert adapter.request.headers["Accept"] == "application/example"
+    assert adapter.request.headers["Content-Type"] == "application/example+json"
+
+
+def test_bitbucket_provider_request_api_command_headers_override_config_case_insensitively() -> (
+    None
+):
+    calls = {}
+
+    class FakeResponse:
+        encoding = None
+
+    class FakeSession:
+        def request(self, **kwargs):
+            calls.update(kwargs)
+            return FakeResponse()
+
+    class FakeClient:
+        url = "https://bitbucket.example.com"
+        timeout = 30
+        verify_ssl = True
+        proxies = None
+        cert = None
+        _session = FakeSession()
+
+        @staticmethod
+        def url_joiner(url, path):
+            return f"{url}/{path}"
+
+        @staticmethod
+        def _retry_handler():
+            return lambda _response: False
+
+    provider = build_provider_with_client(
+        FakeClient(),
+        headers={"Accept": "application/example", "Content-Type": "application/example+json"},
+    )
+
+    provider.request_api(
+        "POST",
+        "rest/api/1.0/projects/DEMO",
+        headers={"accept": "text/plain"},
+        params=None,
+        json_body={"status": "DEMO"},
+        data=None,
+    )
+
+    assert calls["headers"] == {
+        "Content-Type": "application/example+json",
+        "accept": "text/plain",
+    }
 
 
 def test_bitbucket_provider_request_api_does_not_follow_redirects() -> None:

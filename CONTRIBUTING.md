@@ -58,6 +58,7 @@ Environment:
 - `ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=DEMO`
 - `ATLASSIAN_E2E_BITBUCKET_REPO=example-repo`
 - `ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO=example-repo` (optional override when the configured instance does not expose the default seed repo)
+- `ATLASSIAN_E2E_BITBUCKET_REVIEWER_CONFIG=/path/to/reviewer-config.toml` (optional separate identity for approval tests when self-approval is disabled)
 
 Recommended run:
 

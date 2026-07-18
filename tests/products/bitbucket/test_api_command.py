@@ -266,6 +266,12 @@ def test_bitbucket_api_expands_repository_and_branch_placeholders(monkeypatch) -
             current_branch="feature/DEMO-1234/example-change",
         ),
     )
+    monkeypatch.setattr(
+        api_module,
+        "GitRepositoryContext",
+        lambda *_args, **_kwargs: pytest.fail("Git snapshot should be reused"),
+        raising=False,
+    )
     result, provider = invoke_api(
         monkeypatch,
         [
@@ -288,6 +294,72 @@ def test_bitbucket_api_expands_repository_and_branch_placeholders(monkeypatch) -
         "from": "feature/DEMO-1234/example-change",
         "to": "DEMO",
     }
+
+
+def test_bitbucket_api_reuses_branch_snapshot_when_repository_placeholder_follows(
+    monkeypatch,
+) -> None:
+    snapshot = SimpleNamespace(current_branch="feature/DEMO-1234/example-change")
+    reads = []
+    resolution_snapshots = []
+
+    def resolve_repository(_server, *, snapshot=None):
+        resolution_snapshots.append(snapshot)
+        return SimpleNamespace(
+            repository=SimpleNamespace(project_key="DEMO", repo_slug="example-repo"),
+            current_branch=snapshot.current_branch,
+        )
+
+    monkeypatch.setattr(api_module, "resolve_repository", resolve_repository)
+    monkeypatch.setattr(
+        api_module,
+        "GitRepositoryContext",
+        lambda *_args, **_kwargs: SimpleNamespace(read=lambda: reads.append(snapshot) or snapshot),
+    )
+
+    result, provider = invoke_api(
+        monkeypatch,
+        [
+            "-X",
+            "GET",
+            "rest/api/1.0/branches/{branch}",
+            "-F",
+            "project={project}",
+        ],
+        [make_response({"status": "DEMO"})],
+    )
+
+    assert result.exit_code == 0
+    assert reads == [snapshot]
+    assert resolution_snapshots == [snapshot]
+    assert provider.calls[0]["params"] == {"project": "DEMO"}
+
+
+def test_bitbucket_api_branch_placeholder_does_not_require_repository_resolution(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        api_module,
+        "resolve_repository",
+        lambda _server: pytest.fail("repository should not be resolved"),
+    )
+    monkeypatch.setattr(
+        api_module,
+        "GitRepositoryContext",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            read=lambda: SimpleNamespace(current_branch="feature/DEMO-1234/example-change")
+        ),
+        raising=False,
+    )
+
+    result, provider = invoke_api(
+        monkeypatch,
+        ["rest/api/1.0/branches/{branch}"],
+        [make_response({"status": "DEMO"})],
+    )
+
+    assert result.exit_code == 0
+    assert provider.calls[0]["path"] == ("rest/api/1.0/branches/feature/DEMO-1234/example-change")
 
 
 @pytest.mark.parametrize(
@@ -334,6 +406,60 @@ def test_bitbucket_api_rejects_paginate_with_input_before_provider(monkeypatch, 
 
     assert result.exit_code == 1
     assert "not supported with `--input`" in result.stderr
+
+
+def test_bitbucket_api_rejects_malformed_fields_before_authentication(monkeypatch) -> None:
+    monkeypatch.setattr(
+        api_module,
+        "build_provider",
+        lambda _context: pytest.fail("provider should not be built"),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://bitbucket.example.com",
+            "bitbucket",
+            "api",
+            COMPARE_CHANGES,
+            "-f",
+            "value[]junk=example response",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "invalid key" in result.stderr
+    assert "authentication required" not in result.stderr
+
+
+def test_bitbucket_api_static_field_validation_does_not_load_or_create_config(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    config_file = tmp_path / "config.toml"
+    monkeypatch.setattr(
+        api_module,
+        "build_provider",
+        lambda _context: pytest.fail("provider should not be built"),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--config-file",
+            str(config_file),
+            "bitbucket",
+            "api",
+            COMPARE_CHANGES,
+            "-F",
+            "value[name]junk=example response",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "invalid key" in result.stderr
+    assert not config_file.exists()
 
 
 @pytest.mark.parametrize(
@@ -624,6 +750,29 @@ def test_bitbucket_api_verbose_redacts_known_secrets_outside_headers(monkeypatch
     assert result.stdout.count("REDACTED") >= 2
 
 
+def test_bitbucket_api_verbose_redacts_echoed_command_header_secrets(monkeypatch) -> None:
+    result, _provider = invoke_api(
+        monkeypatch,
+        [
+            COMPARE_CHANGES,
+            "-H",
+            "Authorization: Bearer example response",
+            "--verbose",
+        ],
+        [
+            make_response(
+                "echoed Bearer example response",
+                headers={"X-Echo": "Bearer example response"},
+            )
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Bearer example response" not in result.stdout
+    assert "< X-Echo: REDACTED" in result.stdout
+    assert "echoed REDACTED" in result.stdout
+
+
 def test_redact_text_removes_url_encoded_secret_values() -> None:
     value = "?first=example+response&second=feature%2FDEMO-1234%2Fexample-change"
 
@@ -646,6 +795,52 @@ def test_bitbucket_api_redacts_known_secrets_from_network_errors(monkeypatch) ->
     assert result.exit_code == 1
     assert "example-user-id" not in result.stderr
     assert "example response: REDACTED" in result.stderr
+
+
+def test_bitbucket_api_redacts_command_header_secrets_from_network_errors(monkeypatch) -> None:
+    result, _provider = invoke_api(
+        monkeypatch,
+        [COMPARE_CHANGES, "-H", "Authorization: Bearer example response"],
+        [],
+        error=OSError("request failed for Bearer example response"),
+    )
+
+    assert result.exit_code == 1
+    assert "Bearer example response" not in result.stderr
+    assert "request failed for REDACTED" in result.stderr
+
+
+def test_bitbucket_api_rejects_control_characters_in_headers_before_request(monkeypatch) -> None:
+    result, provider = invoke_api(
+        monkeypatch,
+        [COMPARE_CHANGES, "-H", "Authorization: Bearer example response\nDEMO"],
+        [],
+    )
+
+    assert result.exit_code == 1
+    assert provider.calls == []
+    assert "Bearer example response" not in result.stderr
+    assert "control characters" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "header",
+    [
+        "Authorization Bearer example response",
+        ": Bearer example response",
+    ],
+)
+def test_bitbucket_api_header_format_errors_do_not_echo_values(monkeypatch, header: str) -> None:
+    result, provider = invoke_api(
+        monkeypatch,
+        [COMPARE_CHANGES, "-H", header],
+        [],
+    )
+
+    assert result.exit_code == 1
+    assert provider.calls == []
+    assert "Bearer example response" not in result.stderr
+    assert "header" in result.stderr
 
 
 def test_bitbucket_api_verbose_http_error_exits_one(monkeypatch) -> None:

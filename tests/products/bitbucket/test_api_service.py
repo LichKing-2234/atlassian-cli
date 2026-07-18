@@ -116,7 +116,7 @@ def test_api_service_sends_get_fields_as_query_parameters() -> None:
         {
             "method": "GET",
             "path": "rest/api/1.0/projects/DEMO/repos/example-repo/compare/changes",
-            "headers": {"Accept": "*/*"},
+            "headers": {},
             "params": {
                 "from": "feature/DEMO-1234/example-change",
                 "to": "DEMO",
@@ -166,10 +166,7 @@ def test_api_service_sends_non_get_fields_as_json() -> None:
         "from": "feature/DEMO-1234/example-change",
         "to": "DEMO",
     }
-    assert provider.calls[0]["headers"] == {
-        "Accept": "*/*",
-        "Content-Type": "application/json; charset=utf-8",
-    }
+    assert provider.calls[0]["headers"] == {}
 
 
 def test_api_service_sends_input_body_unchanged_and_fields_as_query() -> None:

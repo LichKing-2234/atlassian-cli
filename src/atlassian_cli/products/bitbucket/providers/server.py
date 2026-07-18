@@ -2,6 +2,7 @@ from itertools import islice
 
 from atlassian import Bitbucket
 
+from atlassian_cli.auth.headers import merge_headers
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.auth.session_patch import patch_session_headers
 
@@ -24,9 +25,10 @@ class BitbucketServerProvider:
             kwargs["username"] = username
             kwargs["password"] = password or token
         self.client = Bitbucket(**kwargs)
+        self._headers = dict(headers or {})
         session = getattr(self.client, "_session", None)
         if session is not None:
-            patch_session_headers(session, headers or {})
+            patch_session_headers(session, self._headers)
 
     def request_api(
         self,
@@ -39,12 +41,19 @@ class BitbucketServerProvider:
         data: bytes | None,
     ):
         url = self.client.url_joiner(self.client.url, path)
+        request_headers = merge_headers(self._headers, headers or {})
+        if not any(name.lower() == "accept" for name in request_headers):
+            request_headers["Accept"] = "*/*"
+        if json_body is not None and not any(
+            name.lower() == "content-type" for name in request_headers
+        ):
+            request_headers["Content-Type"] = "application/json; charset=utf-8"
         retry_handler = self.client._retry_handler()
         while True:
             response = self.client._session.request(
                 method=method,
                 url=url,
-                headers=headers,
+                headers=request_headers,
                 params=params,
                 json=json_body,
                 data=data,

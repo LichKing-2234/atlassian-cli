@@ -1,6 +1,4 @@
-import os
 from dataclasses import replace
-from pathlib import Path
 
 import pytest
 
@@ -595,9 +593,10 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
     assert "overall_state" in commit_build_status
     assert "results" in commit_build_status
 
-    reviewer_config = os.environ.get("ATLASSIAN_E2E_BITBUCKET_REVIEWER_CONFIG")
     reviewer_live_env = (
-        replace(live_env, config_file=Path(reviewer_config)) if reviewer_config else live_env
+        replace(live_env, config_file=live_env.bitbucket_reviewer_config)
+        if live_env.bitbucket_reviewer_config
+        else live_env
     )
     approved = run_json(
         reviewer_live_env,

@@ -9,13 +9,24 @@ PlaceholderResolver = Callable[[str], str]
 
 _PLACEHOLDER_PATTERN = re.compile(r"\{([a-z]+)\}")
 _SUPPORTED_PLACEHOLDERS = {"project", "repo", "branch"}
+_FIELD_PATTERN = re.compile(
+    r"^(?P<root>[^\[\]=]+)(?P<nested>(?:\[[^\[\]=]*\])*)(?:=(?P<value>.*))?$",
+    re.DOTALL,
+)
 
 
-def fill_placeholders(value: str, resolver: PlaceholderResolver) -> str:
-    def replace(match: re.Match[str]) -> str:
+def validate_placeholders(value: str) -> None:
+    for match in _PLACEHOLDER_PATTERN.finditer(value):
         name = match.group(1)
         if name not in _SUPPORTED_PLACEHOLDERS:
             raise ValueError(f"unknown placeholder: {name}")
+
+
+def fill_placeholders(value: str, resolver: PlaceholderResolver) -> str:
+    validate_placeholders(value)
+
+    def replace(match: re.Match[str]) -> str:
+        name = match.group(1)
         return resolver(name)
 
     return _PLACEHOLDER_PATTERN.sub(replace, value)
@@ -48,31 +59,19 @@ def _typed_value(
 
 
 def _field_parts(field: str) -> tuple[list[str], str | None]:
-    value_index: int | None = None
-    key_start_at = 0
-    keys: list[str] = []
-
-    for index, character in enumerate(field):
-        if character == "[":
-            if key_start_at == 0:
-                keys.append(field[:index])
-            key_start_at = index + 1
-        elif character == "]":
-            keys.append(field[key_start_at:index])
-        elif character == "=":
-            if key_start_at == 0:
-                keys.append(field[:index])
-            value_index = index + 1
-            break
-
-    if not keys or not keys[0]:
+    match = _FIELD_PATTERN.fullmatch(field)
+    if match is None:
         raise ValueError(f"invalid key: {field!r}")
 
-    if value_index is None:
+    keys = [match.group("root"), *re.findall(r"\[([^\[\]=]*)\]", match.group("nested"))]
+    value = match.group("value")
+    if value is None:
+        if len(keys) == 1:
+            raise ValueError(f"invalid key: {field!r}")
         if keys[-1] != "":
             raise ValueError(f"field {field!r} requires a value separated by an '=' sign")
         return keys, None
-    return keys, field[value_index:]
+    return keys, value
 
 
 def _add_params_map(container: dict[str, object], key: str) -> dict[str, object]:
@@ -113,21 +112,14 @@ def _add_params_slice(
     return nested
 
 
-def _apply_field(
+def _apply_field_value(
     params: dict[str, object],
     field: str,
     *,
-    typed: bool,
-    resolver: PlaceholderResolver,
-    stdin: TextIO,
+    keys: list[str],
+    value: object,
+    empty_array: bool,
 ) -> None:
-    keys, raw_value = _field_parts(field)
-    value = (
-        _typed_value(raw_value, resolver=resolver, stdin=stdin)
-        if typed and raw_value is not None
-        else raw_value
-    )
-
     destination = params
     is_array = False
     subkey: str | None = None
@@ -147,7 +139,7 @@ def _apply_field(
         raise ValueError(f"invalid key: {field!r}")
 
     if is_array:
-        if value is None:
+        if empty_array:
             existing = destination.get(subkey)
             if existing is not None and not isinstance(existing, list):
                 raise ValueError(
@@ -170,6 +162,49 @@ def _apply_field(
     if subkey in destination:
         raise ValueError(f"unexpected override existing field under {subkey!r}")
     destination[subkey] = value
+
+
+def _apply_field(
+    params: dict[str, object],
+    field: str,
+    *,
+    typed: bool,
+    resolver: PlaceholderResolver,
+    stdin: TextIO,
+) -> None:
+    keys, raw_value = _field_parts(field)
+    value = (
+        _typed_value(raw_value, resolver=resolver, stdin=stdin)
+        if typed and raw_value is not None
+        else raw_value
+    )
+    _apply_field_value(
+        params,
+        field,
+        keys=keys,
+        value=value,
+        empty_array=raw_value is None,
+    )
+
+
+def validate_api_fields(raw_fields: Sequence[str], typed_fields: Sequence[str]) -> None:
+    params: dict[str, object] = {}
+    marker = object()
+    for field, typed in (
+        *((field, False) for field in raw_fields),
+        *((field, True) for field in typed_fields),
+    ):
+        keys, raw_value = _field_parts(field)
+        if typed and raw_value is not None and not raw_value.startswith("@"):
+            validate_placeholders(raw_value)
+        value = None if raw_value is None else marker
+        _apply_field_value(
+            params,
+            field,
+            keys=keys,
+            value=value,
+            empty_array=raw_value is None,
+        )
 
 
 def parse_api_fields(

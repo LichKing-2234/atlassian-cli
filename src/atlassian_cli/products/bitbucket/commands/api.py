@@ -16,7 +16,12 @@ from pygments.lexers import JsonLexer
 from typer._click.exceptions import UsageError as TyperUsageError
 from typer.core import TyperCommand
 
-from atlassian_cli.products.bitbucket.api_fields import fill_placeholders, parse_api_fields
+from atlassian_cli.products.bitbucket.api_fields import (
+    fill_placeholders,
+    parse_api_fields,
+    validate_api_fields,
+    validate_placeholders,
+)
 from atlassian_cli.products.bitbucket.commands.pr import resolve_repository
 from atlassian_cli.products.bitbucket.gh_compat.auth import require_primary_auth
 from atlassian_cli.products.bitbucket.gh_compat.exit_policy import run_gh_read
@@ -25,6 +30,7 @@ from atlassian_cli.products.bitbucket.gh_compat.io import (
     stdout_is_tty,
     stream_output,
 )
+from atlassian_cli.products.bitbucket.gh_compat.repository_context import GitRepositoryContext
 from atlassian_cli.products.bitbucket.gh_compat.selectors import ServerIdentity
 from atlassian_cli.products.bitbucket.services.api import (
     ApiRequest,
@@ -32,6 +38,15 @@ from atlassian_cli.products.bitbucket.services.api import (
     normalize_api_endpoint,
 )
 from atlassian_cli.products.factory import build_provider
+
+_SENSITIVE_HEADER_NAMES = {
+    "authorization",
+    "proxy-authorization",
+    "cookie",
+    "set-cookie",
+    "accesstoken",
+    "x-api-key",
+}
 
 
 class GhApiCommand(TyperCommand):
@@ -60,11 +75,13 @@ def _parse_headers(values: list[str]) -> dict[str, str]:
     names: dict[str, str] = {}
     for value in values:
         if ":" not in value:
-            raise ValueError(f"header {value!r} requires a value separated by ':'")
+            raise ValueError("header requires a value separated by ':'")
         name, header_value = value.split(":", 1)
+        if any(ord(character) < 32 or ord(character) == 127 for character in value):
+            raise ValueError("header names and values cannot contain control characters")
         name = name.strip()
         if not name:
-            raise ValueError(f"invalid header: {value!r}")
+            raise ValueError("invalid header name")
         previous = names.get(name.lower())
         if previous is not None:
             del headers[previous]
@@ -109,21 +126,38 @@ class _ApiPlaceholderResolver:
     def __init__(self, context) -> None:
         self.context = context
         self._resolution = None
+        self._snapshot = None
+        self._branch: str | None = None
+        self._branch_loaded = False
+
+    def _git_snapshot(self):
+        if self._snapshot is None:
+            self._snapshot = GitRepositoryContext(Path.cwd()).read()
+        return self._snapshot
 
     def __call__(self, name: str) -> str:
+        if name == "branch":
+            if not self._branch_loaded:
+                if self._resolution is not None and self._resolution.current_branch:
+                    self._branch = self._resolution.current_branch
+                else:
+                    self._branch = self._git_snapshot().current_branch
+                self._branch_loaded = True
+            if self._branch:
+                return self._branch
+            raise ValueError(
+                "unable to determine an appropriate value for the 'branch' placeholder"
+            )
         if self._resolution is None:
             server = ServerIdentity.from_url(self.context.url)
-            self._resolution = resolve_repository(server)
+            self._resolution = resolve_repository(
+                server,
+                **({"snapshot": self._snapshot} if self._snapshot is not None else {}),
+            )
         if name == "project":
             return self._resolution.repository.project_key
         if name == "repo":
             return self._resolution.repository.repo_slug
-        if name == "branch" and self._resolution.current_branch:
-            return self._resolution.current_branch
-        if name == "branch":
-            raise ValueError(
-                "unable to determine an appropriate value for the 'branch' placeholder"
-            )
         raise ValueError(f"unknown placeholder: {name}")
 
 
@@ -180,9 +214,9 @@ def _render_jq(response, expression: str, *, tty: bool, color: bool) -> bytes:
     ).encode()
 
 
-def _secret_values(context) -> set[str]:
+def _secret_values(context, request_headers: dict[str, str] | None = None) -> set[str]:
     auth = context.auth
-    return {
+    secrets = {
         value
         for value in (
             auth.password,
@@ -191,6 +225,12 @@ def _secret_values(context) -> set[str]:
         )
         if value
     }
+    secrets.update(
+        value
+        for name, value in (request_headers or {}).items()
+        if name.lower() in _SENSITIVE_HEADER_NAMES and value
+    )
+    return secrets
 
 
 def _redact_text(value: str, secrets: set[str]) -> str:
@@ -206,15 +246,7 @@ def _redact_text(value: str, secrets: set[str]) -> str:
 
 
 def _redacted_header(name: str, value: str, secrets: set[str]) -> str:
-    secret_names = {
-        "authorization",
-        "proxy-authorization",
-        "cookie",
-        "set-cookie",
-        "accesstoken",
-        "x-api-key",
-    }
-    if name.lower() in secret_names:
+    if name.lower() in _SENSITIVE_HEADER_NAMES:
         return "REDACTED"
     return _redact_text(value, secrets)
 
@@ -278,6 +310,7 @@ def _response_chunks(
     responses: Iterable[object],
     *,
     context,
+    request_headers: dict[str, str],
     include: bool,
     jq_expression: str | None,
     silent: bool,
@@ -286,7 +319,7 @@ def _response_chunks(
 ) -> Iterable[bytes]:
     tty = stdout_is_tty(sys.stdout.isatty, os.environ)
     color = color_enabled(tty, os.environ)
-    secrets = _secret_values(context)
+    secrets = _secret_values(context, request_headers)
     slurp_started = False
 
     for index, response in enumerate(responses):
@@ -335,6 +368,7 @@ def _render_responses(
     responses: Iterable[object],
     *,
     context,
+    request_headers: dict[str, str],
     include: bool,
     jq_expression: str | None,
     silent: bool,
@@ -346,6 +380,7 @@ def _render_responses(
         _response_chunks(
             responses,
             context=context,
+            request_headers=request_headers,
             include=include,
             jq_expression=jq_expression,
             silent=silent,
@@ -389,6 +424,8 @@ def _api_run(
         verbose=verbose,
     )
     normalize_api_endpoint(endpoint)
+    validate_placeholders(endpoint)
+    validate_api_fields(raw_fields, typed_fields)
     parsed_headers = _parse_headers(headers)
 
     context = ctx.obj
@@ -417,6 +454,7 @@ def _api_run(
         _render_responses(
             responses,
             context=context,
+            request_headers=parsed_headers,
             include=include,
             jq_expression=jq_expression,
             silent=silent,
@@ -426,7 +464,7 @@ def _api_run(
     except typer.Exit:
         raise
     except Exception as exc:
-        redacted = _redact_text(str(exc), _secret_values(context))
+        redacted = _redact_text(str(exc), _secret_values(context, parsed_headers))
         if redacted == str(exc):
             raise
         raise ValueError(redacted) from None

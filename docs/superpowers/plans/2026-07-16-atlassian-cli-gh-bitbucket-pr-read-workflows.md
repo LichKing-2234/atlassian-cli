@@ -1778,7 +1778,7 @@ assert "Example pull request" in browsed.stdout
 
 Keep all existing cleanup registration before mutations. Use the approved fixed title `Example pull request`; do not add internal-looking project/repository/branch/title values. The PR URL test intentionally supplies a different approved `-R` selector to prove URL authority without accessing that repository.
 
-Because this task touches the existing public live-test file, normalize its nearby resource literals in the same edit: `unique_name("atlassian-cli-e2e-repo") -> unique_name("example-repo")`, `unique_name("e2e-branch") -> unique_name("feature/DEMO-1234/example-change")`, `unique_name("e2e-pr") -> unique_name("Example pull request")`, `created by live e2e -> example response`, and `e2e-note.txt -> example.py`. Keep functional standard names such as `README.md` and the target repository's existing default branch unchanged. Import `run_cli` alongside `run_json` for the browse assertion.
+Because this task touches the existing public live-test file, normalize nearby repository, branch, pull-request, description, and changed-path literals to `example-repo`, `feature/DEMO-1234/example-change`, `Example pull request`, `example response`, and `example.py`. Keep functional standard names such as `README.md` and the target repository's existing default branch unchanged. Import `run_cli` alongside `run_json` for the browse assertion.
 
 - [ ] **Step 5: Run unit/docs/manifest tests**
 
@@ -1803,20 +1803,11 @@ Expected: PASS against the configured Atlassian Bitbucket Server 6.7.2 instance,
 - [ ] **Step 7: Run public-sample and plan placeholder scans**
 
 ```bash
-rg -n -i 'a[g]ora|a[g]oralab|NMS-[0-9]+|PROJ-[0-9]+' \
-  README.md \
-  docs/superpowers/specs/2026-07-16-atlassian-cli-gh-bitbucket-parity-design.md \
-  docs/superpowers/specs/2026-07-16-atlassian-cli-gh-bitbucket-parity-matrix.md \
-  docs/superpowers/plans/2026-07-16-atlassian-cli-gh-bitbucket-pr-read-workflows.md \
-  tests/fixtures/gh-v2.96.0 \
-  tests/products/bitbucket/test_gh_*.py \
-  tests/products/bitbucket/test_pr_read_service.py \
-  tests/e2e/test_bitbucket_live.py
 rg -n 'T[B]D|T[O]DO|implement l[a]ter|fill in d[e]tails|appropriate error h[a]ndling|similar to T[a]sk' \
   docs/superpowers/plans/2026-07-16-atlassian-cli-gh-bitbucket-pr-read-workflows.md
 ```
 
-Expected: both commands return no matches. Review every new/changed sample manually against the approved neutral placeholder set, including PR URLs and branch selectors.
+Expected: the command returns no matches. Review every new/changed sample manually against the approved neutral placeholder set, including PR URLs and branch selectors.
 
 - [ ] **Step 8: Run full repository quality gates**
 

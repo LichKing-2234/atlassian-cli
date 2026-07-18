@@ -1150,6 +1150,33 @@ def test_primary_view_omitted_selector_uses_current_branch(monkeypatch) -> None:
     assert calls["gets"][0][0].repository.slug == "DEMO/example-repo"
 
 
+def test_primary_view_environment_repo_with_omitted_selector_uses_current_branch(
+    monkeypatch,
+) -> None:
+    calls = install_view_fakes(monkeypatch)
+    snapshot = GitRepositorySnapshot(
+        current_branch="feature/DEMO-1234/example-change",
+        default_remote=None,
+        upstream_remote=None,
+        remotes={},
+    )
+    monkeypatch.setattr(
+        pr_module,
+        "GitRepositoryContext",
+        lambda *_args, **_kwargs: type("FakeGit", (), {"read": lambda self: snapshot})(),
+    )
+
+    result = runner.invoke(
+        app,
+        primary_view_args(None, "--json", "number"),
+        env={"ATLASSIAN_BITBUCKET_REPO": "DEMO/example-repo"},
+    )
+
+    assert result.exit_code == 0
+    assert calls["gets"][0][0].number == 1234
+    assert calls["gets"][0][0].repository.slug == "DEMO/example-repo"
+
+
 def test_primary_view_comments_non_tty_outputs_only_comments(monkeypatch) -> None:
     calls = install_view_fakes(monkeypatch)
 

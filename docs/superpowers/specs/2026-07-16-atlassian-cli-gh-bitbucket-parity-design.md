@@ -682,7 +682,7 @@ state or changing the requested meaning.
 
 ## Implementation Phases
 
-Issue #32 remains the epic. Delivery is vertical: each PR completes a small
+The parity program remains the umbrella. Delivery is vertical: each PR completes a small
 command or workflow through parser, provider/service, output, docs, unit tests,
 and affected live e2e. Shared code is extracted only after two real workflows
 need it.

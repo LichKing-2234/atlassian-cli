@@ -31,11 +31,6 @@ def normalize_api_endpoint(endpoint: str) -> str:
     return urlunsplit(("", "", path, parsed.query, ""))
 
 
-def _has_header(headers: dict[str, str], name: str) -> bool:
-    expected = name.lower()
-    return any(key.lower() == expected for key in headers)
-
-
 def _is_json_response(response) -> bool:
     content_type = str(response.headers.get("Content-Type", ""))
     media_type = content_type.partition(";")[0].strip().lower()
@@ -121,8 +116,6 @@ class BitbucketApiService:
 
         path = normalize_api_endpoint(request.endpoint)
         headers = dict(request.headers)
-        if not _has_header(headers, "Accept"):
-            headers["Accept"] = "*/*"
 
         fields = dict(request.fields)
         if request.input_body is not None:
@@ -137,8 +130,6 @@ class BitbucketApiService:
             params = None
             json_body = fields or None
             data = None
-            if json_body is not None and not _has_header(headers, "Content-Type"):
-                headers["Content-Type"] = "application/json; charset=utf-8"
 
         query_values = _query_values(path)
         if paginate and "limit" not in query_values and (params is None or "limit" not in params):

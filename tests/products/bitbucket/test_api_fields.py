@@ -94,6 +94,15 @@ def test_parse_api_fields_accepts_empty_array_declaration() -> None:
     ) == {"reviewers": []}
 
 
+def test_parse_api_fields_keeps_typed_null_inside_array() -> None:
+    assert parse_api_fields(
+        [],
+        ["reviewers[]=null"],
+        resolver=resolve,
+        stdin=StringIO(""),
+    ) == {"reviewers": [None]}
+
+
 def test_parse_api_fields_reads_typed_file_and_stdin_values(tmp_path) -> None:
     value_file = tmp_path / "value.txt"
     value_file.write_text("example response", encoding="utf-8")
@@ -120,6 +129,10 @@ def test_parse_api_fields_reads_typed_file_and_stdin_values(tmp_path) -> None:
         (["value=example response"], ["value=42"], "unexpected override"),
         (["value=example response"], ["value[name]=DEMO"], "expected map"),
         (["value[]=example response"], ["value[name]=DEMO"], "expected map"),
+        (["value[]junk=example response"], [], "invalid key"),
+        (["value[name]junk=example response"], [], "invalid key"),
+        (["value[name=example response"], [], "invalid key"),
+        (["value]name[=example response"], [], "invalid key"),
     ],
 )
 def test_parse_api_fields_rejects_invalid_or_conflicting_fields(

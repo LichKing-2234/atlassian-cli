@@ -42,6 +42,7 @@ def test_load_live_env_uses_defaults(monkeypatch, tmp_path) -> None:
 
 def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
     config_file = tmp_path / "config.toml"
+    reviewer_config = tmp_path / "reviewer-config.toml"
     config_file.write_text("")
     repo_dotenv = tmp_path / ".env"
     monkeypatch.setattr("tests.e2e.support.env.DOTENV_FILE", repo_dotenv)
@@ -58,6 +59,7 @@ def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
                 "ATLASSIAN_E2E_JIRA_ISSUE_TYPE=Internal Task",
                 "ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE=123456",
                 "ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO=example-repo",
+                f"ATLASSIAN_E2E_BITBUCKET_REVIEWER_CONFIG={reviewer_config}",
             ]
         )
     )
@@ -71,6 +73,7 @@ def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
     monkeypatch.delenv("ATLASSIAN_E2E_JIRA_ISSUE_TYPE", raising=False)
     monkeypatch.delenv("ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE", raising=False)
     monkeypatch.delenv("ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO", raising=False)
+    monkeypatch.delenv("ATLASSIAN_E2E_BITBUCKET_REVIEWER_CONFIG", raising=False)
 
     env = load_live_env()
 
@@ -84,6 +87,7 @@ def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
         jira_issue_type="Internal Task",
         confluence_parent_page="123456",
         bitbucket_existing_repo="example-repo",
+        bitbucket_reviewer_config=reviewer_config,
     )
 
 

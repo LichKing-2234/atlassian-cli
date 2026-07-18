@@ -137,21 +137,24 @@ def resolve_repository(
     *,
     explicit: str | None = None,
     embedded: RepositoryRef | None = None,
+    require_branch: bool = False,
+    snapshot: GitRepositorySnapshot | None = None,
 ) -> RepositoryResolution:
     environment = os.environ
-    needs_git = (
+    needs_git = require_branch or (
         embedded is None and explicit is None and not environment.get("ATLASSIAN_BITBUCKET_REPO")
     )
-    snapshot = (
-        GitRepositoryContext(Path.cwd()).read()
-        if needs_git
-        else GitRepositorySnapshot(
-            current_branch=None,
-            default_remote=None,
-            upstream_remote=None,
-            remotes={},
+    if snapshot is None:
+        snapshot = (
+            GitRepositoryContext(Path.cwd()).read()
+            if needs_git
+            else GitRepositorySnapshot(
+                current_branch=None,
+                default_remote=None,
+                upstream_remote=None,
+                remotes={},
+            )
         )
-    )
     return RepositoryResolver(
         server,
         snapshot,
@@ -403,7 +406,12 @@ def _view_run(
         if selector is not None and "://" in selector
         else None
     )
-    resolution = resolve_repository(server, explicit=repo, embedded=embedded)
+    resolution = resolve_repository(
+        server,
+        explicit=repo,
+        embedded=embedded,
+        require_branch=selector is None,
+    )
     provider = build_provider(context)
     ref = PullRequestFinder(provider, server).find(
         selector,
