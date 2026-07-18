@@ -40,6 +40,11 @@ from atlassian_cli.products.bitbucket.gh_compat.pr_checks import (
     select_check_fields,
     validate_check_fields,
 )
+from atlassian_cli.products.bitbucket.gh_compat.pr_edit import (
+    normalize_reviewer_values,
+    prompt_for_edits,
+    read_body_file,
+)
 from atlassian_cli.products.bitbucket.gh_compat.pr_finder import PullRequestFinder
 from atlassian_cli.products.bitbucket.gh_compat.pr_output import (
     MISSING_JSON_VALUE,
@@ -63,6 +68,10 @@ from atlassian_cli.products.bitbucket.gh_compat.selectors import (
 )
 from atlassian_cli.products.bitbucket.services.build_status import BuildStatusService
 from atlassian_cli.products.bitbucket.services.pr import PullRequestService
+from atlassian_cli.products.bitbucket.services.pr_edit import (
+    PullRequestEdits,
+    PullRequestEditService,
+)
 from atlassian_cli.products.bitbucket.services.pr_read import (
     PRESENTER_REVIEWERS_FIELD,
     PullRequestListFilters,
@@ -231,6 +240,19 @@ def _browser_notice(url: str, *, tty: bool) -> None:
     parsed = urlsplit(url)
     display_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
     typer.echo(f"Opening {display_url} in your browser.", err=True)
+
+
+def _pull_request_web_url(ref) -> str:
+    repository = ref.repository
+    repository_prefix = (
+        f"users/{quote(repository.project_key[1:])}"
+        if repository.project_key.startswith("~")
+        else f"projects/{quote(repository.project_key)}"
+    )
+    return (
+        f"{repository.server.base_url}/{repository_prefix}/repos/"
+        f"{quote(repository.repo_slug)}/pull-requests/{ref.number}"
+    )
 
 
 def _list_repository_selector(
@@ -685,6 +707,106 @@ def view_pull_request(
             json_fields=json_fields,
             repo=repo,
             web=web,
+        )
+    )
+
+
+def _edit_run(
+    *,
+    ctx: typer.Context,
+    selector: str | None,
+    add_reviewers: list[str],
+    base: str | None,
+    body: str | None,
+    body_file: str | None,
+    remove_reviewers: list[str],
+    repo: str | None,
+    title: str | None,
+) -> None:
+    if body is not None and body_file is not None:
+        raise GhPreflightError("specify only one of `--body` or `--body-file`")
+
+    interactive = not any(
+        (
+            title is not None,
+            body is not None,
+            body_file is not None,
+            base is not None,
+            bool(add_reviewers),
+            bool(remove_reviewers),
+        )
+    )
+    environment = os.environ
+    prompt_allowed = can_prompt(_stdin_is_tty, sys.stdout.isatty, environment)
+    if interactive and not prompt_allowed:
+        raise GhPreflightError(
+            "--title, --body, --base, --add-reviewer, or --remove-reviewer required "
+            "when not running interactively"
+        )
+
+    if body_file is not None:
+        body = read_body_file(body_file, stdin=sys.stdin)
+    edits = PullRequestEdits(
+        title=title,
+        body=body,
+        base=base,
+        add_reviewers=normalize_reviewer_values(add_reviewers),
+        remove_reviewers=normalize_reviewer_values(remove_reviewers),
+    )
+
+    context = ctx.obj
+    require_primary_auth(context.auth)
+    server = ServerIdentity.from_url(context.url)
+    embedded = (
+        parse_pull_request_url(selector, server).repository
+        if selector is not None and "://" in selector
+        else None
+    )
+    resolution = resolve_repository(
+        server,
+        explicit=repo,
+        embedded=embedded,
+        require_branch=selector is None,
+    )
+    provider = build_provider(context)
+    ref = PullRequestFinder(provider, server).find(
+        selector,
+        resolution,
+        explicit_repo=repo is not None,
+        allow_explicit_repo_without_selector=True,
+    )
+    service = PullRequestEditService(provider)
+    current = None
+    if interactive:
+        current = service.load(ref)
+        edits = prompt_for_edits(current, prompt=typer.prompt, edit=click.edit)
+    service.edit(ref, edits, current=current)
+    typer.echo(_pull_request_web_url(ref))
+
+
+@app.command("edit", cls=GhReadCommand)
+def edit_pull_request(
+    ctx: typer.Context,
+    selector: str | None = typer.Argument(None, metavar="[<number> | <url> | <branch>]"),
+    add_reviewers: list[str] = typer.Option([], "--add-reviewer", metavar="login"),
+    base: str | None = typer.Option(None, "--base", "-B", metavar="branch"),
+    body: str | None = typer.Option(None, "--body", "-b"),
+    body_file: str | None = typer.Option(None, "--body-file", "-F", metavar="file"),
+    remove_reviewers: list[str] = typer.Option([], "--remove-reviewer", metavar="login"),
+    repo: str | None = typer.Option(None, "--repo", "-R"),
+    title: str | None = typer.Option(None, "--title", "-t"),
+) -> None:
+    run_gh_read(
+        lambda: _edit_run(
+            ctx=ctx,
+            selector=selector,
+            add_reviewers=add_reviewers,
+            base=base,
+            body=body,
+            body_file=body_file,
+            remove_reviewers=remove_reviewers,
+            repo=repo,
+            title=title,
         )
     )
 

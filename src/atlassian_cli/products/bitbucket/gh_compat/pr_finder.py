@@ -28,10 +28,11 @@ class PullRequestFinder:
         resolution: RepositoryResolution,
         *,
         explicit_repo: bool,
+        allow_explicit_repo_without_selector: bool = False,
     ) -> PullRequestRef:
         if selector and "://" in selector:
             return parse_pull_request_url(selector, self.server)
-        if selector is None and explicit_repo:
+        if selector is None and explicit_repo and not allow_explicit_repo_without_selector:
             raise ValidationError("argument required when using the --repo flag")
         if selector is None:
             selector = resolution.current_branch
