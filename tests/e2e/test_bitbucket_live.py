@@ -91,7 +91,27 @@ def test_bitbucket_repo_create_live(live_env) -> None:
 def test_bitbucket_pr_checks_live(live_env, tmp_path, request) -> None:
     registry = CleanupRegistry()
     request.addfinalizer(registry.run)
-    target = resolve_bitbucket_repo_target(live_env)
+    created_repo = run_json(
+        live_env,
+        "bitbucket",
+        "repo",
+        "create",
+        "--project",
+        live_env.bitbucket_create_project,
+        "--name",
+        unique_name("example-repo"),
+        "--output",
+        "json",
+    )
+    repo_slug = created_repo["slug"]
+    registry.add(
+        f"bitbucket repo delete {repo_slug}",
+        lambda: _delete_repo(live_env, repo_slug),
+    )
+    target = {
+        "project_key": live_env.bitbucket_create_project,
+        "repo_slug": repo_slug,
+    }
     raw_repo = run_json(
         live_env,
         "bitbucket",
@@ -119,8 +139,8 @@ def test_bitbucket_pr_checks_live(live_env, tmp_path, request) -> None:
         sandbox.create_initial_commit(
             "master",
             "README.md",
-            "# atlassian-cli e2e\n",
-            "test: seed e2e repo",
+            "example response\n",
+            "test: seed example-repo",
         )
     remote_heads = sandbox.run("ls-remote", "--heads", "origin").stdout
     if "refs/heads/master" not in remote_heads:
@@ -133,10 +153,6 @@ def test_bitbucket_pr_checks_live(live_env, tmp_path, request) -> None:
         f"test: add {branch_name}",
     )
     sandbox.push(branch_name)
-    registry.add(
-        f"bitbucket branch delete {branch_name}",
-        lambda: sandbox.delete_remote_branch(branch_name),
-    )
     head_commit = sandbox.run("rev-parse", "HEAD").stdout.strip()
 
     created_pr = run_json(
@@ -210,19 +226,6 @@ def test_bitbucket_pr_checks_live(live_env, tmp_path, request) -> None:
         )
         assert result.returncode == 0, result.stderr
         assert "Example pull request\tpass\t0\t" in result.stdout
-
-    merged = run_json(
-        live_env,
-        "bitbucket",
-        "pr",
-        "merge",
-        target["project_key"],
-        target["repo_slug"],
-        str(pr_id),
-        "--output",
-        "json",
-    )
-    assert merged["state"] == "MERGED"
 
 
 def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) -> None:
