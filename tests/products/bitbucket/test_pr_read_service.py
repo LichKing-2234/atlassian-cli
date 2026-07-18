@@ -8,6 +8,7 @@ from atlassian_cli.products.bitbucket.gh_compat.selectors import (
 from atlassian_cli.products.bitbucket.services.pr_read import (
     PullRequestListFilters,
     PullRequestReadService,
+    parse_search_query,
 )
 
 SERVER = ServerIdentity.from_url("https://bitbucket.example.com")
@@ -305,9 +306,17 @@ def test_one_direct_field_returns_only_that_field() -> None:
 
 @pytest.mark.parametrize(
     ("state", "server_state"),
-    [("open", "OPEN"), ("closed", "DECLINED"), ("merged", "MERGED"), ("all", "ALL")],
+    [
+        ("OPEN", "OPEN"),
+        ("open", "OPEN"),
+        ("DECLINED", "DECLINED"),
+        ("declined", "DECLINED"),
+        ("DeClInEd", "DECLINED"),
+        ("MERGED", "MERGED"),
+        ("all", "ALL"),
+    ],
 )
-def test_list_maps_state_to_server_state(state: str, server_state: str) -> None:
+def test_list_normalizes_native_state_case_insensitively(state: str, server_state: str) -> None:
     provider = FakeProvider(
         [
             raw_pr(pr_id=1234, state="OPEN"),
@@ -319,6 +328,27 @@ def test_list_maps_state_to_server_state(state: str, server_state: str) -> None:
     PullRequestReadService(provider).list(REPO, PullRequestListFilters(state=state), {"number"})
 
     assert provider.list_calls[0] == (server_state, 0, 100)
+
+
+@pytest.mark.parametrize("query", ["state:closed", "is:closed", "state:draft"])
+def test_search_rejects_non_native_states(query: str) -> None:
+    with pytest.raises(ValueError, match="unsupported .* search value"):
+        parse_search_query(query)
+
+
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("state:DECLINED", "DECLINED"),
+        ("state:declined", "DECLINED"),
+        ("state:DeClInEd", "DECLINED"),
+        ("is:MERGED", "MERGED"),
+    ],
+)
+def test_search_accepts_native_states_case_insensitively(query: str, expected: str) -> None:
+    parsed = parse_search_query(query)
+
+    assert parsed["qualifiers"][0][1] == expected
 
 
 def test_explicit_filters_combine_before_limit() -> None:
@@ -407,7 +437,7 @@ def test_nondefault_state_remains_an_additional_search_predicate() -> None:
 
     result = PullRequestReadService(provider).list(
         REPO,
-        PullRequestListFilters(state="closed", search="state:open"),
+        PullRequestListFilters(state="DECLINED", search="state:OPEN"),
         {"number"},
     )
 
@@ -778,7 +808,7 @@ def test_direct_projection_uses_slug_user_fallback_and_closed_date() -> None:
         "closed": True,
         "closedAt": "2026-07-15T14:00:00Z",
         "isCrossRepository": True,
-        "state": "CLOSED",
+        "state": "DECLINED",
     }
 
 

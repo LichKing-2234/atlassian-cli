@@ -157,6 +157,8 @@ def test_pr_list_help_matches_first_slice() -> None:
     output = strip_ansi(result.output)
 
     assert result.exit_code == 0
+    assert "[PROJECT_KEY]" in output
+    assert "[REPO_SLUG]" in output
     for option in (
         "--author",
         "--base",
@@ -169,6 +171,9 @@ def test_pr_list_help_matches_first_slice() -> None:
         "--web",
     ):
         assert option in output
+    for state in ("OPEN", "DECLINED", "MERGED", "ALL"):
+        assert state in output
+    assert "closed" not in output
     for absent in (
         "--app",
         "--assignee",

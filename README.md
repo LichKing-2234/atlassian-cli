@@ -235,8 +235,9 @@ ssh example-user@example-host
 - `atlassian confluence page attachment upload 1234 ./diagram.png`
 - `atlassian confluence page attachment download 1234 --name diagram.png --destination ./diagram.png`
 - `atlassian bitbucket repo get DEMO example-repo`
+- `atlassian bitbucket pr list DEMO example-repo`
 - `atlassian bitbucket pr list -R DEMO/example-repo`
-- `atlassian bitbucket pr list -R DEMO/example-repo --state merged --limit 30`
+- `atlassian bitbucket pr list -R DEMO/example-repo --state DECLINED --limit 30`
 - `atlassian bitbucket pr list -R DEMO/example-repo --json number,title,state,url`
 - `atlassian bitbucket pr view 1234 -R DEMO/example-repo`
 - `atlassian bitbucket pr view feature/DEMO-1234/example-change -R DEMO/example-repo`
@@ -292,7 +293,7 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.example.com --header 'Authorization: Bearer ...' bitbucket pr list -R DEMO/example-repo`
+- `atlassian --url https://bitbucket.example.com --header 'Authorization: Bearer ...' bitbucket pr list DEMO example-repo`
 
 Config file example:
 
@@ -309,7 +310,7 @@ auth = "pat"
 Authorization = "Bearer $(example-token-helper)"
 ```
 
-- `atlassian bitbucket pr list -R DEMO/example-repo`
+- `atlassian bitbucket pr list DEMO example-repo`
 
 Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
 Command substitution runs through `/bin/sh` on Unix-like systems and `cmd.exe` on Windows.
@@ -335,7 +336,7 @@ Examples:
 - `atlassian jira issue get DEMO-1`
 - `atlassian jira issue search --jql 'project = DEMO'`
 - `atlassian confluence space list`
-- `atlassian bitbucket pr list -R DEMO/example-repo`
+- `atlassian bitbucket pr list DEMO example-repo`
 - `atlassian bitbucket pr diff DEMO example-repo 42`
 - `atlassian bitbucket pr diff DEMO example-repo 42 --with-lines --output json`
 - `atlassian bitbucket pr comment list DEMO example-repo 42`
@@ -347,13 +348,13 @@ Examples:
 
 ### Bitbucket pull request reads
 
-`pr list` is line-oriented and defaults to open pull requests with a limit of 30. Its `closed` state maps to declined Bitbucket pull requests. `--web` conflicts with `--json`, and `ATLASSIAN_BITBUCKET_REPO=DEMO/example-repo` can supply repository context when `-R` is omitted. Base JSON field selection is available without `--jq` or `--template` in this phase.
+`pr list` is line-oriented and defaults to Bitbucket state `OPEN` with a limit of 30. `--state` accepts the native `OPEN`, `DECLINED`, `MERGED`, and `ALL` values case-insensitively and preserves native state names in output. Repositories may be supplied as `PROJECT_KEY REPO_SLUG`, with `-R PROJECT_KEY/REPO_SLUG`, through `ATLASSIAN_BITBUCKET_REPO=DEMO/example-repo`, or from local Git context. `--web` conflicts with `--json`. Base JSON field selection is available without `--jq` or `--template` in this phase.
 
 On Bitbucket Server 6.7.2, the parser recognizes `reviews` and `latestReviews` but reports the B30 capability failure, `mergeCommit` reports B31, and `potentialMergeCommit` reports B25.
 
-| Previous workflow | Current workflow |
+| Workflow | Current behavior |
 | --- | --- |
-| `pr list PROJECT REPO` | `pr list -R PROJECT/REPO` |
+| `pr list PROJECT REPO` | Preserved; `pr list -R PROJECT/REPO` is also supported |
 | Full-screen `pr list PROJECT REPO` | `pr browse PROJECT REPO` |
 | Existing `pr list --output MODE` | Remains a hidden, deprecated D06 compatibility input |
 | `get`, `build-status`, `approve`, and `unapprove` | Remain callable compatibility commands |

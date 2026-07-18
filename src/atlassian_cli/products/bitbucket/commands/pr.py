@@ -58,6 +58,7 @@ from atlassian_cli.products.bitbucket.services.pr_read import (
     PRESENTER_REVIEWERS_FIELD,
     PullRequestListFilters,
     PullRequestReadService,
+    normalize_pull_request_state,
     parse_search_query,
 )
 from atlassian_cli.products.factory import build_provider
@@ -85,7 +86,6 @@ VIEW_TTY_FIELDS = VIEW_NON_TTY_FIELDS | {
     "headRefName",
     "statusCheckRollup",
 }
-_STATE_MAP = {"open": "OPEN", "closed": "DECLINED", "merged": "MERGED", "all": "ALL"}
 
 
 def build_pr_service(context) -> PullRequestService:
@@ -204,7 +204,7 @@ def _repository_pull_requests_url(
         f"{server.base_url}/{repository_prefix}/repos/{quote(repository.repo_slug)}/pull-requests"
     )
     parameters = {
-        "state": _STATE_MAP[state],
+        "state": state,
         "author": author,
         "base": base,
         "head": head,
@@ -222,9 +222,25 @@ def _browser_notice(url: str, *, tty: bool) -> None:
     typer.echo(f"Opening {display_url} in your browser.", err=True)
 
 
+def _list_repository_selector(
+    project_key: str | None,
+    repo_slug: str | None,
+    repo: str | None,
+) -> str | None:
+    if (project_key is None) != (repo_slug is None):
+        raise GhPreflightError("PROJECT_KEY and REPO_SLUG must be provided together")
+    if project_key is not None and repo is not None:
+        raise GhPreflightError("cannot use `PROJECT_KEY REPO_SLUG` with `--repo`")
+    if project_key is not None:
+        return f"{project_key}/{repo_slug}"
+    return repo
+
+
 def _list_run(
     *,
     ctx: typer.Context,
+    project_key: str | None,
+    repo_slug: str | None,
     author: str | None,
     base: str | None,
     head: str | None,
@@ -251,16 +267,19 @@ def _list_run(
                 raise GhPreflightError(f"cannot use `{option}` with `--output`")
         if web:
             raise GhPreflightError("cannot use `--web` with `--output`")
-    if state not in {"open", "closed", "merged", "all"}:
-        raise GhPreflightError(f"invalid state: {state}")
+    try:
+        state = normalize_pull_request_state(state)
+    except ValueError as exc:
+        raise GhPreflightError(str(exc)) from exc
     if limit < 1:
         raise GhPreflightError("limit must be greater than zero")
     parse_search_query(search)
+    repository_selector = _list_repository_selector(project_key, repo_slug, repo)
 
     context = ctx.obj
     require_primary_auth(context.auth)
     server = ServerIdentity.from_url(context.url)
-    resolution = resolve_repository(server, explicit=repo)
+    resolution = resolve_repository(server, explicit=repository_selector)
     repository = resolution.repository
 
     if output is not None:
@@ -269,7 +288,7 @@ def _list_run(
             payload = service.list_raw(
                 repository.project_key,
                 repository.repo_slug,
-                _STATE_MAP[state],
+                state,
                 start=0,
                 limit=limit,
             )
@@ -277,7 +296,7 @@ def _list_run(
             payload = service.list(
                 repository.project_key,
                 repository.repo_slug,
-                _STATE_MAP[state],
+                state,
                 start=0,
                 limit=limit,
             )
@@ -315,7 +334,7 @@ def _list_run(
         requested_fields,
         count_total=count_total,
     )
-    filtered = state != "open" or any(value is not None for value in (author, base, head, search))
+    filtered = state != "OPEN" or any(value is not None for value in (author, base, head, search))
     if fields is None and not result.items:
         if tty:
             message = (
@@ -350,6 +369,8 @@ def _list_run(
 @app.command("list", cls=GhReadCommand)
 def list_pull_requests(
     ctx: typer.Context,
+    project_key: str | None = typer.Argument(None, metavar="[PROJECT_KEY]"),
+    repo_slug: str | None = typer.Argument(None, metavar="[REPO_SLUG]"),
     author: str | None = typer.Option(None, "--author", "-A"),
     base: str | None = typer.Option(None, "--base", "-B"),
     head: str | None = typer.Option(None, "--head", "-H"),
@@ -357,7 +378,12 @@ def list_pull_requests(
     limit: int = typer.Option(30, "--limit", "-L"),
     repo: str | None = typer.Option(None, "--repo", "-R"),
     search: str | None = typer.Option(None, "--search", "-S"),
-    state: str = typer.Option("open", "--state", "-s"),
+    state: str = typer.Option(
+        "OPEN",
+        "--state",
+        "-s",
+        help="Bitbucket pull request state: OPEN, DECLINED, MERGED, or ALL.",
+    ),
     web: bool = typer.Option(False, "--web", "-w"),
     output: OutputMode | None = typer.Option(
         None,
@@ -368,6 +394,8 @@ def list_pull_requests(
     run_gh_read(
         lambda: _list_run(
             ctx=ctx,
+            project_key=project_key,
+            repo_slug=repo_slug,
             author=author,
             base=base,
             head=head,

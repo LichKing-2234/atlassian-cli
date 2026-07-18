@@ -59,6 +59,7 @@ def test_readme_mentions_bitbucket_comments_and_build_status() -> None:
 def test_readme_documents_gh_compatible_pr_reads_and_browser_migration() -> None:
     readme = Path("README.md").read_text()
 
+    assert "atlassian bitbucket pr list DEMO example-repo" in readme
     assert "atlassian bitbucket pr list -R DEMO/example-repo" in readme
     assert "atlassian bitbucket pr view 1234 -R DEMO/example-repo" in readme
     assert "atlassian bitbucket pr browse DEMO example-repo" in readme
@@ -68,12 +69,9 @@ def test_readme_documents_gh_compatible_pr_reads_and_browser_migration() -> None
     assert "B25" in readme
     assert "B30" in readme
     assert "B31" in readme
-
-
-def test_readme_no_longer_leads_with_removed_pr_list_positionals() -> None:
-    readme = Path("README.md").read_text()
-
-    assert "atlassian bitbucket pr list DEMO example-repo" not in readme
+    for state in ("OPEN", "DECLINED", "MERGED", "ALL"):
+        assert state in readme
+    assert "Its `closed` state maps" not in readme
 
 
 def test_readme_mentions_full_local_e2e_suite() -> None:
