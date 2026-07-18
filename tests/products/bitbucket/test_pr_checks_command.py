@@ -326,6 +326,22 @@ def test_checks_watch_follows_new_head_until_checks_pass(monkeypatch) -> None:
     assert result.stdout.count("All checks were successful") >= 1
 
 
+def test_checks_watch_negative_interval_matches_go_immediate_sleep(monkeypatch) -> None:
+    calls = install_checks_fakes(
+        monkeypatch,
+        statuses=[[_build("INPROGRESS")], [_build("SUCCESSFUL")]],
+    )
+
+    result = runner.invoke(
+        app,
+        _args("1234", "-R", "DEMO/example-repo", "--watch", "--interval", "-1"),
+    )
+
+    assert result.exit_code == 0
+    assert calls["commits"] == ["abc123", "abc123"]
+    assert calls["sleeps"] == [0]
+
+
 def test_checks_watch_fail_fast_stops_on_first_failure(monkeypatch) -> None:
     calls = install_checks_fakes(
         monkeypatch,

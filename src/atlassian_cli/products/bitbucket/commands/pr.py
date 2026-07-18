@@ -467,7 +467,7 @@ def _watch_pull_request_checks(
             )
             if counts.pending == 0 or (fail_fast and counts.failed):
                 break
-            time.sleep(interval)
+            time.sleep(max(0, interval))
     finally:
         if tty:
             typer.echo("\x1b[?1049l", nl=False)
