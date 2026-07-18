@@ -449,9 +449,9 @@ def _watch_pull_request_checks(
     width: int,
 ) -> int:
     final_checks: list[dict[str, object]] | None = None
-    if tty:
-        typer.echo("\x1b[?1049h", nl=False)
     try:
+        if tty:
+            typer.echo("\x1b[?1049h", nl=False)
         while True:
             checks = _load_pull_request_checks(provider, ref)
             final_checks = checks

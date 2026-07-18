@@ -364,3 +364,31 @@ def test_checks_watch_restores_tty_on_cancellation(monkeypatch) -> None:
     assert calls["commits"] == ["abc123"]
     assert "\x1b[?1049h" in result.stdout
     assert "\x1b[?1049l" in result.stdout
+
+
+def test_checks_watch_restores_tty_when_screen_entry_is_interrupted(monkeypatch) -> None:
+    calls = install_checks_fakes(
+        monkeypatch,
+        tty=True,
+        statuses=[[_build("INPROGRESS")]],
+    )
+    writes = []
+    original_echo = typer.echo
+
+    def interrupt_entry(message="", **kwargs):
+        writes.append(message)
+        if message == "\x1b[?1049h":
+            raise KeyboardInterrupt
+        return original_echo(message, **kwargs)
+
+    monkeypatch.setattr(pr_module.typer, "echo", interrupt_entry)
+
+    result = runner.invoke(
+        app,
+        _args("1234", "-R", "DEMO/example-repo", "--watch"),
+        color=True,
+    )
+
+    assert result.exit_code == 2
+    assert calls["commits"] == []
+    assert writes[:2] == ["\x1b[?1049h", "\x1b[?1049l"]
