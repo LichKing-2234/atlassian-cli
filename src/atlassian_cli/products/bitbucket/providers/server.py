@@ -340,6 +340,36 @@ class BitbucketServerProvider:
         )
         return self.client.get(url, params={"limit": 100})
 
+    def list_associated_build_statuses(self, commit: str) -> list[dict]:
+        url = self.client.resource_url(
+            f"commits/{commit}",
+            api_root="rest/build-status",
+        )
+        params = {"limit": 100}
+        page = self.client.get(url, params=params)
+        if not isinstance(page, dict):
+            raise ValueError("invalid paginated Bitbucket build status response")
+
+        values = list(page.get("values", []))
+        current_start = 0
+        seen_starts = {current_start}
+        while page.get("isLastPage") is False:
+            next_start = page.get("nextPageStart")
+            if (
+                isinstance(next_start, bool)
+                or not isinstance(next_start, int)
+                or next_start <= current_start
+                or next_start in seen_starts
+            ):
+                raise ValueError(f"invalid Bitbucket pagination nextPageStart: {next_start!r}")
+            seen_starts.add(next_start)
+            current_start = next_start
+            page = self.client.get(url, params={**params, "start": next_start})
+            if not isinstance(page, dict):
+                raise ValueError("invalid paginated Bitbucket build status response")
+            values.extend(page.get("values", []))
+        return values
+
     def create_pull_request(self, project_key: str, repo_slug: str, payload: dict) -> dict:
         return self.client.create_pull_request(project_key, repo_slug, data=payload)
 

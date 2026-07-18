@@ -654,6 +654,45 @@ def test_bitbucket_provider_build_status_reads_direct_rest_resource_with_limit_1
     assert calls["build"] == ("rest/build-status/1.0/commits/abc123", {"limit": 100})
 
 
+def test_bitbucket_provider_lists_all_build_status_results() -> None:
+    calls = []
+    successful = [{"key": "DEMO-1234", "state": "SUCCESSFUL"} for _ in range(100)]
+
+    class FakeClient:
+        def resource_url(self, resource, *, api_root):
+            return f"{api_root}/1.0/{resource}"
+
+        def get(self, url, *, params):
+            calls.append((url, params))
+            if params.get("start") == 100:
+                return {
+                    "size": 1,
+                    "limit": 100,
+                    "isLastPage": True,
+                    "start": 100,
+                    "values": [{"key": "DEMO-1234", "state": "FAILED"}],
+                }
+            return {
+                "size": 100,
+                "limit": 100,
+                "isLastPage": False,
+                "start": 0,
+                "nextPageStart": 100,
+                "values": successful,
+            }
+
+    provider = build_provider_with_client(FakeClient())
+
+    statuses = provider.list_associated_build_statuses("abc123")
+
+    assert len(statuses) == 101
+    assert statuses[-1] == {"key": "DEMO-1234", "state": "FAILED"}
+    assert calls == [
+        ("rest/build-status/1.0/commits/abc123", {"limit": 100}),
+        ("rest/build-status/1.0/commits/abc123", {"limit": 100, "start": 100}),
+    ]
+
+
 def test_bitbucket_provider_exposes_pr_read_primitives() -> None:
     calls = {}
 

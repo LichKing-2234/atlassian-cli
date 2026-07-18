@@ -18,13 +18,16 @@ class FakeBuildStatusProvider:
 
     def get_associated_build_statuses(self, commit):
         self.calls.append(("status", commit))
+        return {"values": self.list_associated_build_statuses(commit)}
+
+    def list_associated_build_statuses(self, commit):
         if commit == "abc123":
-            return {"values": [{"key": "DEMO", "state": "SUCCESSFUL"}]}
+            return [{"key": "DEMO", "state": "SUCCESSFUL"}]
         if commit == "def456":
-            return {"values": [{"key": "DEMO", "state": "FAILED"}]}
+            return [{"key": "DEMO", "state": "FAILED"}]
         if commit == "head123":
-            return {"values": [{"key": "DEMO", "state": "INPROGRESS"}]}
-        return {"values": []}
+            return [{"key": "DEMO", "state": "INPROGRESS"}]
+        return []
 
 
 def test_commit_build_status_normalizes_results() -> None:
@@ -111,9 +114,35 @@ def test_pull_request_build_status_raw_latest_only_uses_head_commit() -> None:
     assert ("commits", "DEMO", "example-repo", 42, 0, None) not in provider.calls
 
 
+def test_commit_build_status_paginates_normalized_results_but_preserves_raw_page() -> None:
+    first_page = {
+        "size": 100,
+        "limit": 100,
+        "isLastPage": False,
+        "start": 0,
+        "nextPageStart": 100,
+        "values": [{"key": "DEMO-1234", "state": "SUCCESSFUL"} for _ in range(100)],
+    }
+
+    class PagedStatusProvider:
+        def get_associated_build_statuses(self, commit):
+            return first_page
+
+        def list_associated_build_statuses(self, commit):
+            return [*first_page["values"], {"key": "DEMO-1234", "state": "FAILED"}]
+
+    service = BuildStatusService(PagedStatusProvider())
+
+    normalized = service.for_commit("abc123")
+
+    assert normalized["overall_state"] == "FAILED"
+    assert len(normalized["results"]) == 101
+    assert service.for_commit_raw("abc123") == first_page
+
+
 def test_build_status_rejects_non_json_status_payload() -> None:
     class TextStatusProvider(FakeBuildStatusProvider):
-        def get_associated_build_statuses(self, commit):
+        def list_associated_build_statuses(self, commit):
             return "<html>example response</html>"
 
     service = BuildStatusService(TextStatusProvider())
