@@ -2,6 +2,7 @@ from itertools import islice
 
 from atlassian import Bitbucket
 
+from atlassian_cli.auth.headers import merge_headers
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.auth.session_patch import patch_session_headers
 
@@ -24,9 +25,48 @@ class BitbucketServerProvider:
             kwargs["username"] = username
             kwargs["password"] = password or token
         self.client = Bitbucket(**kwargs)
+        self._headers = dict(headers or {})
         session = getattr(self.client, "_session", None)
         if session is not None:
-            patch_session_headers(session, headers or {})
+            patch_session_headers(session, self._headers)
+
+    def request_api(
+        self,
+        method: str,
+        path: str,
+        *,
+        headers: dict[str, str] | None,
+        params: dict[str, object] | None,
+        json_body: dict[str, object] | None,
+        data: bytes | None,
+    ):
+        url = self.client.url_joiner(self.client.url, path)
+        request_headers = merge_headers(self._headers, headers or {})
+        if not any(name.lower() == "accept" for name in request_headers):
+            request_headers["Accept"] = "*/*"
+        if json_body is not None and not any(
+            name.lower() == "content-type" for name in request_headers
+        ):
+            request_headers["Content-Type"] = "application/json; charset=utf-8"
+        retry_handler = self.client._retry_handler()
+        while True:
+            response = self.client._session.request(
+                method=method,
+                url=url,
+                headers=request_headers,
+                params=params,
+                json=json_body,
+                data=data,
+                timeout=self.client.timeout,
+                verify=self.client.verify_ssl,
+                proxies=self.client.proxies,
+                cert=self.client.cert,
+                allow_redirects=False,
+            )
+            if not retry_handler(response):
+                break
+        response.encoding = "utf-8"
+        return response
 
     def _paged_items(self, value, *, limit: int | None = None) -> list[dict]:
         if isinstance(value, dict):
@@ -107,6 +147,63 @@ class BitbucketServerProvider:
         if hasattr(response, "json"):
             return response.json()
         return response
+
+    def list_pull_request_activities(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        *,
+        start: int,
+        limit: int,
+    ) -> list[dict]:
+        return self._paged_items(
+            self.client.get_pull_requests_activities(
+                project_key,
+                repo_slug,
+                pr_id,
+                start=start,
+                limit=limit,
+            ),
+            limit=limit,
+        )
+
+    def list_pull_request_changes(
+        self,
+        project_key: str,
+        repo_slug: str,
+        pr_id: int,
+        *,
+        start: int,
+        limit: int,
+    ) -> list[dict]:
+        return self._paged_items(
+            self.client.get_pull_requests_changes(
+                project_key,
+                repo_slug,
+                pr_id,
+                start=start,
+                limit=limit,
+            ),
+            limit=limit,
+        )
+
+    def get_pull_request_mergeability(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
+        return self.client.is_pull_request_can_be_merged(project_key, repo_slug, pr_id)
+
+    def list_dashboard_pull_requests(
+        self, *, role: str, state: str, start: int, limit: int
+    ) -> list[dict]:
+        return self._paged_items(
+            self.client.get_dashboard_pull_requests(
+                start=start,
+                limit=limit,
+                role=role,
+                state=None if state == "ALL" else state,
+                order="NEWEST",
+            ),
+            limit=limit,
+        )
 
     def approve_pull_request(self, project_key: str, repo_slug: str, pr_id: int) -> dict:
         url = f"{self.client._url_pull_request(project_key, repo_slug, pr_id)}/approve"
@@ -237,7 +334,11 @@ class BitbucketServerProvider:
         )
 
     def get_associated_build_statuses(self, commit: str) -> dict:
-        return self.client.get_associated_build_statuses(commit)
+        url = self.client.resource_url(
+            f"commits/{commit}",
+            api_root="rest/build-status",
+        )
+        return self.client.get(url, params={"limit": 100})
 
     def create_pull_request(self, project_key: str, repo_slug: str, payload: dict) -> dict:
         return self.client.create_pull_request(project_key, repo_slug, data=payload)

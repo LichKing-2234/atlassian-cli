@@ -1,9 +1,18 @@
+from atlassian import Bitbucket
+from requests import Response
+from requests.adapters import BaseAdapter
+
 from atlassian_cli.products.bitbucket.providers.server import BitbucketServerProvider
 
 
-def build_provider_with_client(client) -> BitbucketServerProvider:
+def build_provider_with_client(
+    client,
+    *,
+    headers: dict[str, str] | None = None,
+) -> BitbucketServerProvider:
     provider = BitbucketServerProvider.__new__(BitbucketServerProvider)
     provider.client = client
+    provider._headers = headers or {}
     return provider
 
 
@@ -127,6 +136,242 @@ def test_bitbucket_provider_get_pull_request_diff_uses_text_endpoint() -> None:
         {"Accept": "text/plain"},
         True,
     )
+
+
+def test_bitbucket_provider_request_api_returns_advanced_response() -> None:
+    calls = {}
+
+    class FakeResponse:
+        encoding = None
+
+    response = FakeResponse()
+
+    class FakeSession:
+        def request(self, **kwargs):
+            calls.update(kwargs)
+            return response
+
+    class FakeClient:
+        url = "https://bitbucket.example.com"
+        timeout = 30
+        verify_ssl = True
+        proxies = None
+        cert = None
+        _session = FakeSession()
+
+        @staticmethod
+        def url_joiner(url, path):
+            return f"{url}/{path}"
+
+        @staticmethod
+        def _retry_handler():
+            return lambda _response: False
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.request_api(
+        "GET",
+        "rest/api/1.0/projects/DEMO/repos/example-repo/compare/changes",
+        headers={"Accept": "application/json"},
+        params={
+            "from": "feature/DEMO-1234/example-change",
+            "to": "DEMO",
+        },
+        json_body=None,
+        data=None,
+    )
+
+    assert result is response
+    assert calls == {
+        "method": "GET",
+        "url": (
+            "https://bitbucket.example.com/"
+            "rest/api/1.0/projects/DEMO/repos/example-repo/compare/changes"
+        ),
+        "headers": {"Accept": "application/json"},
+        "params": {
+            "from": "feature/DEMO-1234/example-change",
+            "to": "DEMO",
+        },
+        "json": None,
+        "data": None,
+        "timeout": 30,
+        "verify": True,
+        "proxies": None,
+        "cert": None,
+        "allow_redirects": False,
+    }
+
+
+def test_bitbucket_provider_request_api_preserves_raw_body_and_repeated_query_values() -> None:
+    class RecordingAdapter(BaseAdapter):
+        def __init__(self) -> None:
+            self.request = None
+
+        def send(self, request, **_kwargs):
+            self.request = request
+            response = Response()
+            response.status_code = 200
+            response.reason = "OK"
+            response.headers["Content-Type"] = "application/json"
+            response._content = b"{}"
+            response.request = request
+            return response
+
+        def close(self) -> None:
+            pass
+
+    client = Bitbucket(url="https://bitbucket.example.com", token="example response")
+    adapter = RecordingAdapter()
+    client._session.mount("https://", adapter)
+    provider = build_provider_with_client(client)
+
+    response = provider.request_api(
+        "PATCH",
+        "rest/api/1.0/projects/DEMO?existing=",
+        headers={"Content-Type": "application/octet-stream"},
+        params={
+            "enabled": "true",
+            "missing": "",
+            "labels[]": ["DEMO", "DEMO-1"],
+        },
+        json_body=None,
+        data=b"\x00example response",
+    )
+
+    assert response.status_code == 200
+    assert adapter.request is not None
+    assert adapter.request.url == (
+        "https://bitbucket.example.com/rest/api/1.0/projects/DEMO"
+        "?existing=&enabled=true&missing=&labels%5B%5D=DEMO&labels%5B%5D=DEMO-1"
+    )
+    assert adapter.request.body == b"\x00example response"
+
+
+def test_bitbucket_provider_request_api_preserves_configured_content_headers() -> None:
+    class RecordingAdapter(BaseAdapter):
+        def __init__(self) -> None:
+            self.request = None
+
+        def send(self, request, **_kwargs):
+            self.request = request
+            response = Response()
+            response.status_code = 200
+            response._content = b"{}"
+            response.request = request
+            return response
+
+        def close(self) -> None:
+            pass
+
+    client = Bitbucket(url="https://bitbucket.example.com", token="example response")
+    adapter = RecordingAdapter()
+    client._session.mount("https://", adapter)
+    provider = build_provider_with_client(
+        client,
+        headers={
+            "accept": "application/example",
+            "content-type": "application/example+json",
+        },
+    )
+
+    provider.request_api(
+        "POST",
+        "rest/api/1.0/projects/DEMO",
+        headers={},
+        params=None,
+        json_body={"status": "DEMO"},
+        data=None,
+    )
+
+    assert adapter.request is not None
+    assert adapter.request.headers["Accept"] == "application/example"
+    assert adapter.request.headers["Content-Type"] == "application/example+json"
+
+
+def test_bitbucket_provider_request_api_command_headers_override_config_case_insensitively() -> (
+    None
+):
+    calls = {}
+
+    class FakeResponse:
+        encoding = None
+
+    class FakeSession:
+        def request(self, **kwargs):
+            calls.update(kwargs)
+            return FakeResponse()
+
+    class FakeClient:
+        url = "https://bitbucket.example.com"
+        timeout = 30
+        verify_ssl = True
+        proxies = None
+        cert = None
+        _session = FakeSession()
+
+        @staticmethod
+        def url_joiner(url, path):
+            return f"{url}/{path}"
+
+        @staticmethod
+        def _retry_handler():
+            return lambda _response: False
+
+    provider = build_provider_with_client(
+        FakeClient(),
+        headers={"Accept": "application/example", "Content-Type": "application/example+json"},
+    )
+
+    provider.request_api(
+        "POST",
+        "rest/api/1.0/projects/DEMO",
+        headers={"accept": "text/plain"},
+        params=None,
+        json_body={"status": "DEMO"},
+        data=None,
+    )
+
+    assert calls["headers"] == {
+        "Content-Type": "application/example+json",
+        "accept": "text/plain",
+    }
+
+
+def test_bitbucket_provider_request_api_does_not_follow_redirects() -> None:
+    class RedirectAdapter(BaseAdapter):
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def send(self, request, **_kwargs):
+            self.calls += 1
+            response = Response()
+            response.status_code = 302
+            response.reason = "Found"
+            response.headers["Location"] = "https://redirect.example.com/example response"
+            response._content = b""
+            response.request = request
+            return response
+
+        def close(self) -> None:
+            pass
+
+    client = Bitbucket(url="https://bitbucket.example.com", token="example response")
+    adapter = RedirectAdapter()
+    client._session.mount("https://", adapter)
+    provider = build_provider_with_client(client)
+
+    response = provider.request_api(
+        "GET",
+        "rest/api/1.0/projects/DEMO",
+        headers={"Accept": "application/json"},
+        params=None,
+        json_body=None,
+        data=None,
+    )
+
+    assert response.status_code == 302
+    assert adapter.calls == 1
 
 
 def test_bitbucket_provider_get_pull_request_diff_with_lines_uses_json_endpoint() -> None:
@@ -381,7 +626,7 @@ def test_bitbucket_provider_add_pull_request_comment_posts_anchor_payload() -> N
     )
 
 
-def test_bitbucket_provider_build_status_methods_forward_to_sdk() -> None:
+def test_bitbucket_provider_build_status_reads_direct_rest_resource_with_limit_100() -> None:
     calls = {}
 
     class FakeClient:
@@ -389,8 +634,12 @@ def test_bitbucket_provider_build_status_methods_forward_to_sdk() -> None:
             calls["commits"] = (project_key, repo_slug, pr_id, start, limit)
             return {"values": [{"id": "abc123"}, {"id": "def456"}]}
 
-        def get_associated_build_statuses(self, commit):
-            calls["build"] = commit
+        def resource_url(self, resource, *, api_root):
+            calls["resource_url"] = (resource, api_root)
+            return f"{api_root}/1.0/{resource}"
+
+        def get(self, url, *, params):
+            calls["build"] = (url, params)
             return {"values": [{"key": "DEMO", "state": "SUCCESSFUL"}]}
 
     provider = build_provider_with_client(FakeClient())
@@ -401,4 +650,60 @@ def test_bitbucket_provider_build_status_methods_forward_to_sdk() -> None:
     assert commits == [{"id": "abc123"}, {"id": "def456"}]
     assert statuses == {"values": [{"key": "DEMO", "state": "SUCCESSFUL"}]}
     assert calls["commits"] == ("DEMO", "example-repo", 42, 0, 25)
-    assert calls["build"] == "abc123"
+    assert calls["resource_url"] == ("commits/abc123", "rest/build-status")
+    assert calls["build"] == ("rest/build-status/1.0/commits/abc123", {"limit": 100})
+
+
+def test_bitbucket_provider_exposes_pr_read_primitives() -> None:
+    calls = {}
+
+    class FakeClient:
+        def get_pull_requests_activities(self, project, repo, pr_id, start=0, limit=None):
+            calls["activities"] = (project, repo, pr_id, start, limit)
+            return {"values": [{"action": "MERGED"}]}
+
+        def get_pull_requests_changes(self, project, repo, pr_id, start=0, limit=None):
+            calls["changes"] = (project, repo, pr_id, start, limit)
+            return {"values": [{"type": "ADD", "path": {"toString": "example.py"}}]}
+
+        def is_pull_request_can_be_merged(self, project, repo, pr_id):
+            calls["mergeability"] = (project, repo, pr_id)
+            return {"canMerge": True, "conflicted": False, "vetoes": []}
+
+        def get_dashboard_pull_requests(
+            self, start=0, limit=None, role=None, state=None, order=None
+        ):
+            calls["dashboard"] = (start, limit, role, state, order)
+            return {"values": [{"id": 1234}]}
+
+    provider = build_provider_with_client(FakeClient())
+    assert provider.list_pull_request_activities("DEMO", "example-repo", 1234, start=0, limit=100)
+    assert provider.list_pull_request_changes("DEMO", "example-repo", 1234, start=0, limit=100)
+    assert provider.get_pull_request_mergeability("DEMO", "example-repo", 1234)["canMerge"]
+    assert provider.list_dashboard_pull_requests(
+        role="AUTHOR", state="OPEN", start=0, limit=100
+    ) == [{"id": 1234}]
+    assert calls == {
+        "activities": ("DEMO", "example-repo", 1234, 0, 100),
+        "changes": ("DEMO", "example-repo", 1234, 0, 100),
+        "mergeability": ("DEMO", "example-repo", 1234),
+        "dashboard": (0, 100, "AUTHOR", "OPEN", "NEWEST"),
+    }
+
+
+def test_dashboard_all_state_is_omitted_from_sdk_request() -> None:
+    calls = {}
+
+    class FakeClient:
+        def get_dashboard_pull_requests(
+            self, start=0, limit=None, role=None, state=None, order=None
+        ):
+            calls["dashboard"] = (start, limit, role, state, order)
+            return {"values": [{"id": 1234}]}
+
+    provider = build_provider_with_client(FakeClient())
+
+    assert provider.list_dashboard_pull_requests(
+        role="AUTHOR", state="ALL", start=0, limit=100
+    ) == [{"id": 1234}]
+    assert calls["dashboard"] == (0, 100, "AUTHOR", None, "NEWEST")

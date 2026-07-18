@@ -30,6 +30,20 @@ def test_readme_mentions_bitbucket_pr_diff_tty_behavior() -> None:
     assert "line-aware diff output" in readme.lower()
 
 
+def test_readme_documents_bitbucket_api_compare_endpoints() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    for value in (
+        "atlassian bitbucket api -X GET",
+        "projects/DEMO/repos/example-repo/compare/diff",
+        "projects/DEMO/repos/example-repo/compare/changes",
+        "projects/DEMO/repos/example-repo/compare/commits",
+        "--paginate --jq '.values[]'",
+        "structured JSON",
+    ):
+        assert value in readme
+
+
 def test_readme_mentions_bitbucket_comments_and_build_status() -> None:
     readme = Path("README.md").read_text()
 
@@ -40,6 +54,26 @@ def test_readme_mentions_bitbucket_comments_and_build_status() -> None:
     )
     assert "bitbucket pr build-status demo example-repo 42" in readme.lower()
     assert "bitbucket commit build-status abc123" in readme.lower()
+
+
+def test_readme_documents_gh_compatible_pr_reads_and_browser_migration() -> None:
+    readme = Path("README.md").read_text()
+
+    assert "atlassian bitbucket pr list -R DEMO/example-repo" in readme
+    assert "atlassian bitbucket pr view 1234 -R DEMO/example-repo" in readme
+    assert "atlassian bitbucket pr browse DEMO example-repo" in readme
+    assert "`pr list` is line-oriented" in readme
+    assert "`pr browse` preserves the full-screen browser" in readme
+    assert "Bitbucket Server 6.7.2" in readme
+    assert "B25" in readme
+    assert "B30" in readme
+    assert "B31" in readme
+
+
+def test_readme_no_longer_leads_with_removed_pr_list_positionals() -> None:
+    readme = Path("README.md").read_text()
+
+    assert "atlassian bitbucket pr list DEMO example-repo" not in readme
 
 
 def test_readme_mentions_full_local_e2e_suite() -> None:

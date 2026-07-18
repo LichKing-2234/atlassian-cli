@@ -235,8 +235,12 @@ ssh example-user@example-host
 - `atlassian confluence page attachment upload 1234 ./diagram.png`
 - `atlassian confluence page attachment download 1234 --name diagram.png --destination ./diagram.png`
 - `atlassian bitbucket repo get DEMO example-repo`
-- `atlassian bitbucket pr list DEMO example-repo`
-- `atlassian bitbucket pr list DEMO example-repo --state MERGED`
+- `atlassian bitbucket pr list -R DEMO/example-repo`
+- `atlassian bitbucket pr list -R DEMO/example-repo --state merged --limit 30`
+- `atlassian bitbucket pr list -R DEMO/example-repo --json number,title,state,url`
+- `atlassian bitbucket pr view 1234 -R DEMO/example-repo`
+- `atlassian bitbucket pr view feature/DEMO-1234/example-change -R DEMO/example-repo`
+- `atlassian bitbucket pr browse DEMO example-repo`
 - `atlassian bitbucket pr diff DEMO example-repo 42`
 - `atlassian bitbucket pr diff DEMO example-repo 42 --with-lines --output json`
 - `atlassian bitbucket pr comment list DEMO example-repo 42`
@@ -246,7 +250,41 @@ ssh example-user@example-host
 - `atlassian bitbucket pr unapprove DEMO example-repo 42`
 - `atlassian bitbucket pr build-status DEMO example-repo 42`
 - `atlassian bitbucket commit build-status abc123`
-- `atlassian bitbucket pr list DEMO example-repo --output json`
+
+### Bitbucket API
+
+`atlassian bitbucket api` is a generic authenticated REST command. Endpoint
+paths are relative to `rest/api/1.0` unless they already begin with `rest/`.
+Like `gh api`, adding `-f` or `-F` fields changes the default method to POST;
+use `-X GET` when fields should become query parameters.
+
+Compare two refs as structured JSON on Bitbucket Server 6.7.2:
+
+```bash
+atlassian bitbucket api -X GET \
+  'projects/DEMO/repos/example-repo/compare/diff' \
+  -f from='feature/DEMO-1234/example-change' \
+  -f to='DEMO'
+```
+
+List every changed file or commit while filtering each Bitbucket page with jq:
+
+```bash
+atlassian bitbucket api -X GET --paginate --jq '.values[]' \
+  'projects/DEMO/repos/example-repo/compare/changes' \
+  -f from='feature/DEMO-1234/example-change' \
+  -f to='DEMO'
+
+atlassian bitbucket api -X GET --paginate --jq '.values[]' \
+  'projects/DEMO/repos/example-repo/compare/commits' \
+  -f from='feature/DEMO-1234/example-change' \
+  -f to='DEMO'
+```
+
+The command returns the Bitbucket response body directly and does not add an
+`--output` wrapper. Bitbucket Server 6.7.2 returns structured JSON from
+`compare/diff`; it does not return unified diff text from that endpoint.
+GraphQL, `--template`, and `--cache` are not implemented.
 
 ## Header injection
 
@@ -254,7 +292,7 @@ The CLI can accept externally generated HTTP headers without embedding OAuth log
 
 Command-line example:
 
-- `atlassian --url https://bitbucket.example.com --header 'Authorization: Bearer ...' bitbucket pr list DEMO example-repo`
+- `atlassian --url https://bitbucket.example.com --header 'Authorization: Bearer ...' bitbucket pr list -R DEMO/example-repo`
 
 Config file example:
 
@@ -271,7 +309,7 @@ auth = "pat"
 Authorization = "Bearer $(example-token-helper)"
 ```
 
-- `atlassian bitbucket pr list DEMO example-repo`
+- `atlassian bitbucket pr list -R DEMO/example-repo`
 
 Config-backed header values may execute local shell commands through `$(...)`. Treat `~/.config/atlassian-cli/config.toml` as trusted local configuration.
 Command substitution runs through `/bin/sh` on Unix-like systems and `cmd.exe` on Windows.
@@ -283,9 +321,8 @@ Only top-level `[jira]`, `[confluence]`, `[bitbucket]`, and `[headers]` are supp
 The CLI now uses `markdown` as the default human-readable output mode.
 
 - Single-resource commands default to markdown detail output.
-- Collection commands default to an interactive browser in a TTY.
-- Collection commands fall back to markdown summary output outside a TTY.
-- `bitbucket pr list --state` supports Bitbucket pull request states such as `OPEN`, `MERGED`, and `DECLINED`.
+- Collection commands with browser support use it in a TTY and fall back to markdown summary output outside a TTY.
+- Primary `bitbucket pr list` uses line-oriented output; use `bitbucket pr browse` for the interactive browser.
 - Confluence page detail output renders storage HTML content into readable Markdown in `--output markdown`.
 - Use `--output json` or `--output yaml` for normalized machine-readable output.
 - Use `--output raw-json` to inspect the original provider response as JSON.
@@ -298,7 +335,7 @@ Examples:
 - `atlassian jira issue get DEMO-1`
 - `atlassian jira issue search --jql 'project = DEMO'`
 - `atlassian confluence space list`
-- `atlassian bitbucket pr list DEMO example-repo`
+- `atlassian bitbucket pr list -R DEMO/example-repo`
 - `atlassian bitbucket pr diff DEMO example-repo 42`
 - `atlassian bitbucket pr diff DEMO example-repo 42 --with-lines --output json`
 - `atlassian bitbucket pr comment list DEMO example-repo 42`
@@ -307,11 +344,26 @@ Examples:
 - `atlassian bitbucket pr build-status DEMO example-repo 42`
 - `atlassian bitbucket commit build-status abc123`
 - `atlassian jira issue get DEMO-1 --output json`
-- `atlassian bitbucket pr list DEMO example-repo --output json`
+
+### Bitbucket pull request reads
+
+`pr list` is line-oriented and defaults to open pull requests with a limit of 30. Its `closed` state maps to declined Bitbucket pull requests. `--web` conflicts with `--json`, and `ATLASSIAN_BITBUCKET_REPO=DEMO/example-repo` can supply repository context when `-R` is omitted. Base JSON field selection is available without `--jq` or `--template` in this phase.
+
+On Bitbucket Server 6.7.2, the parser recognizes `reviews` and `latestReviews` but reports the B30 capability failure, `mergeCommit` reports B31, and `potentialMergeCommit` reports B25.
+
+| Previous workflow | Current workflow |
+| --- | --- |
+| `pr list PROJECT REPO` | `pr list -R PROJECT/REPO` |
+| Full-screen `pr list PROJECT REPO` | `pr browse PROJECT REPO` |
+| Existing `pr list --output MODE` | Remains a hidden, deprecated D06 compatibility input |
+| `get`, `build-status`, `approve`, and `unapprove` | Remain callable compatibility commands |
+| Existing detailed exits | Migrated primary reads use exits `0`, `1`, `2`, and `4` |
+
+`pr browse` preserves the full-screen browser in a TTY and its static Markdown fallback outside a TTY.
 
 ### Interactive browser behavior
 
-TTY collection commands open a compact browser instead of printing a long static list.
+TTY collection commands that support interactive browsing open a compact browser instead of printing a long static list. For pull requests, use `pr browse`.
 
 - The top region is a dense single-line-per-item list for fast scanning.
 - The bottom preview is a live preview that shows metadata for the selected item without opening full detail.

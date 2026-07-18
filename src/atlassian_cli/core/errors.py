@@ -16,6 +16,10 @@ class ConfigError(AtlassianCliError):
     """Invalid config or missing settings."""
 
 
+class MissingCredentialError(ConfigError):
+    """A command requires authentication but no credential was configured."""
+
+
 class AuthError(AtlassianCliError):
     """Authentication or authorization failure."""
 

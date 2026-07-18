@@ -3,7 +3,8 @@ import pytest
 from atlassian_cli.auth.headers import parse_cli_headers
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.auth.resolver import resolve_auth
-from atlassian_cli.core.errors import ConfigError
+from atlassian_cli.core.errors import MissingCredentialError, exit_code_for_error
+from atlassian_cli.core.exit_codes import EXIT_USAGE
 
 
 def test_parse_cli_headers_accepts_repeated_name_value_pairs() -> None:
@@ -40,7 +41,7 @@ def test_resolve_auth_preserves_injected_headers() -> None:
 
 @pytest.mark.parametrize("auth_mode", [AuthMode.PAT, AuthMode.BEARER])
 def test_resolve_auth_requires_token_for_token_modes(auth_mode: AuthMode) -> None:
-    with pytest.raises(ConfigError, match="requires a token"):
+    with pytest.raises(MissingCredentialError, match="requires a token"):
         resolve_auth(
             auth=auth_mode,
             username=None,
@@ -48,3 +49,7 @@ def test_resolve_auth_requires_token_for_token_modes(auth_mode: AuthMode) -> Non
             token=None,
             headers={},
         )
+
+
+def test_missing_credential_keeps_legacy_config_exit_policy() -> None:
+    assert exit_code_for_error(MissingCredentialError("authentication required")) == EXIT_USAGE

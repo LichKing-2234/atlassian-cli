@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from atlassian_cli.config.models import Product
@@ -6,6 +8,7 @@ from tests.e2e.support import (
     GitSandbox,
     build_live_provider,
     resolve_bitbucket_repo_target,
+    run_cli,
     run_json,
     unique_name,
 )
@@ -61,7 +64,7 @@ def test_bitbucket_project_and_repo_queries_live(live_env) -> None:
 
 def test_bitbucket_repo_create_live(live_env) -> None:
     registry = CleanupRegistry()
-    repo_name = unique_name("atlassian-cli-e2e-repo")
+    repo_name = unique_name("example-repo")
     repo_slug = None
     try:
         created = run_json(
@@ -100,20 +103,20 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
         "raw-json",
     )
     clone_links = raw_repo.get("links", {}).get("clone", [])
-    clone_url = next(
-        (
-            link["href"]
-            for preferred in ("ssh", "http")
-            for link in clone_links
-            if link.get("name") == preferred
-        ),
+    ssh_clone_url = next(
+        (link["href"] for link in clone_links if link.get("name") == "ssh"),
         None,
     )
-    assert clone_url is not None
+    http_clone_url = next(
+        (link["href"] for link in clone_links if link.get("name") == "http"),
+        None,
+    )
+    assert ssh_clone_url is not None
+    assert http_clone_url is not None
 
-    branch_name = unique_name("e2e-branch")
+    branch_name = unique_name("feature/DEMO-1234/example-change")
     sandbox_path = tmp_path / "repo"
-    sandbox = GitSandbox.clone(clone_url, sandbox_path)
+    sandbox = GitSandbox.clone(ssh_clone_url, sandbox_path)
     sandbox.configure_identity()
     if not sandbox.has_head():
         sandbox.create_initial_commit(
@@ -130,7 +133,7 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
 
     sandbox.create_commit(
         branch_name,
-        "e2e-note.txt",
+        "example.py",
         f"{branch_name}\n",
         f"test: add {branch_name}",
     )
@@ -139,6 +142,56 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
         f"bitbucket branch delete {branch_name}",
         lambda: sandbox.delete_remote_branch(branch_name),
     )
+
+    compare_endpoint = f"projects/{target['project_key']}/repos/{target['repo_slug']}/compare"
+    compare_head_commit = sandbox.run("rev-parse", "HEAD").stdout.strip()
+    compare_fields = [
+        "-f",
+        f"from=refs/heads/{branch_name}",
+        "-f",
+        "to=refs/heads/master",
+    ]
+
+    compared_diff = run_json(
+        live_env,
+        "bitbucket",
+        "api",
+        "-X",
+        "GET",
+        f"{compare_endpoint}/diff",
+        *compare_fields,
+    )
+    assert compared_diff["diffs"]
+
+    compared_changes = run_cli(
+        live_env,
+        "bitbucket",
+        "api",
+        "-X",
+        "GET",
+        "--paginate",
+        "--jq",
+        ".values[].path.toString",
+        f"{compare_endpoint}/changes",
+        *compare_fields,
+    )
+    assert compared_changes.returncode == 0, compared_changes.stderr
+    assert "example.py" in compared_changes.stdout.splitlines()
+
+    compared_commits = run_cli(
+        live_env,
+        "bitbucket",
+        "api",
+        "-X",
+        "GET",
+        "--paginate",
+        "--jq",
+        ".values[].id",
+        f"{compare_endpoint}/commits",
+        *compare_fields,
+    )
+    assert compared_commits.returncode == 0, compared_commits.stderr
+    assert compare_head_commit in compared_commits.stdout.splitlines()
 
     branches = run_json(
         live_env,
@@ -162,9 +215,9 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
         target["project_key"],
         target["repo_slug"],
         "--title",
-        unique_name("e2e-pr"),
+        "Example pull request",
         "--description",
-        "created by live e2e",
+        "example response",
         "--from-ref",
         f"refs/heads/{branch_name}",
         "--to-ref",
@@ -173,20 +226,88 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
         "json",
     )
     pr_id = created_pr["id"]
+    repo_selector = f"{target['project_key']}/{target['repo_slug']}"
 
     listed = run_json(
         live_env,
         "bitbucket",
         "pr",
         "list",
+        "-R",
+        repo_selector,
+        "--head",
+        branch_name,
+        "--json",
+        "number,title,state,url",
+    )
+    assert any(item["number"] == pr_id for item in listed)
+
+    listed_via_alias = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "ls",
+        "-R",
+        repo_selector,
+        "--json",
+        "number",
+    )
+    assert any(item["number"] == pr_id for item in listed_via_alias)
+
+    viewed = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "view",
+        str(pr_id),
+        "-R",
+        repo_selector,
+        "--json",
+        "number,title,state,url,headRefName",
+    )
+    assert viewed["number"] == pr_id
+    assert viewed["headRefName"] == branch_name
+
+    sandbox.run("remote", "add", "upstream", http_clone_url)
+    viewed_from_branch = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "view",
+        "--json",
+        "number",
+        cwd=sandbox_path,
+    )
+    assert viewed_from_branch["number"] == pr_id
+
+    pr_url = viewed["url"]
+    viewed_from_url = run_json(
+        live_env,
+        "bitbucket",
+        "pr",
+        "view",
+        pr_url,
+        "-R",
+        "~example-user/example-repo",
+        "--json",
+        "number,url",
+    )
+    assert viewed_from_url == {"number": pr_id, "url": pr_url}
+
+    browsed = run_cli(
+        live_env,
+        "bitbucket",
+        "pr",
+        "browse",
         target["project_key"],
         target["repo_slug"],
         "--state",
         "OPEN",
-        "--output",
-        "json",
+        "--limit",
+        "1",
     )
-    assert any(item["id"] == pr_id for item in listed["results"])
+    assert browsed.returncode == 0
+    assert "Example pull request" in browsed.stdout
 
     fetched = run_json(
         live_env,
@@ -214,7 +335,7 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
     )
     assert diff_payload["id"] == pr_id
     assert "diff" in diff_payload
-    assert branch_name in diff_payload["diff"] or "e2e-note.txt" in diff_payload["diff"]
+    assert branch_name in diff_payload["diff"] or "example.py" in diff_payload["diff"]
 
     diff_with_lines = run_json(
         live_env,
@@ -232,7 +353,7 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
 
     inline_anchor = None
     for file_diff in diff_with_lines["files"]:
-        if file_diff.get("path") != "e2e-note.txt":
+        if file_diff.get("path") != "example.py":
             continue
         for hunk in file_diff.get("hunks", []):
             for line in hunk.get("lines", []):
@@ -472,8 +593,13 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
     assert "overall_state" in commit_build_status
     assert "results" in commit_build_status
 
+    reviewer_live_env = (
+        replace(live_env, config_file=live_env.bitbucket_reviewer_config)
+        if live_env.bitbucket_reviewer_config
+        else live_env
+    )
     approved = run_json(
-        live_env,
+        reviewer_live_env,
         "bitbucket",
         "pr",
         "approve",
@@ -486,7 +612,7 @@ def test_bitbucket_branch_and_pr_round_trip_live(live_env, tmp_path, request) ->
     assert approved["approved"] is True
 
     unapproved = run_json(
-        live_env,
+        reviewer_live_env,
         "bitbucket",
         "pr",
         "unapprove",

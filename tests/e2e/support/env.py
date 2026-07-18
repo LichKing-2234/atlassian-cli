@@ -19,6 +19,7 @@ class LiveEnv:
     jira_issue_type: str | None = None
     confluence_parent_page: str | None = None
     bitbucket_existing_repo: str | None = None
+    bitbucket_reviewer_config: Path | None = None
 
 
 def _load_dotenv_values() -> dict[str, str]:
@@ -59,6 +60,10 @@ def load_live_env() -> LiveEnv:
     config_file = Path(
         _env_value("ATLASSIAN_CONFIG_FILE", str(DEFAULT_CONFIG_FILE), dotenv_values=dotenv_values)
     ).expanduser()
+    reviewer_config = _env_value(
+        "ATLASSIAN_E2E_BITBUCKET_REVIEWER_CONFIG",
+        dotenv_values=dotenv_values,
+    )
     return LiveEnv(
         config_file=config_file,
         jira_project=_env_value("ATLASSIAN_E2E_JIRA_PROJECT", "DEMO", dotenv_values=dotenv_values),
@@ -81,4 +86,5 @@ def load_live_env() -> LiveEnv:
         bitbucket_existing_repo=_env_value(
             "ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO", dotenv_values=dotenv_values
         ),
+        bitbucket_reviewer_config=(Path(reviewer_config).expanduser() if reviewer_config else None),
     )

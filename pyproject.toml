@@ -12,6 +12,7 @@ dependencies = [
   "atlassian-python-api>=4.0.7",
   "certifi>=2025.10.5",
   "click>=8.1.0",
+  "jq>=1.10.0",
   "Pygments>=2.13.0",
   "markdownify>=1.2.2",
   "prompt_toolkit>=3.0.51",
