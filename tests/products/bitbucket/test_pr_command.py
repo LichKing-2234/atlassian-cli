@@ -636,6 +636,7 @@ def test_hidden_legacy_output_selects_v019_renderer_and_warns(monkeypatch) -> No
         ("open", "OPEN"),
         ("DECLINED", "DECLINED"),
         ("declined", "DECLINED"),
+        ("DeClInEd", "DECLINED"),
         ("MERGED", "MERGED"),
         ("merged", "MERGED"),
         ("ALL", "ALL"),

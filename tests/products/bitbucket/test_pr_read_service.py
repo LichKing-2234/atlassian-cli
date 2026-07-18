@@ -311,6 +311,7 @@ def test_one_direct_field_returns_only_that_field() -> None:
         ("open", "OPEN"),
         ("DECLINED", "DECLINED"),
         ("declined", "DECLINED"),
+        ("DeClInEd", "DECLINED"),
         ("MERGED", "MERGED"),
         ("all", "ALL"),
     ],
@@ -340,6 +341,7 @@ def test_search_rejects_non_native_states(query: str) -> None:
     [
         ("state:DECLINED", "DECLINED"),
         ("state:declined", "DECLINED"),
+        ("state:DeClInEd", "DECLINED"),
         ("is:MERGED", "MERGED"),
     ],
 )
