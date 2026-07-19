@@ -102,10 +102,11 @@ def install_edit_fakes(monkeypatch, *, prompt: bool = False):
 
 
 def test_edit_help_matches_supported_gh_surface() -> None:
-    result = runner.invoke(app, ["bitbucket", "pr", "edit", "--help"])
+    result = runner.invoke(app, ["bitbucket", "pr", "edit", "--help"], color=True)
 
     assert result.exit_code == 0
-    assert "[<number> | <url> | <branch>]" in result.stdout
+    plain_output = click.unstyle(result.stdout)
+    assert "[<number> | <url> | <branch>]" in plain_output
     for flag in (
         "--add-reviewer",
         "--base",
@@ -115,7 +116,7 @@ def test_edit_help_matches_supported_gh_surface() -> None:
         "--repo",
         "--title",
     ):
-        assert flag in result.stdout
+        assert flag in plain_output
     for unsupported in (
         "--add-assignee",
         "--add-label",
@@ -126,7 +127,7 @@ def test_edit_help_matches_supported_gh_surface() -> None:
         "--remove-milestone",
         "--remove-project",
     ):
-        assert unsupported not in result.stdout
+        assert unsupported not in plain_output
 
 
 def test_edit_body_sources_conflict_before_file_or_provider(monkeypatch) -> None:
