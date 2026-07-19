@@ -67,6 +67,26 @@ def test_view_repo_without_selector_fails_before_current_branch_lookup() -> None
     assert provider.calls == []
 
 
+def test_edit_repo_without_selector_can_use_current_branch() -> None:
+    branch = "feature/DEMO-1234/example-change"
+    provider = FakeProvider(
+        {
+            ("OPEN", 0): [
+                raw_pr(1234, "OPEN", "2026-07-15T12:00:00", "DEMO", branch),
+            ]
+        }
+    )
+
+    result = PullRequestFinder(provider, SERVER).find(
+        None,
+        resolution(branch),
+        explicit_repo=True,
+        allow_explicit_repo_without_selector=True,
+    )
+
+    assert result == PullRequestRef(REPO, 1234)
+
+
 def test_branch_ranks_open_before_newer_closed_then_newest_open() -> None:
     provider = FakeProvider(
         {
