@@ -1,5 +1,7 @@
+import pytest
 from requests import HTTPError
 
+from atlassian_cli.core.errors import AuthError, ConflictError, NotFoundError, ValidationError
 from atlassian_cli.products.jira.providers.server import JiraServerProvider
 
 
@@ -161,6 +163,31 @@ def test_issue_link_methods_delegate_to_client() -> None:
         ("delete", "10001"),
         ("types",),
     ]
+
+
+@pytest.mark.parametrize(
+    ("status_code", "error_type"),
+    [
+        (400, ValidationError),
+        (401, AuthError),
+        (403, AuthError),
+        (404, NotFoundError),
+        (409, ConflictError),
+    ],
+)
+def test_issue_link_http_errors_are_actionable(status_code, error_type) -> None:
+    class FakeResponse:
+        def __init__(self, value: int) -> None:
+            self.status_code = value
+
+    class FakeClient:
+        def create_issue_link(self, data: dict) -> None:
+            raise HTTPError("example response", response=FakeResponse(status_code))
+
+    provider = build_provider_with_client(FakeClient())
+
+    with pytest.raises(error_type):
+        provider.create_issue_link({"type": {"name": "Cloners"}})
 
 
 def test_download_issue_attachment_streams_to_destination(tmp_path) -> None:

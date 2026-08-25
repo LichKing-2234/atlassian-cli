@@ -1,5 +1,6 @@
 import pytest
 
+from atlassian_cli.core.errors import ConflictError, ValidationError
 from atlassian_cli.products.jira.services.link import IssueLinkService
 
 LINK_TYPE = {
@@ -127,17 +128,18 @@ def test_issue_link_service_raw_create_preserves_composed_responses() -> None:
         link_type="Cloners",
     )
 
-    assert result["create_response"] is None
-    assert result["link_type_response"] == [LINK_TYPE]
-    assert result["issue_link_response"] == [issue_link()]
-    assert result["link"] == issue_link()
+    assert result == {
+        "link_type_response": [LINK_TYPE],
+        "create_response": None,
+        "issue_link_response": [issue_link()],
+    }
 
 
 def test_issue_link_service_rejects_unknown_type_before_create() -> None:
     provider = FakeLinkProvider()
     service = IssueLinkService(provider)
 
-    with pytest.raises(ValueError, match="Unknown Jira issue link type.*Cloners"):
+    with pytest.raises(ValidationError, match="Unknown Jira issue link type.*Cloners"):
         service.create(
             inward_issue="DEMO-1",
             outward_issue="DEMO-1234",
@@ -154,7 +156,7 @@ def test_issue_link_service_rejects_ambiguous_readback() -> None:
 
     service = IssueLinkService(AmbiguousProvider())
 
-    with pytest.raises(RuntimeError, match="read-back was ambiguous"):
+    with pytest.raises(ConflictError, match="read-back was ambiguous"):
         service.create(
             inward_issue="DEMO-1",
             outward_issue="DEMO-1234",
@@ -168,6 +170,13 @@ def test_issue_link_service_lists_types_and_deletes() -> None:
 
     assert service.types() == {"results": [LINK_TYPE]}
     assert service.delete("10001") == {"id": "10001", "deleted": True}
+    assert provider.deleted_ids == ["10001"]
+
+
+def test_issue_link_service_raw_delete_returns_provider_response() -> None:
+    provider = FakeLinkProvider()
+
+    assert IssueLinkService(provider).delete_raw("10001") is None
     assert provider.deleted_ids == ["10001"]
 
 

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from atlassian_cli.core.errors import ConflictError, TransportError, ValidationError
 from atlassian_cli.products.jira.providers.base import JiraProvider
+from atlassian_cli.products.jira.schemas import JiraIssueLink, JiraIssueLinkType
 
 
 class IssueLinkService:
@@ -13,7 +15,7 @@ class IssueLinkService:
         return {
             "issue_key": issue_key,
             "results": [
-                self._normalize_link(link, issue_key)
+                self._parse_link(link, issue_key).to_simplified_dict()
                 for link in self.provider.list_issue_links(issue_key)
             ],
         }
@@ -24,7 +26,7 @@ class IssueLinkService:
     def types(self, name_filter: str | None = None) -> dict:
         return {
             "results": [
-                self._normalize_type(link_type)
+                JiraIssueLinkType.from_api_response(link_type).to_simplified_dict()
                 for link_type in self.types_raw(name_filter=name_filter)
             ]
         }
@@ -79,20 +81,17 @@ class IssueLinkService:
             comment_visibility=comment_visibility,
         )
         return {
-            "status": result["status"],
-            "created": result["created"],
             "link_type_response": result["link_type_response"],
             "create_response": result["create_response"],
             "issue_link_response": result["issue_link_response"],
-            "link": result["raw_link"],
         }
 
     def delete(self, link_id: str) -> dict:
         self.provider.delete_issue_link(link_id)
         return {"id": link_id, "deleted": True}
 
-    def delete_raw(self, link_id: str) -> dict:
-        return self.delete(link_id)
+    def delete_raw(self, link_id: str) -> dict | None:
+        return self.provider.delete_issue_link(link_id)
 
     def _create(
         self,
@@ -104,7 +103,7 @@ class IssueLinkService:
         comment_visibility: dict[str, str] | None,
     ) -> dict[str, Any]:
         if inward_issue == outward_issue:
-            raise ValueError("inward and outward issues must be different")
+            raise ValidationError("inward and outward issues must be different")
 
         link_types = self.provider.get_issue_link_types()
         if not any(item.get("name") == link_type for item in link_types):
@@ -112,7 +111,7 @@ class IssueLinkService:
                 sorted(str(item["name"]) for item in link_types if item.get("name"))
             )
             suffix = f" Available types: {available}." if available else ""
-            raise ValueError(f"Unknown Jira issue link type: {link_type}.{suffix}")
+            raise ValidationError(f"Unknown Jira issue link type: {link_type}.{suffix}")
 
         before_raw = self.provider.list_issue_links(inward_issue)
         before = self._matching_links(
@@ -123,11 +122,11 @@ class IssueLinkService:
             link_type=link_type,
         )
         if len(before) > 1:
-            raise RuntimeError(
+            raise ConflictError(
                 "Multiple identical Jira issue links already exist; delete duplicates before retrying"
             )
         if before:
-            normalized, raw = before[0]
+            normalized, _ = before[0]
             return {
                 "status": "existing",
                 "created": False,
@@ -135,7 +134,6 @@ class IssueLinkService:
                 "create_response": None,
                 "issue_link_response": before_raw,
                 "link": normalized,
-                "raw_link": raw,
             }
 
         payload: dict[str, Any] = {
@@ -157,11 +155,11 @@ class IssueLinkService:
             link_type=link_type,
         )
         if len(after) != 1:
-            raise RuntimeError(
+            raise ConflictError(
                 "Jira accepted the create request, but link read-back was "
                 f"{'missing' if not after else 'ambiguous'}"
             )
-        normalized, raw = after[0]
+        normalized, _ = after[0]
         return {
             "status": "created",
             "created": True,
@@ -169,7 +167,6 @@ class IssueLinkService:
             "create_response": create_response,
             "issue_link_response": after_raw,
             "link": normalized,
-            "raw_link": raw,
         }
 
     def _matching_links(
@@ -183,7 +180,7 @@ class IssueLinkService:
     ) -> list[tuple[dict, dict]]:
         matches = []
         for raw in links:
-            normalized = self._normalize_link(raw, requested_issue)
+            normalized = self._parse_link(raw, requested_issue).to_simplified_dict()
             if (
                 normalized.get("type") == link_type
                 and normalized.get("inward_issue") == inward_issue
@@ -193,46 +190,11 @@ class IssueLinkService:
         return matches
 
     @staticmethod
-    def _normalize_type(link_type: dict) -> dict:
-        return {
-            key: str(link_type[key])
-            for key in ("id", "name", "inward", "outward")
-            if link_type.get(key) is not None
-        }
-
-    @staticmethod
-    def _normalize_link(link: dict, requested_issue: str) -> dict:
-        link_type = link.get("type") if isinstance(link.get("type"), dict) else {}
-        outward = link.get("outwardIssue")
-        inward = link.get("inwardIssue")
-        if isinstance(outward, dict):
-            linked_issue = outward
-            direction = "outward"
-            relationship = link_type.get("outward")
-            inward_issue = requested_issue
-            outward_issue = outward.get("key")
-        elif isinstance(inward, dict):
-            linked_issue = inward
-            direction = "inward"
-            relationship = link_type.get("inward")
-            inward_issue = inward.get("key")
-            outward_issue = requested_issue
-        else:
-            raise RuntimeError(f"Jira issue link {link.get('id', '<unknown>')} has no linked issue")
-
-        fields = linked_issue.get("fields") if isinstance(linked_issue.get("fields"), dict) else {}
-        result = {
-            "id": str(link.get("id", "")),
-            "type": str(link_type.get("name", "")),
-            "inward": str(link_type.get("inward", "")),
-            "outward": str(link_type.get("outward", "")),
-            "inward_issue": str(inward_issue or ""),
-            "outward_issue": str(outward_issue or ""),
-            "direction": direction,
-            "relationship": str(relationship or ""),
-            "linked_issue": {
-                "key": str(linked_issue.get("key", "")),
-                "summary": str(fields.get("summary", "")),
-            },
-        }
-        return result
+    def _parse_link(link: dict, requested_issue: str) -> JiraIssueLink:
+        if not isinstance(link.get("outwardIssue"), dict) and not isinstance(
+            link.get("inwardIssue"), dict
+        ):
+            raise TransportError(
+                f"Jira issue link {link.get('id', '<unknown>')} has no linked issue"
+            )
+        return JiraIssueLink.from_api_response(link, requested_issue=requested_issue)

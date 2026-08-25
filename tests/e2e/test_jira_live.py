@@ -9,6 +9,8 @@ from tests.e2e.support import (
     build_jira_create_payload,
     build_live_context,
     build_live_provider,
+    discover_jira_comment_visibilities,
+    discover_jira_issue_type,
     run_cli,
     run_failure,
     run_json,
@@ -24,38 +26,6 @@ def _jira_additional_fields(payload: dict) -> dict:
         for key, value in payload.items()
         if key not in {"project", "issuetype", "summary", "description"}
     }
-
-
-def _discover_jira_issue_type(provider, *, project_key: str, reporter_name: str | None) -> str:
-    meta = provider.client.issue_createmeta(
-        project_key,
-        expand="projects.issuetypes.fields",
-    )
-    projects = meta.get("projects", []) if isinstance(meta, dict) else []
-    issue_types = projects[0].get("issuetypes", []) if projects else []
-    for issue_type in issue_types:
-        if issue_type.get("subtask") is True or not issue_type.get("name"):
-            continue
-        try:
-            build_jira_create_payload(
-                provider,
-                project_key=project_key,
-                summary="Example issue summary",
-                issue_type=issue_type["name"],
-                env_overrides={},
-                reporter_name=reporter_name,
-            )
-        except RuntimeError:
-            continue
-        return issue_type["name"]
-    raise RuntimeError("no writable Jira issue type was discoverable")
-
-
-def _discover_jira_comment_visibilities(provider, project_key: str) -> list[dict[str, str]]:
-    roles = provider.client.get(f"rest/api/2/project/{project_key}/role")
-    if not isinstance(roles, dict) or not roles:
-        raise RuntimeError("Jira project has no discoverable comment visibility roles")
-    return [{"type": "role", "value": name} for name in roles]
 
 
 def test_jira_project_and_metadata_live(live_env) -> None:
@@ -376,7 +346,7 @@ def test_jira_issue_link_round_trip_live(live_env) -> None:
     assert server_info["version"] == "7.11.0"
     assert str(server_info["buildNumber"]) == "711000"
     assert server_info["deploymentType"] == "Server"
-    issue_type = live_env.jira_issue_type or _discover_jira_issue_type(
+    issue_type = live_env.jira_issue_type or discover_jira_issue_type(
         provider,
         project_key=live_env.jira_project,
         reporter_name=jira_context.auth.username,
@@ -470,7 +440,7 @@ def test_jira_issue_link_round_trip_live(live_env) -> None:
         assert any(item.get("name") == link_type for item in filtered_types["results"])
         created = None
         visibility = None
-        for candidate in _discover_jira_comment_visibilities(provider, live_env.jira_project):
+        for candidate in discover_jira_comment_visibilities(provider, live_env.jira_project):
             result = run_cli(
                 live_env,
                 "jira",

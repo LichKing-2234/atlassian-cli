@@ -1,6 +1,8 @@
 from atlassian_cli.products.jira.schemas import (
     JiraAttachment,
     JiraIssue,
+    JiraIssueLink,
+    JiraIssueLinkType,
     JiraSearchResult,
     JiraUser,
 )
@@ -109,3 +111,46 @@ def test_jira_search_result_from_api_response_preserves_metadata() -> None:
     assert simplified["total"] == 2
     assert simplified["start_at"] == 5
     assert [issue["key"] for issue in simplified["issues"]] == ["DEMO-1", "DEMO-2"]
+
+
+def test_jira_issue_link_models_normalize_type_and_relative_direction() -> None:
+    link_type = JiraIssueLinkType.from_api_response(
+        {
+            "id": "10000",
+            "name": "Cloners",
+            "inward": "is cloned by",
+            "outward": "clones",
+        }
+    )
+    link = JiraIssueLink.from_api_response(
+        {
+            "id": "10001",
+            "type": link_type.to_simplified_dict(),
+            "outwardIssue": {
+                "key": "DEMO-1234",
+                "fields": {"summary": "Example issue summary"},
+            },
+        },
+        requested_issue="DEMO-1",
+    )
+
+    assert link_type.to_simplified_dict() == {
+        "id": "10000",
+        "name": "Cloners",
+        "inward": "is cloned by",
+        "outward": "clones",
+    }
+    assert link.to_simplified_dict() == {
+        "id": "10001",
+        "type": "Cloners",
+        "inward": "is cloned by",
+        "outward": "clones",
+        "inward_issue": "DEMO-1",
+        "outward_issue": "DEMO-1234",
+        "direction": "outward",
+        "relationship": "clones",
+        "linked_issue": {
+            "key": "DEMO-1234",
+            "summary": "Example issue summary",
+        },
+    }
