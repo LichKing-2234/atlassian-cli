@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import click
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
@@ -43,6 +44,7 @@ def invoke(*args: str):
     return runner.invoke(
         app,
         ["--url", "https://jira.example.com", "jira", "issue", "link", *args],
+        terminal_width=160,
     )
 
 
@@ -99,6 +101,6 @@ def test_jira_issue_link_delete_requires_yes(monkeypatch) -> None:
     deleted = invoke("delete", "10001", "--yes", "--output", "json")
 
     assert rejected.exit_code != 0
-    assert "pass --yes to confirm delete" in rejected.output
+    assert "pass --yes to confirm delete" in click.unstyle(rejected.output)
     assert deleted.exit_code == 0
     assert '"deleted": true' in deleted.stdout
