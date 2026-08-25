@@ -81,6 +81,7 @@ def test_issue_link_service_create_sends_direction_and_reads_link_back() -> None
         outward_issue="DEMO-1234",
         link_type="Cloners",
         comment="example comment",
+        comment_visibility={"type": "group", "value": "reviewer-one"},
     )
 
     assert result["status"] == "created"
@@ -91,7 +92,10 @@ def test_issue_link_service_create_sends_direction_and_reads_link_back() -> None
             "type": {"name": "Cloners"},
             "inwardIssue": {"key": "DEMO-1"},
             "outwardIssue": {"key": "DEMO-1234"},
-            "comment": {"body": "example comment"},
+            "comment": {
+                "body": "example comment",
+                "visibility": {"type": "group", "value": "reviewer-one"},
+            },
         }
     ]
 
@@ -165,3 +169,14 @@ def test_issue_link_service_lists_types_and_deletes() -> None:
     assert service.types() == {"results": [LINK_TYPE]}
     assert service.delete("10001") == {"id": "10001", "deleted": True}
     assert provider.deleted_ids == ["10001"]
+
+
+def test_issue_link_service_filters_types_case_insensitively() -> None:
+    class MultipleTypeProvider(FakeLinkProvider):
+        def get_issue_link_types(self) -> list[dict]:
+            return [LINK_TYPE, {"id": "10002", "name": "Blocks"}]
+
+    service = IssueLinkService(MultipleTypeProvider())
+
+    assert service.types(name_filter="clone") == {"results": [LINK_TYPE]}
+    assert service.types_raw(name_filter="CLONE") == [LINK_TYPE]

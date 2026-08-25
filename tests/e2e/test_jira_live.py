@@ -9,6 +9,7 @@ from tests.e2e.support import (
     build_jira_create_payload,
     build_live_context,
     build_live_provider,
+    run_cli,
     run_failure,
     run_json,
     unique_name,
@@ -48,6 +49,13 @@ def _discover_jira_issue_type(provider, *, project_key: str, reporter_name: str 
             continue
         return issue_type["name"]
     raise RuntimeError("no writable Jira issue type was discoverable")
+
+
+def _discover_jira_comment_visibilities(provider, project_key: str) -> list[dict[str, str]]:
+    roles = provider.client.get(f"rest/api/2/project/{project_key}/role")
+    if not isinstance(roles, dict) or not roles:
+        raise RuntimeError("Jira project has no discoverable comment visibility roles")
+    return [{"type": "role", "value": name} for name in roles]
 
 
 def test_jira_project_and_metadata_live(live_env) -> None:
@@ -448,30 +456,67 @@ def test_jira_issue_link_round_trip_live(live_env) -> None:
             None,
         )
         assert link_type is not None
-
-        created = run_json(
+        filtered_types = run_json(
             live_env,
             "jira",
             "issue",
             "link",
-            "create",
-            "--inward",
-            inward_issue,
-            "--outward",
-            outward_issue,
-            "--type",
+            "types",
+            "--name-filter",
             link_type,
-            "--comment",
-            "example comment",
             "--output",
             "json",
         )
+        assert any(item.get("name") == link_type for item in filtered_types["results"])
+        created = None
+        visibility = None
+        for candidate in _discover_jira_comment_visibilities(provider, live_env.jira_project):
+            result = run_cli(
+                live_env,
+                "jira",
+                "issue",
+                "link",
+                "create",
+                "--inward",
+                inward_issue,
+                "--outward",
+                outward_issue,
+                "--type",
+                link_type,
+                "--comment",
+                "example comment",
+                "--comment-visibility",
+                json.dumps(candidate),
+                "--output",
+                "json",
+            )
+            if result.returncode == 0:
+                created = json.loads(result.stdout)
+                visibility = candidate
+                break
+            failed_links = provider.list_issue_links(inward_issue)
+            for failed_link in failed_links:
+                provider.delete_issue_link(str(failed_link["id"]))
+            assert provider.list_issue_links(inward_issue) == []
+        assert created is not None
+        assert visibility is not None
         assert created["status"] == "created"
         assert created["created"] is True
         assert created["link"]["inward_issue"] == inward_issue
         assert created["link"]["outward_issue"] == outward_issue
         link_id = created["link"]["id"]
         registry.add("jira issue link delete", cleanup_link)
+        comments = []
+        for issue_key in (inward_issue, outward_issue):
+            issue = provider.get_issue(issue_key, fields="comment")
+            comment_page = issue.get("fields", {}).get("comment", {})
+            comments.extend(comment_page.get("comments", []))
+        created_comment = next(
+            (item for item in comments if item.get("body") == "example comment"),
+            None,
+        )
+        assert created_comment is not None
+        assert created_comment.get("visibility") == visibility
 
         duplicate = run_json(
             live_env,

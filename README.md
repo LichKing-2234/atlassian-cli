@@ -227,7 +227,7 @@ ssh example-user@example-host
 ## Examples
 
 - `atlassian jira issue get DEMO-1`
-- `atlassian jira issue link types`
+- `atlassian jira issue link types --name-filter clone`
 - `atlassian jira issue link create --inward DEMO-1 --outward DEMO-1234 --type Cloners`
 - `atlassian jira issue link list DEMO-1`
 - `atlassian jira issue link delete LINK_ID --yes`
@@ -361,8 +361,8 @@ Jira Server 7.11.0 manages issue links through dedicated REST resources. The CLI
 the Jira payload direction explicit: `--inward` maps to `inwardIssue`, and `--outward`
 maps to `outwardIssue`.
 
-- `atlassian jira issue link types` lists the available type IDs, names, and inward and outward descriptions.
-- `atlassian jira issue link create --inward DEMO-1 --outward DEMO-1234 --type Cloners --comment "example comment"` creates a relationship and reads it back before reporting success.
+- `atlassian jira issue link types --name-filter clone` filters available types by a case-insensitive name substring.
+- `atlassian jira issue link create --inward DEMO-1 --outward DEMO-1234 --type Cloners --comment "example comment" --comment-visibility '{"type":"role","value":"reviewer-one"}'` creates a relationship with optional Jira comment visibility and reads it back before reporting success. Visibility accepts Jira `role` or enabled `group` restrictions.
 - Repeating the same type and direction returns `status: existing` and `created: false`; it does not claim a second link was created.
 - `atlassian jira issue link list DEMO-1 --output json` includes the link ID, type descriptions, both issue keys, linked issue summary, and direction relative to `DEMO-1`.
 - `atlassian jira issue link delete LINK_ID --yes` deletes a link by ID and requires explicit confirmation.

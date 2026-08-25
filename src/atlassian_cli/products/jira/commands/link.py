@@ -1,3 +1,5 @@
+import json
+
 import typer
 
 from atlassian_cli.output.modes import OutputMode, is_raw_output
@@ -12,6 +14,36 @@ def build_issue_link_service(context) -> IssueLinkService:
     return IssueLinkService(provider=build_provider(context))
 
 
+def _parse_comment_visibility(value: str | None) -> dict | None:
+    if value is None:
+        return None
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise typer.BadParameter(
+            f"invalid JSON for --comment-visibility: {exc.msg}",
+            param_hint="--comment-visibility",
+        ) from exc
+    if not isinstance(parsed, dict):
+        raise typer.BadParameter(
+            "--comment-visibility must be a JSON object",
+            param_hint="--comment-visibility",
+        )
+    visibility_type = parsed.get("type")
+    visibility_value = parsed.get("value")
+    if not isinstance(visibility_type, str) or not isinstance(visibility_value, str):
+        raise typer.BadParameter(
+            "--comment-visibility must contain string type and value fields",
+            param_hint="--comment-visibility",
+        )
+    if not visibility_type.strip() or not visibility_value.strip():
+        raise typer.BadParameter(
+            "--comment-visibility must contain string type and value fields",
+            param_hint="--comment-visibility",
+        )
+    return {"type": visibility_type, "value": visibility_value}
+
+
 @app.command("create")
 def create_issue_link(
     ctx: typer.Context,
@@ -21,6 +53,11 @@ def create_issue_link(
     ),
     link_type: str = typer.Option(..., "--type", help="Jira issue link type name"),
     comment: str | None = typer.Option(None, "--comment"),
+    comment_visibility: str | None = typer.Option(
+        None,
+        "--comment-visibility",
+        help="Jira comment visibility JSON with type and value fields.",
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_link_service(ctx.obj)
@@ -29,6 +66,7 @@ def create_issue_link(
         "outward_issue": outward_issue,
         "link_type": link_type,
         "comment": comment,
+        "comment_visibility": _parse_comment_visibility(comment_visibility),
     }
     payload = service.create_raw(**kwargs) if is_raw_output(output) else service.create(**kwargs)
     typer.echo(render_output(payload, output=output))
@@ -62,8 +100,17 @@ def delete_issue_link(
 @app.command("types")
 def list_issue_link_types(
     ctx: typer.Context,
+    name_filter: str | None = typer.Option(
+        None,
+        "--name-filter",
+        help="Filter link types by name substring (case-insensitive).",
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_link_service(ctx.obj)
-    payload = service.types_raw() if is_raw_output(output) else service.types()
+    payload = (
+        service.types_raw(name_filter=name_filter)
+        if is_raw_output(output)
+        else service.types(name_filter=name_filter)
+    )
     typer.echo(render_output(payload, output=output))

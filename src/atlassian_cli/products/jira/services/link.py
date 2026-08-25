@@ -21,16 +21,24 @@ class IssueLinkService:
     def list_raw(self, issue_key: str) -> list[dict]:
         return self.provider.list_issue_links(issue_key)
 
-    def types(self) -> dict:
+    def types(self, name_filter: str | None = None) -> dict:
         return {
             "results": [
                 self._normalize_type(link_type)
-                for link_type in self.provider.get_issue_link_types()
+                for link_type in self.types_raw(name_filter=name_filter)
             ]
         }
 
-    def types_raw(self) -> list[dict]:
-        return self.provider.get_issue_link_types()
+    def types_raw(self, name_filter: str | None = None) -> list[dict]:
+        link_types = self.provider.get_issue_link_types()
+        if not name_filter:
+            return link_types
+        query = name_filter.casefold()
+        return [
+            link_type
+            for link_type in link_types
+            if query in str(link_type.get("name", "")).casefold()
+        ]
 
     def create(
         self,
@@ -39,12 +47,14 @@ class IssueLinkService:
         outward_issue: str,
         link_type: str,
         comment: str | None = None,
+        comment_visibility: dict[str, str] | None = None,
     ) -> dict:
         result = self._create(
             inward_issue=inward_issue,
             outward_issue=outward_issue,
             link_type=link_type,
             comment=comment,
+            comment_visibility=comment_visibility,
         )
         return {
             "status": result["status"],
@@ -59,12 +69,14 @@ class IssueLinkService:
         outward_issue: str,
         link_type: str,
         comment: str | None = None,
+        comment_visibility: dict[str, str] | None = None,
     ) -> dict:
         result = self._create(
             inward_issue=inward_issue,
             outward_issue=outward_issue,
             link_type=link_type,
             comment=comment,
+            comment_visibility=comment_visibility,
         )
         return {
             "status": result["status"],
@@ -89,6 +101,7 @@ class IssueLinkService:
         outward_issue: str,
         link_type: str,
         comment: str | None,
+        comment_visibility: dict[str, str] | None,
     ) -> dict[str, Any]:
         if inward_issue == outward_issue:
             raise ValueError("inward and outward issues must be different")
@@ -132,6 +145,8 @@ class IssueLinkService:
         }
         if comment:
             payload["comment"] = {"body": comment}
+            if comment_visibility:
+                payload["comment"]["visibility"] = comment_visibility
         create_response = self.provider.create_issue_link(payload)
         after_raw = self.provider.list_issue_links(inward_issue)
         after = self._matching_links(

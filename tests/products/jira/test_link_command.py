@@ -27,11 +27,21 @@ class FakeLinkService:
     def delete_raw(self, link_id: str) -> dict:
         return {"id": link_id, "deleted": True, "raw": True}
 
-    def types(self) -> dict:
-        return {"results": [{"id": "10000", "name": "Cloners"}]}
+    def types(self, name_filter: str | None = None) -> dict:
+        return {
+            "results": [{"id": "10000", "name": "Cloners"}],
+            "name_filter": name_filter,
+        }
 
-    def types_raw(self) -> list[dict]:
-        return [{"id": "10000", "name": "Cloners", "raw": True}]
+    def types_raw(self, name_filter: str | None = None) -> list[dict]:
+        return [
+            {
+                "id": "10000",
+                "name": "Cloners",
+                "name_filter": name_filter,
+                "raw": True,
+            }
+        ]
 
 
 def install_fake_service(monkeypatch) -> None:
@@ -61,6 +71,8 @@ def test_jira_issue_link_create_passes_explicit_direction(monkeypatch) -> None:
         "Cloners",
         "--comment",
         "example comment",
+        "--comment-visibility",
+        '{"type":"group","value":"reviewer-one"}',
         "--output",
         "json",
     )
@@ -69,6 +81,8 @@ def test_jira_issue_link_create_passes_explicit_direction(monkeypatch) -> None:
     assert '"inward_issue": "DEMO-1"' in result.stdout
     assert '"outward_issue": "DEMO-1234"' in result.stdout
     assert '"comment": "example comment"' in result.stdout
+    assert '"comment_visibility"' in result.stdout
+    assert '"value": "reviewer-one"' in result.stdout
 
 
 def test_jira_issue_link_commands_route_standard_and_raw_output(monkeypatch) -> None:
@@ -104,3 +118,32 @@ def test_jira_issue_link_delete_requires_yes(monkeypatch) -> None:
     assert "pass --yes to confirm delete" in click.unstyle(rejected.output)
     assert deleted.exit_code == 0
     assert '"deleted": true' in deleted.stdout
+
+
+def test_jira_issue_link_types_passes_name_filter(monkeypatch) -> None:
+    install_fake_service(monkeypatch)
+
+    result = invoke("types", "--name-filter", "clone", "--output", "json")
+
+    assert result.exit_code == 0
+    assert '"name_filter": "clone"' in result.stdout
+
+
+def test_jira_issue_link_create_rejects_incomplete_comment_visibility(monkeypatch) -> None:
+    install_fake_service(monkeypatch)
+
+    result = invoke(
+        "create",
+        "--inward",
+        "DEMO-1",
+        "--outward",
+        "DEMO-1234",
+        "--type",
+        "Cloners",
+        "--comment-visibility",
+        '{"type":"group"}',
+    )
+
+    assert result.exit_code != 0
+    plain_output = " ".join(click.unstyle(result.output).replace("│", " ").split())
+    assert "must contain string type and value" in plain_output
