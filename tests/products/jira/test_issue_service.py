@@ -1,6 +1,6 @@
 import pytest
 
-from atlassian_cli.core.errors import TransportError
+from atlassian_cli.core.errors import ConflictError, TransportError, ValidationError
 from atlassian_cli.output.interactive import CollectionPage
 from atlassian_cli.products.jira.services.issue import IssueService
 
@@ -133,6 +133,90 @@ def test_issue_service_delete_returns_success_payload() -> None:
     service = IssueService(provider=FakeDeleteProvider())
 
     assert service.delete("DEMO-1") == {"key": "DEMO-1", "deleted": True}
+
+
+class FakeReparentProvider:
+    def __init__(
+        self,
+        *,
+        source_is_subtask: bool = True,
+        destination_is_subtask: bool = False,
+        destination_project: str = "DEMO",
+        readback_parent: str = "DEMO-1",
+    ) -> None:
+        self.source_is_subtask = source_is_subtask
+        self.destination_is_subtask = destination_is_subtask
+        self.destination_project = destination_project
+        self.readback_parent = readback_parent
+        self.reparent_calls = []
+
+    def get_issue(self, issue_key: str, *, fields: str, **kwargs) -> dict:
+        del kwargs
+        if fields == "parent":
+            return {"key": issue_key, "fields": {"parent": {"key": self.readback_parent}}}
+        if issue_key == "DEMO-1234":
+            return {
+                "id": "10003",
+                "key": issue_key,
+                "fields": {
+                    "issuetype": {"name": "Sub-task", "subtask": self.source_is_subtask},
+                    "parent": {"key": "DEMO-2"},
+                    "project": {"key": "DEMO"},
+                },
+            }
+        return {
+            "key": issue_key,
+            "fields": {
+                "issuetype": {"name": "Task", "subtask": self.destination_is_subtask},
+                "project": {"key": self.destination_project},
+            },
+        }
+
+    def reparent_subtask(self, issue_id: str, parent_key: str) -> None:
+        self.reparent_calls.append((issue_id, parent_key))
+
+
+def test_issue_service_reparents_subtask_and_verifies_readback() -> None:
+    provider = FakeReparentProvider()
+
+    result = IssueService(provider=provider).reparent_subtask("DEMO-1234", "DEMO-1")
+
+    assert result == {
+        "issue_key": "DEMO-1234",
+        "previous_parent": "DEMO-2",
+        "new_parent": "DEMO-1",
+    }
+    assert provider.reparent_calls == [("10003", "DEMO-1")]
+
+
+@pytest.mark.parametrize(
+    ("provider", "message"),
+    [
+        (FakeReparentProvider(source_is_subtask=False), "DEMO-1234 is not a sub-task"),
+        (
+            FakeReparentProvider(destination_is_subtask=True),
+            "destination parent DEMO-1 is a sub-task",
+        ),
+        (
+            FakeReparentProvider(destination_project="OTHER"),
+            "source sub-task and destination parent must be in the same project",
+        ),
+    ],
+)
+def test_issue_service_reparent_rejects_invalid_source_or_destination(
+    provider, message: str
+) -> None:
+    with pytest.raises(ValidationError, match=message):
+        IssueService(provider=provider).reparent_subtask("DEMO-1234", "DEMO-1")
+
+    assert provider.reparent_calls == []
+
+
+def test_issue_service_reparent_fails_when_readback_does_not_change() -> None:
+    provider = FakeReparentProvider(readback_parent="DEMO-2")
+
+    with pytest.raises(ConflictError, match="without changing the parent"):
+        IssueService(provider=provider).reparent_subtask("DEMO-1234", "DEMO-1")
 
 
 def test_issue_service_batch_create_normalizes_created_issues() -> None:

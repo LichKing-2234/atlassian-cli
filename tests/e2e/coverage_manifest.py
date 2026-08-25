@@ -3,6 +3,7 @@ COVERAGE_MANIFEST = {
     "jira issue search": "test_jira_issue_round_trip_live",
     "jira issue create": "test_jira_issue_round_trip_live",
     "jira issue update": "test_jira_issue_round_trip_live",
+    "jira issue reparent-subtask": "test_jira_issue_reparent_subtask_live",
     "jira issue transition": "test_jira_issue_round_trip_live",
     "jira issue transitions": "test_jira_issue_round_trip_live",
     "jira issue delete": "test_jira_issue_round_trip_live",

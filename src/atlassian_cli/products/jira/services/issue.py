@@ -1,3 +1,4 @@
+from atlassian_cli.core.errors import ConflictError, TransportError, ValidationError
 from atlassian_cli.output.interactive import CollectionPage
 from atlassian_cli.products.jira.providers.base import JiraProvider
 from atlassian_cli.products.jira.schemas import JiraIssue, JiraSearchResult
@@ -186,6 +187,49 @@ class IssueService:
 
     def update_raw(self, issue_key: str, fields: dict) -> dict:
         return self.provider.update_issue(issue_key, fields)
+
+    def reparent_subtask(self, issue_key: str, parent_key: str) -> dict:
+        source = self.provider.get_issue(issue_key, fields="id,key,parent,issuetype,project")
+        destination = self.provider.get_issue(parent_key, fields="key,issuetype,project")
+        source_fields = source.get("fields", {})
+        destination_fields = destination.get("fields", {})
+        source_type = source_fields.get("issuetype", {})
+        destination_type = destination_fields.get("issuetype", {})
+        previous_parent = source_fields.get("parent", {}).get("key")
+        canonical_issue_key = source.get("key") or issue_key
+        canonical_parent_key = destination.get("key") or parent_key
+
+        if source_type.get("subtask") is not True or not previous_parent:
+            raise ValidationError(f"{issue_key} is not a sub-task")
+        if destination_type.get("subtask") is True:
+            raise ValidationError(f"destination parent {parent_key} is a sub-task")
+        source_project = source_fields.get("project", {}).get("key")
+        destination_project = destination_fields.get("project", {}).get("key")
+        if not source_project or not destination_project:
+            raise TransportError("Jira issue response is missing project metadata")
+        if source_project != destination_project:
+            raise ValidationError(
+                "source sub-task and destination parent must be in the same project"
+            )
+        if previous_parent == canonical_parent_key:
+            raise ConflictError(f"{canonical_issue_key} already has parent {canonical_parent_key}")
+        issue_id = source.get("id")
+        if not issue_id:
+            raise TransportError("Jira issue response is missing the source issue id")
+
+        self.provider.reparent_subtask(str(issue_id), canonical_parent_key)
+        updated = self.provider.get_issue(canonical_issue_key, fields="parent")
+        new_parent = updated.get("fields", {}).get("parent", {}).get("key")
+        if new_parent != canonical_parent_key:
+            raise ConflictError(
+                "Jira Move Sub-task workflow returned without changing the parent; "
+                "verify the destination and Move Issues permission"
+            )
+        return {
+            "issue_key": canonical_issue_key,
+            "previous_parent": previous_parent,
+            "new_parent": new_parent,
+        }
 
     def transition(self, issue_key: str, transition: str) -> dict:
         return self.provider.transition_issue(issue_key, transition)

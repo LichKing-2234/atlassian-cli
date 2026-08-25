@@ -313,6 +313,18 @@ def transition_issue(
     typer.echo(render_output(result, output=output))
 
 
+@app.command("reparent-subtask")
+def reparent_subtask(
+    ctx: typer.Context,
+    issue_key: str,
+    parent_key: str = typer.Option(..., "--parent", help="Destination parent issue key."),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    """Move a sub-task to a different parent on Jira Server 7.11.0 build 711000."""
+    result = build_issue_service(ctx.obj).reparent_subtask(issue_key, parent_key)
+    typer.echo(render_output(result, output=output))
+
+
 @app.command("transitions")
 def get_transitions(
     ctx: typer.Context,

@@ -1,10 +1,36 @@
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import urljoin, urlparse
 
 from atlassian import Jira
 from requests import HTTPError
 
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.auth.session_patch import patch_session_headers
+from atlassian_cli.core.errors import AuthError, ConflictError, TransportError, UnsupportedError
+
+
+class _MoveSubTaskFormParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.forms: list[dict] = []
+        self._form: dict | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if tag == "form":
+            self._form = {
+                "action": values.get("action", ""),
+                "method": values.get("method", "get").lower(),
+                "inputs": {},
+            }
+            self.forms.append(self._form)
+        elif tag == "input" and self._form is not None and values.get("name"):
+            self._form["inputs"][values["name"]] = values.get("value")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "form":
+            self._form = None
 
 
 class JiraServerProvider:
@@ -94,6 +120,105 @@ class JiraServerProvider:
     def update_issue(self, issue_key: str, fields: dict) -> dict:
         self.client.issue_update(issue_key, fields=fields)
         return {"key": issue_key, "updated": True}
+
+    @staticmethod
+    def _reparent_form(response, *, field: str, action_name: str) -> tuple[str, dict]:
+        parser = _MoveSubTaskFormParser()
+        parser.feed(response.text)
+        form = next(
+            (
+                item
+                for item in parser.forms
+                if field in item["inputs"]
+                and item["method"] == "post"
+                and urlparse(item["action"]).path.endswith(action_name)
+            ),
+            None,
+        )
+        if form is None or not form["inputs"].get("atl_token"):
+            raise UnsupportedError(
+                "Jira Move Sub-task workflow is unavailable; verify Jira 7.11.0 "
+                "and the Move Issues permission"
+            )
+        return urljoin(response.url, form["action"]), form["inputs"]
+
+    @staticmethod
+    def _raise_reparent_http_error(exc: HTTPError) -> None:
+        response = getattr(exc, "response", None)
+        status_code = getattr(response, "status_code", None)
+        if status_code in {401, 403}:
+            raise AuthError(
+                "Jira denied the Move Sub-task workflow; verify authentication and "
+                "the Move Issues permission"
+            ) from exc
+        if status_code == 404:
+            raise UnsupportedError(
+                "Jira Move Sub-task workflow is unavailable on this server"
+            ) from exc
+        raise TransportError("Jira Move Sub-task workflow request failed") from exc
+
+    def reparent_subtask(self, issue_id: str, parent_key: str) -> None:
+        try:
+            server_info = self.client.get_server_info()
+        except HTTPError as exc:
+            self._raise_reparent_http_error(exc)
+        version = str(server_info.get("version", "unknown"))
+        build = str(server_info.get("buildNumber", "unknown"))
+        if (version, build) != ("7.11.0", "711000"):
+            raise UnsupportedError(
+                "jira issue reparent-subtask supports only Jira Server 7.11.0 "
+                f"build 711000; connected server is {version} build {build}"
+            )
+
+        session = getattr(self.client, "_session", None)
+        if session is None:
+            raise UnsupportedError(
+                "Jira Move Sub-task workflow requires an authenticated HTTP session"
+            )
+
+        try:
+            first = session.get(
+                f"{self.client.url.rstrip('/')}/secure/MoveSubTaskChooseOperation!default.jspa",
+                params={"id": issue_id},
+            )
+            first.raise_for_status()
+            first_action, first_inputs = self._reparent_form(
+                first,
+                field="operation",
+                action_name="MoveSubTaskChooseOperation.jspa",
+            )
+            second = session.post(
+                first_action,
+                data={
+                    "operation": first_inputs["operation"],
+                    "atl_token": first_inputs["atl_token"],
+                },
+            )
+            second.raise_for_status()
+            second_action, second_inputs = self._reparent_form(
+                second,
+                field="parentIssue",
+                action_name="MoveSubTaskParent.jspa",
+            )
+            final = session.post(
+                second_action,
+                data={
+                    "parentIssue": parent_key,
+                    "id": second_inputs.get("id", issue_id),
+                    "atl_token": second_inputs["atl_token"],
+                },
+            )
+            final.raise_for_status()
+        except HTTPError as exc:
+            self._raise_reparent_http_error(exc)
+
+        if urlparse(final.url).path.endswith(
+            ("/MoveSubTaskParent.jspa", "/MoveSubTaskParent!default.jspa")
+        ):
+            raise ConflictError(
+                "Jira did not complete Move Sub-task; verify the destination parent "
+                "and the Move Issues permission"
+            )
 
     def list_issue_attachments(self, issue_key: str) -> list[dict]:
         issue = self.client.issue(issue_key, fields="attachment")

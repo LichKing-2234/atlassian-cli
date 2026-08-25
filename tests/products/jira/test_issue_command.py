@@ -476,6 +476,49 @@ def test_jira_issue_update_accepts_fields_attachments_and_additional_fields(monk
     assert captured["kwargs"]["attachments"] == ["release.txt"]
 
 
+def test_jira_issue_reparent_subtask_outputs_json(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured = {}
+
+    class FakeService:
+        def reparent_subtask(self, issue_key: str, parent_key: str) -> dict:
+            captured["args"] = (issue_key, parent_key)
+            return {
+                "issue_key": issue_key,
+                "previous_parent": "DEMO-2",
+                "new_parent": parent_key,
+            }
+
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "reparent-subtask",
+            "DEMO-1234",
+            "--parent",
+            "DEMO-1",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["args"] == ("DEMO-1234", "DEMO-1")
+    assert json.loads(result.stdout) == {
+        "issue_key": "DEMO-1234",
+        "previous_parent": "DEMO-2",
+        "new_parent": "DEMO-1",
+    }
+
+
 def test_jira_issue_batch_create_rejects_validate_only_on_server_dc() -> None:
     result = runner.invoke(
         app,
