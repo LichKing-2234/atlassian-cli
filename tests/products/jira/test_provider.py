@@ -259,6 +259,24 @@ def test_reparent_subtask_rejects_unrecognized_jira_build_before_workflow() -> N
         provider.reparent_subtask("10003", "DEMO-1")
 
 
+def test_reparent_subtask_rejects_cross_origin_form_action() -> None:
+    class FakeResponse:
+        url = "https://jira.example.com/secure/MoveSubTaskChooseOperation!default.jspa"
+        text = """
+        <form method="post" action="https://other.example.com/MoveSubTaskChooseOperation.jspa">
+          <input name="operation" value="move.subtask.parent.operation.name">
+          <input name="atl_token" value="example response">
+        </form>
+        """
+
+    with pytest.raises(UnsupportedError, match="not same-origin"):
+        JiraServerProvider._reparent_form(
+            FakeResponse(),
+            field="operation",
+            action_name="MoveSubTaskChooseOperation.jspa",
+        )
+
+
 def test_reparent_subtask_reports_permission_failure() -> None:
     class ForbiddenResponse:
         status_code = 403

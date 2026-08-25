@@ -140,7 +140,15 @@ class JiraServerProvider:
                 "Jira Move Sub-task workflow is unavailable; verify Jira 7.11.0 "
                 "and the Move Issues permission"
             )
-        return urljoin(response.url, form["action"]), form["inputs"]
+        action_url = urljoin(response.url, form["action"])
+        response_origin = urlparse(response.url)
+        action_origin = urlparse(action_url)
+        if (action_origin.scheme, action_origin.netloc) != (
+            response_origin.scheme,
+            response_origin.netloc,
+        ):
+            raise UnsupportedError("Jira Move Sub-task form action is not same-origin")
+        return action_url, form["inputs"]
 
     @staticmethod
     def _raise_reparent_http_error(exc: HTTPError) -> None:
