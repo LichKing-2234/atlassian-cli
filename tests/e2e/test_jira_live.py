@@ -25,6 +25,31 @@ def _jira_additional_fields(payload: dict) -> dict:
     }
 
 
+def _discover_jira_issue_type(provider, *, project_key: str, reporter_name: str | None) -> str:
+    meta = provider.client.issue_createmeta(
+        project_key,
+        expand="projects.issuetypes.fields",
+    )
+    projects = meta.get("projects", []) if isinstance(meta, dict) else []
+    issue_types = projects[0].get("issuetypes", []) if projects else []
+    for issue_type in issue_types:
+        if issue_type.get("subtask") is True or not issue_type.get("name"):
+            continue
+        try:
+            build_jira_create_payload(
+                provider,
+                project_key=project_key,
+                summary="Example issue summary",
+                issue_type=issue_type["name"],
+                env_overrides={},
+                reporter_name=reporter_name,
+            )
+        except RuntimeError:
+            continue
+        return issue_type["name"]
+    raise RuntimeError("no writable Jira issue type was discoverable")
+
+
 def test_jira_project_and_metadata_live(live_env) -> None:
     projects = run_json(live_env, "jira", "project", "list", "--output", "json")
     assert any(item["key"] == live_env.jira_project for item in projects["results"])
@@ -343,7 +368,11 @@ def test_jira_issue_link_round_trip_live(live_env) -> None:
     assert server_info["version"] == "7.11.0"
     assert str(server_info["buildNumber"]) == "711000"
     assert server_info["deploymentType"] == "Server"
-    issue_type = live_env.jira_issue_type or "Task"
+    issue_type = live_env.jira_issue_type or _discover_jira_issue_type(
+        provider,
+        project_key=live_env.jira_project,
+        reporter_name=jira_context.auth.username,
+    )
 
     def create_issue(prefix: str) -> str:
         payload = build_jira_create_payload(
