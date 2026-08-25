@@ -56,7 +56,7 @@ def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
                 "ATLASSIAN_E2E_BITBUCKET_PROJECT=DEMO",
                 "ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=DEMO",
                 "ATLASSIAN_E2E_BITBUCKET_REPO=example-repo",
-                "ATLASSIAN_E2E_JIRA_ISSUE_TYPE=Internal Task",
+                "ATLASSIAN_E2E_JIRA_ISSUE_TYPE=Task",
                 "ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE=123456",
                 "ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO=example-repo",
                 f"ATLASSIAN_E2E_BITBUCKET_REVIEWER_CONFIG={reviewer_config}",
@@ -84,7 +84,7 @@ def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
         bitbucket_project="DEMO",
         bitbucket_create_project="DEMO",
         bitbucket_repo="example-repo",
-        jira_issue_type="Internal Task",
+        jira_issue_type="Task",
         confluence_parent_page="123456",
         bitbucket_existing_repo="example-repo",
         bitbucket_reviewer_config=reviewer_config,
@@ -314,6 +314,13 @@ class FakeJiraProvider:
                                         "required": True,
                                         "allowedValues": [{"id": "11", "value": "Linux"}],
                                     },
+                                    "customfield_10002": {
+                                        "required": True,
+                                        "schema": {"type": "array"},
+                                        "allowedValues": [
+                                            {"id": "12", "value": "example response"}
+                                        ],
+                                    },
                                     "reporter": {"required": True},
                                 },
                             }
@@ -338,6 +345,7 @@ def test_build_jira_create_payload_uses_allowed_value_defaults() -> None:
 
     assert payload["project"]["key"] == "DEMO"
     assert payload["customfield_10001"] == {"id": "11"}
+    assert payload["customfield_10002"] == [{"id": "12"}]
     assert payload["reporter"] == {"name": "example-user"}
 
 

@@ -125,6 +125,24 @@ def test_jira_issue_help_lists_attachment_subcommand() -> None:
     assert "attachment" in plain_output
 
 
+def test_jira_issue_link_help_keeps_direction_explicit() -> None:
+    issue_help = runner.invoke(app, ["jira", "issue", "--help"], env=ci_output_env())
+    create_help = runner.invoke(
+        app,
+        ["jira", "issue", "link", "create", "--help"],
+        env=ci_output_env(),
+        terminal_width=160,
+    )
+    plain_output = strip_ansi(create_help.output)
+
+    assert issue_help.exit_code == create_help.exit_code == 0
+    assert "link" in strip_ansi(issue_help.output)
+    assert "--inward" in plain_output
+    assert "inwardIssue" in plain_output
+    assert "--outward" in plain_output
+    assert "outwardIssue" in plain_output
+
+
 def test_confluence_page_help_lists_attachment_subcommand() -> None:
     result = runner.invoke(app, ["confluence", "page", "--help"], env=ci_output_env())
     plain_output = strip_ansi(result.output)

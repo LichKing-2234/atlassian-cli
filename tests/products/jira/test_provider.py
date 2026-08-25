@@ -126,6 +126,43 @@ def test_upload_issue_attachment_delegates_to_client() -> None:
     assert calls["args"] == ("DEMO-1", "/tmp/report.pdf")
 
 
+def test_issue_link_methods_delegate_to_client() -> None:
+    calls = []
+
+    class FakeClient:
+        def issue(self, issue_key: str, fields="*all", expand=None) -> dict:
+            calls.append(("issue", issue_key, fields, expand))
+            return {"fields": {"issuelinks": [{"id": "10001"}, "invalid"]}}
+
+        def create_issue_link(self, data: dict) -> None:
+            calls.append(("create", data))
+
+        def remove_issue_link(self, link_id: str) -> None:
+            calls.append(("delete", link_id))
+
+        def get_issue_link_types(self) -> list[dict]:
+            calls.append(("types",))
+            return [{"id": "10000", "name": "Cloners"}]
+
+    provider = build_provider_with_client(FakeClient())
+    payload = {
+        "type": {"name": "Cloners"},
+        "inwardIssue": {"key": "DEMO-1"},
+        "outwardIssue": {"key": "DEMO-1234"},
+    }
+
+    assert provider.list_issue_links("DEMO-1") == [{"id": "10001"}]
+    assert provider.create_issue_link(payload) is None
+    assert provider.delete_issue_link("10001") is None
+    assert provider.get_issue_link_types() == [{"id": "10000", "name": "Cloners"}]
+    assert calls == [
+        ("issue", "DEMO-1", "issuelinks", None),
+        ("create", payload),
+        ("delete", "10001"),
+        ("types",),
+    ]
+
+
 def test_download_issue_attachment_streams_to_destination(tmp_path) -> None:
     calls = []
 

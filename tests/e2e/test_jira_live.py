@@ -335,6 +335,191 @@ def test_jira_issue_batch_create_live(live_env, tmp_path) -> None:
         registry.run()
 
 
+def test_jira_issue_link_round_trip_live(live_env) -> None:
+    registry = CleanupRegistry()
+    jira_context = build_live_context(Product.JIRA, live_env)
+    provider = build_live_provider(Product.JIRA, live_env)
+    server_info = provider.client.get_server_info()
+    assert server_info["version"] == "7.11.0"
+    assert str(server_info["buildNumber"]) == "711000"
+    assert server_info["deploymentType"] == "Server"
+    issue_type = live_env.jira_issue_type or "Task"
+
+    def create_issue(prefix: str) -> str:
+        payload = build_jira_create_payload(
+            provider,
+            project_key=live_env.jira_project,
+            summary=unique_name(prefix),
+            issue_type=issue_type,
+            env_overrides={},
+            reporter_name=jira_context.auth.username,
+        )
+        created = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "create",
+            "--project-key",
+            live_env.jira_project,
+            "--issue-type",
+            issue_type,
+            "--summary",
+            payload["summary"],
+            "--additional-fields",
+            json.dumps(_jira_additional_fields(payload)),
+            "--output",
+            "json",
+        )
+        issue_key = created["issue"]["key"]
+        registry.add(
+            f"jira issue delete {issue_key}",
+            lambda: run_json(
+                live_env,
+                "jira",
+                "issue",
+                "delete",
+                issue_key,
+                "--yes",
+                "--output",
+                "json",
+            ),
+        )
+        return issue_key
+
+    link_id: str | None = None
+
+    def cleanup_link() -> None:
+        if link_id is not None:
+            run_json(
+                live_env,
+                "jira",
+                "issue",
+                "link",
+                "delete",
+                link_id,
+                "--yes",
+                "--output",
+                "json",
+            )
+
+    try:
+        inward_issue = create_issue("Example issue summary")
+        outward_issue = create_issue("Example issue summary")
+        link_types = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "link",
+            "types",
+            "--output",
+            "json",
+        )
+        link_type = next(
+            (item["name"] for item in link_types["results"] if item.get("name")),
+            None,
+        )
+        assert link_type is not None
+
+        created = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "link",
+            "create",
+            "--inward",
+            inward_issue,
+            "--outward",
+            outward_issue,
+            "--type",
+            link_type,
+            "--comment",
+            "example comment",
+            "--output",
+            "json",
+        )
+        assert created["status"] == "created"
+        assert created["created"] is True
+        assert created["link"]["inward_issue"] == inward_issue
+        assert created["link"]["outward_issue"] == outward_issue
+        link_id = created["link"]["id"]
+        registry.add("jira issue link delete", cleanup_link)
+
+        duplicate = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "link",
+            "create",
+            "--inward",
+            inward_issue,
+            "--outward",
+            outward_issue,
+            "--type",
+            link_type,
+            "--output",
+            "json",
+        )
+        assert duplicate["status"] == "existing"
+        assert duplicate["created"] is False
+        assert duplicate["link"]["id"] == link_id
+
+        inward_links = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "link",
+            "list",
+            inward_issue,
+            "--output",
+            "json",
+        )
+        outward_links = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "link",
+            "list",
+            outward_issue,
+            "--output",
+            "json",
+        )
+        assert any(
+            item["id"] == link_id and item["direction"] == "outward"
+            for item in inward_links["results"]
+        )
+        assert any(
+            item["id"] == link_id and item["direction"] == "inward"
+            for item in outward_links["results"]
+        )
+
+        deleted = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "link",
+            "delete",
+            link_id,
+            "--yes",
+            "--output",
+            "json",
+        )
+        assert deleted == {"id": link_id, "deleted": True}
+        link_id = None
+        remaining = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "link",
+            "list",
+            inward_issue,
+            "--output",
+            "json",
+        )
+        assert all(item["id"] != deleted["id"] for item in remaining["results"])
+    finally:
+        registry.run()
+
+
 def test_jira_issue_changelog_batch_rejected_live(live_env) -> None:
     output = run_failure(
         live_env,

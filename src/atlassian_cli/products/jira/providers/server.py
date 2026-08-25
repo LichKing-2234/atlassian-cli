@@ -95,6 +95,21 @@ class JiraServerProvider:
         self.client.issue_update(issue_key, fields=fields)
         return {"key": issue_key, "updated": True}
 
+    def list_issue_links(self, issue_key: str) -> list[dict]:
+        issue = self.client.issue(issue_key, fields="issuelinks")
+        fields = issue.get("fields") if isinstance(issue, dict) else {}
+        links = fields.get("issuelinks", []) if isinstance(fields, dict) else []
+        return [item for item in links if isinstance(item, dict)]
+
+    def create_issue_link(self, data: dict) -> dict | None:
+        return self.client.create_issue_link(data)
+
+    def delete_issue_link(self, link_id: str) -> dict | None:
+        return self.client.remove_issue_link(link_id)
+
+    def get_issue_link_types(self) -> list[dict]:
+        return self.client.get_issue_link_types()
+
     def list_issue_attachments(self, issue_key: str) -> list[dict]:
         issue = self.client.issue(issue_key, fields="attachment")
         fields = issue.get("fields") if isinstance(issue, dict) else {}

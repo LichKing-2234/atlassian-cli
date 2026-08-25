@@ -44,7 +44,8 @@ def build_jira_create_payload(
         allowed = info.get("allowedValues") or []
         if allowed:
             chosen = allowed[0]
-            payload[field_id] = {"id": chosen["id"]} if chosen.get("id") else chosen
+            value = {"id": chosen["id"]} if chosen.get("id") else chosen
+            payload[field_id] = [value] if info.get("schema", {}).get("type") == "array" else value
             continue
         raise RuntimeError(f"missing required test value for {field_id}")
     return payload
