@@ -50,6 +50,9 @@ line-length = 100
 select = ["E", "F", "I"]
 ignore = ["E501"]
 
+[tool.ruff.format]
+exclude = ["docs/superpowers"]
+
 [tool.pytest.ini_options]
 markers = [
   "e2e: live end-to-end tests that hit real Atlassian instances",
