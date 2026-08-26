@@ -210,3 +210,102 @@ def test_confluence_attachment_upload_help_documents_aligned_inputs() -> None:
             "Defaults to false.",
         ):
             assert value in output
+
+
+def test_confluence_attachment_upload_many_forwards_all_files(monkeypatch) -> None:
+    from atlassian_cli.products.confluence.commands import attachment as attachment_module
+
+    captured = {}
+
+    class FakeService:
+        def upload_many(self, content_id, file_paths, *, comment, minor_edit):
+            captured["args"] = (content_id, file_paths, comment, minor_edit)
+            return {"attachments": [{"id": "55"}, {"id": "56"}]}
+
+    monkeypatch.setattr(attachment_module, "build_attachment_service", lambda *_args: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "attachment",
+            "upload-many",
+            "1234",
+            "--file",
+            "diagram.png",
+            "--file",
+            "report.pdf",
+            "--comment",
+            "example comment",
+            "--minor-edit",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["args"] == (
+        "1234",
+        ["diagram.png", "report.pdf"],
+        "example comment",
+        True,
+    )
+
+
+def test_confluence_attachment_delete_requires_confirmation_and_deletes(monkeypatch) -> None:
+    from atlassian_cli.products.confluence.commands import attachment as attachment_module
+
+    calls = []
+
+    class FakeService:
+        def delete(self, attachment_id):
+            calls.append(attachment_id)
+            return {"attachment_id": attachment_id, "deleted": True}
+
+    monkeypatch.setattr(attachment_module, "build_attachment_service", lambda *_args: FakeService())
+
+    rejected = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "attachment",
+            "delete",
+            "55",
+        ],
+    )
+    deleted = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "attachment",
+            "delete",
+            "55",
+            "--yes",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert rejected.exit_code == 2
+    assert "pass --yes to confirm delete" in ANSI_ESCAPE_RE.sub("", rejected.output)
+    assert deleted.exit_code == 0
+    assert calls == ["55"]
+
+
+def test_confluence_multi_upload_and_delete_help_lists_direct_inputs() -> None:
+    upload_help = ANSI_ESCAPE_RE.sub(
+        "", runner.invoke(app, ["confluence", "attachment", "upload-many", "--help"]).output
+    )
+    delete_help = ANSI_ESCAPE_RE.sub(
+        "", runner.invoke(app, ["confluence", "attachment", "delete", "--help"]).output
+    )
+
+    for option in ("--file", "--comment", "--minor-edit", "--no-minor-edit"):
+        assert option in upload_help
+    assert "--yes" in delete_help

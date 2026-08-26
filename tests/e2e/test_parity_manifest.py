@@ -123,3 +123,8 @@ def test_issue_59_confluence_label_and_restriction_rows_are_verified() -> None:
         "confluence_get_page_restrictions",
     ):
         assert PARITY_EVIDENCE[operation].status is ParityStatus.VERIFIED
+
+
+def test_issue_53_confluence_attachment_rows_are_verified() -> None:
+    for operation in ("confluence_upload_attachments", "confluence_delete_attachment"):
+        assert PARITY_EVIDENCE[operation].status is ParityStatus.VERIFIED

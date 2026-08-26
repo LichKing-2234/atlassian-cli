@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import binascii
 
@@ -108,11 +110,51 @@ class AttachmentService:
             minor_edit=minor_edit,
         )
 
+    def upload_many(
+        self,
+        content_id: str,
+        file_paths: list[str],
+        *,
+        comment: str | None = None,
+        minor_edit: bool = False,
+    ) -> dict:
+        raw = self.upload_many_raw(content_id, file_paths, comment=comment, minor_edit=minor_edit)
+        attachments = [
+            ConfluenceAttachment.from_api_response(item).to_simplified_dict()
+            for item in raw
+            if isinstance(item, dict)
+        ]
+        return {
+            "message": f"Uploaded {len(attachments)} attachment(s) successfully",
+            "attachments": attachments,
+        }
+
+    def upload_many_raw(
+        self,
+        content_id: str,
+        file_paths: list[str],
+        *,
+        comment: str | None = None,
+        minor_edit: bool = False,
+    ) -> list[dict]:
+        paths = [path for path in file_paths if path]
+        if not paths:
+            raise ValueError("provide at least one --file")
+        return self.provider.upload_attachments(
+            content_id, paths, comment=comment, minor_edit=minor_edit
+        )
+
     def download(self, attachment_id: str, destination: str) -> dict:
         return self.provider.download_attachment(attachment_id, destination)
 
     def download_raw(self, attachment_id: str, destination: str) -> dict:
         return self.provider.download_attachment(attachment_id, destination)
+
+    def delete(self, attachment_id: str) -> dict:
+        return self.provider.delete_attachment(attachment_id)
+
+    def delete_raw(self, attachment_id: str) -> dict:
+        return self.provider.delete_attachment(attachment_id)
 
     def download_from_content(self, page_id: str, *, name: str, destination: str) -> dict:
         return self.provider.download_attachment_from_content(page_id, name, destination)

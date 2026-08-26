@@ -101,6 +101,15 @@ class ConfluenceProvider(Protocol):
         comment: str | None = None,
         minor_edit: bool = False,
     ) -> dict: ...
+    def upload_attachments(
+        self,
+        content_id: str,
+        file_paths: list[str],
+        *,
+        comment: str | None = None,
+        minor_edit: bool = False,
+    ) -> list[dict]: ...
+    def delete_attachment(self, attachment_id: str) -> dict: ...
     def download_attachment(self, attachment_id: str, destination: str) -> dict: ...
     def download_attachment_from_content(
         self, page_id: str, name: str, destination: str

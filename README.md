@@ -273,6 +273,22 @@ Confluence 6.12.4 attachment uploads accept exactly one source:
 - Keep the compatible path forms: `atlassian confluence attachment upload DEMO --file "example response"` or `atlassian confluence page attachment upload DEMO "example response"`. The path basename becomes the attachment filename.
 - Upload in-memory content with `atlassian confluence page attachment upload DEMO --content-base64 ZXhhbXBsZSByZXNwb25zZQ== --filename "example response" --comment "example comment" --minor-edit`.
 
+Upload several local files in one official multipart request by repeating `--file`; all files share
+the same comment and minor-edit setting. Permanently deleting an attachment requires its attachment
+ID and explicit confirmation:
+
+```bash
+atlassian confluence attachment upload-many 1234 \
+  --file ./diagram.png \
+  --file ./report.pdf \
+  --comment "example comment" \
+  --minor-edit
+atlassian confluence attachment delete att1234 --yes
+```
+
+The CLI does not add page-wide bulk download because Confluence 6.12.4 has no corresponding
+official bulk-download operation.
+
 `--filename` is required with `--content-base64`. `--minor-edit` controls watcher notification and defaults to `false`; use it when the attachment version should be recorded as a minor edit. Invalid base64 and conflicting or missing sources fail before upload.
 
 `jira issue reparent-subtask` is limited to Jira Server 7.11.0 build 711000. It uses
