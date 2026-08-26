@@ -326,13 +326,10 @@ def test_jira_issue_round_trip_live(live_env, tmp_path) -> None:
         registry.run()
 
 
-def test_jira_issue_reparent_subtask_live(live_env) -> None:
+def test_jira_issue_reparent_subtask_live(live_env, jira_fixed_version) -> None:
     registry = CleanupRegistry()
     jira_context = build_live_context(Product.JIRA, live_env)
-    provider = build_live_provider(Product.JIRA, live_env)
-    server_info = provider.client.get_server_info()
-    assert str(server_info.get("version")) == "7.11.0"
-    assert str(server_info.get("buildNumber")) == "711000"
+    provider = jira_fixed_version
     project_key, parent_type, subtask_type = _discover_jira_reparent_target(
         provider, reporter_name=jira_context.auth.username
     )
@@ -457,14 +454,10 @@ def test_jira_issue_batch_create_live(live_env, tmp_path) -> None:
         registry.run()
 
 
-def test_jira_issue_link_round_trip_live(live_env) -> None:
+def test_jira_issue_link_round_trip_live(live_env, jira_fixed_version) -> None:
     registry = CleanupRegistry()
     jira_context = build_live_context(Product.JIRA, live_env)
-    provider = build_live_provider(Product.JIRA, live_env)
-    server_info = provider.client.get_server_info()
-    assert server_info["version"] == "7.11.0"
-    assert str(server_info["buildNumber"]) == "711000"
-    assert server_info["deploymentType"] == "Server"
+    provider = jira_fixed_version
     issue_type = live_env.jira_issue_type or discover_jira_issue_type(
         provider,
         project_key=live_env.jira_project,

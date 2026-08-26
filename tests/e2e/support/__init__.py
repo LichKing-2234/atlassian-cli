@@ -11,6 +11,10 @@ from tests.e2e.support.env import LiveEnv, load_live_env
 from tests.e2e.support.git import GitSandbox
 from tests.e2e.support.names import unique_name
 from tests.e2e.support.runner import run_cli, run_failure, run_json
+from tests.e2e.support.versions import (
+    assert_confluence_fixed_version,
+    assert_jira_fixed_version,
+)
 
 __all__ = [
     "CleanupRegistry",
@@ -19,6 +23,8 @@ __all__ = [
     "build_jira_create_payload",
     "build_live_context",
     "build_live_provider",
+    "assert_confluence_fixed_version",
+    "assert_jira_fixed_version",
     "discover_jira_comment_visibilities",
     "discover_jira_issue_type",
     "load_live_env",
