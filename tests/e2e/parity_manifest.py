@@ -89,6 +89,7 @@ PARITY_EVIDENCE = {
         ("query", "project_key", "issue_key", "limit"),
         49,
         False,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_get_issue": ParityEvidence(
         Product.JIRA,
@@ -99,7 +100,12 @@ PARITY_EVIDENCE = {
         status=ParityStatus.VERIFIED,
     ),
     "jira_search_fields": ParityEvidence(
-        Product.JIRA, GapKind.DRIFTED, ("keyword", "limit"), 49, False
+        Product.JIRA,
+        GapKind.DRIFTED,
+        ("keyword", "limit"),
+        49,
+        False,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_get_field_options": ParityEvidence(
         Product.JIRA,
@@ -107,6 +113,7 @@ PARITY_EVIDENCE = {
         ("field_id", "project_key", "issue_type", "contains", "return_limit"),
         49,
         False,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_create_issue": ParityEvidence(
         Product.JIRA,
