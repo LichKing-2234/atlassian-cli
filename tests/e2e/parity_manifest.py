@@ -96,7 +96,7 @@ PARITY_EVIDENCE = {
         ("issue_key", "fields", "expand", "comment_limit", "properties", "update_history"),
         56,
         False,
-        status=ParityStatus.IMPLEMENTED_UNVERIFIED,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_search_fields": ParityEvidence(
         Product.JIRA, GapKind.DRIFTED, ("keyword", "limit"), 49, False
