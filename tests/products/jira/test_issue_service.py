@@ -265,6 +265,7 @@ class FakeSemanticIssueProvider:
         self.search_calls: list[dict] = []
         self.create_calls: list[dict] = []
         self.update_calls: list[dict] = []
+        self.attachment_calls: list[tuple[str, str]] = []
 
     def get_issue(
         self,
@@ -356,9 +357,13 @@ class FakeSemanticIssueProvider:
             },
         }
 
-    def update_issue(self, issue_key: str, fields: dict) -> dict:
-        self.update_calls.append({"issue_key": issue_key, "fields": fields})
-        return {
+    def update_issue(
+        self, issue_key: str, fields: dict, *, attachments: list[str] | None = None
+    ) -> dict:
+        self.update_calls.append(
+            {"issue_key": issue_key, "fields": fields, "attachments": attachments}
+        )
+        result = {
             "id": "10000",
             "key": issue_key,
             "fields": {
@@ -366,8 +371,16 @@ class FakeSemanticIssueProvider:
                 "description": "Updated description",
                 "status": {"name": "In Progress"},
             },
-            "attachment_results": [{"filename": "release.txt", "status": "attached"}],
         }
+        if attachments:
+            result["attachment_results"] = [
+                self.upload_issue_attachment(issue_key, path) for path in attachments
+            ]
+        return result
+
+    def upload_issue_attachment(self, issue_key: str, file_path: str) -> dict:
+        self.attachment_calls.append((issue_key, file_path))
+        return {"id": "10001", "filename": file_path, "size": 42}
 
 
 def test_issue_service_get_passes_mcp_style_read_options() -> None:
@@ -480,6 +493,19 @@ def test_issue_service_update_returns_message_issue_and_attachment_results() -> 
 
     assert result["message"] == "Issue updated successfully"
     assert result["issue"]["key"] == "DEMO-1"
+    assert provider.update_calls == [
+        {
+            "issue_key": "DEMO-1",
+            "fields": {
+                "summary": "Updated summary",
+                "description": "Updated description",
+                "labels": ["ops"],
+                "components": [{"name": "API"}],
+            },
+            "attachments": ["release.txt"],
+        }
+    ]
+    assert provider.attachment_calls == [("DEMO-1", "release.txt")]
     assert result["issue"]["attachment_results"] == [
-        {"filename": "release.txt", "status": "attached"}
+        {"id": "10001", "filename": "release.txt", "size": 42}
     ]

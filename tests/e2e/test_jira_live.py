@@ -326,6 +326,134 @@ def test_jira_issue_round_trip_live(live_env, tmp_path) -> None:
         registry.run()
 
 
+def test_jira_issue_read_and_attachment_update_live(
+    live_env, tmp_path, jira_fixed_version, cleanup_registry
+) -> None:
+    jira_context = build_live_context(Product.JIRA, live_env)
+    issue_type = live_env.jira_issue_type or discover_jira_issue_type(
+        jira_fixed_version,
+        project_key=live_env.jira_project,
+        reporter_name=jira_context.auth.username,
+    )
+    summary = unique_name("jira-read-update")
+    payload = build_jira_create_payload(
+        jira_fixed_version,
+        project_key=live_env.jira_project,
+        summary=summary,
+        issue_type=issue_type,
+        env_overrides={},
+        reporter_name=jira_context.auth.username,
+    )
+    created = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "create",
+        "--project-key",
+        live_env.jira_project,
+        "--issue-type",
+        issue_type,
+        "--summary",
+        summary,
+        "--additional-fields",
+        json.dumps(_jira_additional_fields(payload)),
+        "--output",
+        "json",
+    )
+    issue_key = created["issue"]["key"]
+    cleanup_registry.add(
+        f"jira issue delete {issue_key}",
+        lambda: run_json(
+            live_env,
+            "jira",
+            "issue",
+            "delete",
+            issue_key,
+            "--yes",
+            "--output",
+            "json",
+        ),
+    )
+
+    jira_fixed_version.client.set_issue_property(
+        issue_key, "example-property", {"value": "example response"}
+    )
+    run_json(
+        live_env,
+        "jira",
+        "comment",
+        "add",
+        issue_key,
+        "--body",
+        "example comment",
+        "--output",
+        "json",
+    )
+    latest_comment = run_json(
+        live_env,
+        "jira",
+        "comment",
+        "add",
+        issue_key,
+        "--body",
+        "example response",
+        "--output",
+        "json",
+    )
+
+    fetched = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "get",
+        issue_key,
+        "--fields",
+        "summary",
+        "--comment-limit",
+        "1",
+        "--properties",
+        "example-property",
+        "--update-history",
+        "false",
+        "--output",
+        "raw-json",
+    )
+    assert fetched["key"] == issue_key
+    assert [item["id"] for item in fetched["fields"]["comment"]["comments"]] == [
+        latest_comment["id"]
+    ]
+    assert fetched["properties"]["example-property"] == {"value": "example response"}
+
+    attachment_path = tmp_path / "report.pdf"
+    attachment_path.write_text("example response\n")
+    updated = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "update",
+        issue_key,
+        "--fields",
+        json.dumps({"summary": f"{summary}-updated"}),
+        "--attachments",
+        json.dumps([str(attachment_path)]),
+        "--output",
+        "json",
+    )
+    assert updated["issue"]["key"] == issue_key
+
+    listed = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "attachment",
+        "list",
+        issue_key,
+        "--output",
+        "json",
+    )
+    assert any(item["filename"] == "report.pdf" for item in listed["results"])
+
+
 def test_jira_issue_reparent_subtask_live(live_env, jira_fixed_version) -> None:
     registry = CleanupRegistry()
     jira_context = build_live_context(Product.JIRA, live_env)

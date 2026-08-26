@@ -73,19 +73,38 @@ class JiraServerProvider:
         properties: list[str] | None = None,
         update_history: bool = True,
     ) -> dict:
-        unsupported_options: list[str] = []
-        if comment_limit != 10:
-            unsupported_options.append("comment_limit")
-        if properties:
-            unsupported_options.append("properties")
-        if update_history is not True:
-            unsupported_options.append("update_history")
-        if unsupported_options:
-            raise NotImplementedError(
-                "Jira Server/DC provider does not support get_issue options: "
-                + ", ".join(unsupported_options)
-            )
-        return self.client.issue(issue_key, fields=fields or "*all", expand=expand)
+        requested_fields = fields
+        if comment_limit > 0 and fields not in (None, "*all"):
+            if isinstance(fields, list):
+                requested_fields = [*fields]
+                if "comment" not in requested_fields:
+                    requested_fields.append("comment")
+            else:
+                field_names = [item.strip() for item in fields.split(",") if item.strip()]
+                if "comment" not in field_names:
+                    field_names.append("comment")
+                requested_fields = ",".join(field_names)
+
+        issue = self.client.get_issue(
+            issue_key,
+            fields=requested_fields,
+            properties=",".join(properties) if properties else None,
+            update_history=update_history,
+            expand=expand,
+        )
+        fields_data = issue.get("fields", {}) if isinstance(issue, dict) else {}
+        comment_field = fields_data.get("comment") if isinstance(fields_data, dict) else None
+        if isinstance(comment_field, dict):
+            if comment_limit == 0:
+                comment_field["comments"] = []
+            elif comment_limit > 0:
+                try:
+                    response = self.client.issue_get_comments(issue_key)
+                    comments = response.get("comments", []) if isinstance(response, dict) else []
+                except Exception:
+                    comments = []
+                comment_field["comments"] = comments[-comment_limit:]
+        return issue
 
     def search_issues(
         self,
@@ -125,9 +144,17 @@ class JiraServerProvider:
                 raise
             return [self.client.issue_create(fields=issue) for issue in issues]
 
-    def update_issue(self, issue_key: str, fields: dict) -> dict:
-        self.client.issue_update(issue_key, fields=fields)
-        return {"key": issue_key, "updated": True}
+    def update_issue(
+        self, issue_key: str, fields: dict, *, attachments: list[str] | None = None
+    ) -> dict:
+        if fields:
+            self.client.issue_update(issue_key, fields=fields)
+        result = {"key": issue_key, "updated": True}
+        if attachments:
+            result["attachment_results"] = [
+                self.upload_issue_attachment(issue_key, path) for path in attachments
+            ]
+        return result
 
     @staticmethod
     def _reparent_form(response, *, field: str, action_name: str) -> tuple[str, dict]:

@@ -108,7 +108,7 @@ def get_issue(
     issue_key: str,
     fields: str = typer.Option(DEFAULT_ISSUE_FIELDS, "--fields"),
     expand: str | None = typer.Option(None, "--expand"),
-    comment_limit: int = typer.Option(10, "--comment-limit"),
+    comment_limit: int = typer.Option(10, "--comment-limit", min=0, max=100),
     properties: str | None = typer.Option(None, "--properties"),
     update_history: str = typer.Option("true", "--update-history"),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
@@ -283,10 +283,8 @@ def update_issue(
     payload = {**parsed_fields, **parsed_additional_fields}
     if parsed_components:
         payload["components"] = [{"name": name} for name in parsed_components]
-    if parsed_attachments:
-        payload["attachments"] = parsed_attachments
     result = (
-        service.update_raw(issue_key, payload)
+        service.update_raw(issue_key, payload, attachments=parsed_attachments)
         if is_raw_output(output)
         else service.update(
             issue_key,

@@ -1,6 +1,7 @@
 import json
 import re
 
+import pytest
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
@@ -388,6 +389,39 @@ def test_jira_issue_get_passes_fields_expand_and_comment_limit(monkeypatch) -> N
     }
 
 
+@pytest.mark.parametrize("comment_limit", ["-1", "101"])
+def test_jira_issue_get_rejects_comment_limit_outside_upstream_range(
+    monkeypatch, comment_limit: str
+) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    class FakeService:
+        def get(self, issue_key, **kwargs):
+            raise AssertionError(f"service should not be called for {issue_key}: {kwargs}")
+
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "get",
+            "DEMO-1",
+            "--comment-limit",
+            comment_limit,
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "0" in result.output
+    assert "100" in result.output
+
+
 def test_jira_issue_create_accepts_additional_fields(monkeypatch) -> None:
     from atlassian_cli.products.jira.commands import issue as issue_module
 
@@ -474,6 +508,48 @@ def test_jira_issue_update_accepts_fields_attachments_and_additional_fields(monk
     assert result.exit_code == 0
     assert captured["kwargs"]["fields"] == {"summary": "Updated summary"}
     assert captured["kwargs"]["attachments"] == ["release.txt"]
+
+
+def test_jira_issue_update_raw_routes_attachments_separately(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured: dict[str, object] = {}
+
+    class FakeService:
+        def update_raw(self, issue_key, fields, *, attachments=None):
+            captured["issue_key"] = issue_key
+            captured["fields"] = fields
+            captured["attachments"] = attachments
+            return {"key": issue_key, "updated": True}
+
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "update",
+            "DEMO-1",
+            "--fields",
+            '{"summary":"Updated summary"}',
+            "--attachments",
+            '["release.txt"]',
+            "--output",
+            "raw-json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {
+        "issue_key": "DEMO-1",
+        "fields": {"summary": "Updated summary"},
+        "attachments": ["release.txt"],
+    }
 
 
 def test_jira_issue_reparent_subtask_outputs_json(monkeypatch) -> None:
