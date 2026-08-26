@@ -87,3 +87,8 @@ def test_issue_50_confluence_write_rows_are_verified() -> None:
 
 def test_confluence_attachment_upload_has_verified_alignment_evidence() -> None:
     assert PARITY_EVIDENCE["confluence_upload_attachment"].status is ParityStatus.VERIFIED
+
+
+def test_issue_58_jira_update_rows_are_verified() -> None:
+    for operation in ("jira_update_issue", "jira_assign_issue", "jira_transition_issue"):
+        assert PARITY_EVIDENCE[operation].status is ParityStatus.VERIFIED

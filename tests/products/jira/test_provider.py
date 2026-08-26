@@ -308,6 +308,19 @@ def test_upload_issue_attachment_delegates_to_client() -> None:
     assert calls["args"] == ("DEMO-1", "/tmp/report.pdf")
 
 
+def test_upload_issue_attachment_unwraps_jira_server_list_response() -> None:
+    class FakeClient:
+        @staticmethod
+        def add_attachment(issue_key: str, filename: str) -> list[dict]:
+            return [{"id": "10001", "filename": "report.pdf", "size": 42}]
+
+    result = build_provider_with_client(FakeClient()).upload_issue_attachment(
+        "DEMO-1", "/tmp/report.pdf"
+    )
+
+    assert result == {"id": "10001", "filename": "report.pdf", "size": 42}
+
+
 def test_update_issue_uploads_attachments_separately_from_fields() -> None:
     calls = []
 
@@ -336,6 +349,95 @@ def test_update_issue_uploads_attachments_separately_from_fields() -> None:
         "updated": True,
         "attachment_results": [{"id": "10001", "filename": "report.pdf", "size": 42}],
     }
+
+
+def test_transition_issue_posts_numeric_id_fields_and_comment() -> None:
+    calls = {}
+
+    class FakeClient:
+        @staticmethod
+        def resource_url(path: str) -> str:
+            return f"https://jira.example.com/rest/api/2/{path}"
+
+        @staticmethod
+        def post(url: str, *, data: dict) -> dict:
+            calls["request"] = (url, data)
+            return {}
+
+    result = build_provider_with_client(FakeClient()).transition_issue(
+        "DEMO-1",
+        "31",
+        fields={"resolution": {"name": "Fixed"}},
+        comment="*example comment*",
+    )
+
+    assert calls["request"] == (
+        "https://jira.example.com/rest/api/2/issue/DEMO-1/transitions",
+        {
+            "transition": {"id": 31},
+            "fields": {"resolution": {"name": "Fixed"}},
+            "update": {"comment": [{"add": {"body": "*example comment*"}}]},
+        },
+    )
+    assert result == {"key": "DEMO-1", "transition": "31"}
+
+
+def test_add_worklog_posts_time_and_started_to_official_endpoint() -> None:
+    calls = {}
+
+    class FakeClient:
+        @staticmethod
+        def resource_url(path: str) -> str:
+            return f"https://jira.example.com/rest/api/2/{path}"
+
+        @staticmethod
+        def post(url: str, *, data: dict) -> dict:
+            calls["request"] = (url, data)
+            return {"id": "10003", "timeSpent": "1m", "started": data["started"]}
+
+    result = build_provider_with_client(FakeClient()).add_worklog(
+        "DEMO-1", "1m", started="2026-08-26T10:00:00.000+0000"
+    )
+
+    assert calls["request"] == (
+        "https://jira.example.com/rest/api/2/issue/DEMO-1/worklog",
+        {"timeSpent": "1m", "started": "2026-08-26T10:00:00.000+0000"},
+    )
+    assert result["id"] == "10003"
+
+
+def test_assign_issue_uses_dedicated_server_endpoint() -> None:
+    calls = []
+
+    class FakeClient:
+        @staticmethod
+        def assign_issue(issue_key: str, assignee: str | None) -> bool:
+            calls.append((issue_key, assignee))
+            return True
+
+    provider = build_provider_with_client(FakeClient())
+
+    assert provider.assign_issue("DEMO-1", "example-user") == {"key": "DEMO-1"}
+    assert provider.assign_issue("DEMO-1", None) == {"key": "DEMO-1"}
+    assert calls == [("DEMO-1", "example-user"), ("DEMO-1", None)]
+
+
+def test_add_comment_forwards_core_visibility() -> None:
+    calls = {}
+
+    class FakeClient:
+        @staticmethod
+        def issue_add_comment(issue_key: str, body: str, visibility: dict) -> dict:
+            calls["args"] = (issue_key, body, visibility)
+            return {"id": "10002", "body": body, "visibility": visibility}
+
+    visibility = {"type": "role", "value": "reviewer-one"}
+    result = build_provider_with_client(FakeClient()).add_comment(
+        "DEMO-1", "*example comment*", visibility
+    )
+
+    assert calls["args"] == ("DEMO-1", "*example comment*", visibility)
+    assert result["visibility"] == visibility
 
 
 def test_issue_link_methods_delegate_to_client() -> None:

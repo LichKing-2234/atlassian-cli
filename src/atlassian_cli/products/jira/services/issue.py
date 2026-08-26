@@ -1,3 +1,5 @@
+import json
+
 from atlassian_cli.core.errors import ConflictError, TransportError, ValidationError
 from atlassian_cli.output.interactive import CollectionPage
 from atlassian_cli.products.jira.markup import markdown_to_jira
@@ -292,28 +294,155 @@ class IssueService:
     def update(
         self,
         issue_key: str,
-        fields: dict,
+        fields: dict | None = None,
         *,
         additional_fields: dict | None = None,
         components: list[str] | None = None,
         attachments: list[str] | None = None,
+        transition: str | None = None,
+        comment: str | None = None,
+        comment_format: str = "markdown",
+        comment_visibility: dict[str, str] | None = None,
+        worklog: str | None = None,
+        worklog_started: str | None = None,
+        description_format: str = "markdown",
     ) -> dict:
-        payload = {**fields, **(additional_fields or {})}
-        if components:
-            payload["components"] = [{"name": name} for name in components]
-        raw = self.provider.update_issue(issue_key, payload, attachments=attachments)
+        raw, attachment_results, operations = self._run_update_operations(
+            issue_key,
+            fields=fields,
+            additional_fields=additional_fields,
+            components=components,
+            attachments=attachments,
+            transition=transition,
+            comment=comment,
+            comment_format=comment_format,
+            comment_visibility=comment_visibility,
+            worklog=worklog,
+            worklog_started=worklog_started,
+            description_format=description_format,
+        )
         if isinstance(raw, dict) and "fields" in raw and "key" in raw:
             issue = JiraIssue.from_api_response(raw).to_simplified_dict()
         else:
             issue = {"key": issue_key, **raw} if isinstance(raw, dict) else {"key": issue_key}
-        if isinstance(raw, dict) and raw.get("attachment_results"):
-            issue["attachment_results"] = raw["attachment_results"]
-        return {"message": "Issue updated successfully", "issue": issue}
+        if attachment_results:
+            issue["attachment_results"] = attachment_results
+        return {
+            "message": (
+                "Issue updated successfully" if operations else "No issue updates were requested"
+            ),
+            "issue": issue,
+            "operations_performed": operations,
+        }
+
+    def _run_update_operations(
+        self,
+        issue_key: str,
+        *,
+        fields: dict | None = None,
+        additional_fields: dict | None = None,
+        components: list[str] | None = None,
+        attachments: list[str] | None = None,
+        transition: str | None = None,
+        comment: str | None = None,
+        comment_format: str = "markdown",
+        comment_visibility: dict[str, str] | None = None,
+        worklog: str | None = None,
+        worklog_started: str | None = None,
+        description_format: str = "markdown",
+    ) -> tuple[dict, list[dict] | None, list[str]]:
+        if description_format not in {"markdown", "jira"}:
+            raise ValueError("description_format must be 'markdown' or 'jira'")
+        if comment_format not in {"markdown", "jira"}:
+            raise ValueError("comment_format must be 'markdown' or 'jira'")
+        payload = {**(fields or {}), **(additional_fields or {})}
+        if isinstance(payload.get("description"), str) and description_format == "markdown":
+            payload["description"] = markdown_to_jira(payload["description"])
+        if components:
+            payload["components"] = [{"name": name} for name in components]
+        operations: list[str] = []
+        attachment_results = None
+        raw = None
+        if payload or attachments:
+            raw = self.provider.update_issue(issue_key, payload, attachments=attachments)
+            if payload:
+                operations.append("fields_updated")
+            if isinstance(raw, dict) and raw.get("attachment_results"):
+                attachment_results = raw["attachment_results"]
+                operations.append("attachments_uploaded")
+        if transition:
+            transition_id = self._resolve_transition_id(issue_key, transition)
+            self.provider.transition_issue(issue_key, transition_id, fields=None, comment=None)
+            operations.append(f"transitioned:{transition}")
+        if comment:
+            body = markdown_to_jira(comment) if comment_format == "markdown" else comment
+            self.provider.add_comment(issue_key, body, comment_visibility)
+            operations.append("comment_added")
+        if worklog:
+            self.provider.add_worklog(issue_key, worklog, started=worklog_started)
+            operations.append("worklog_added")
+        if raw is None or transition or comment or worklog:
+            raw = self.provider.get_issue(issue_key)
+        return raw, attachment_results, operations
 
     def update_raw(
-        self, issue_key: str, fields: dict, *, attachments: list[str] | None = None
+        self,
+        issue_key: str,
+        fields: dict | None = None,
+        **kwargs,
     ) -> dict:
-        return self.provider.update_issue(issue_key, fields, attachments=attachments)
+        raw, attachment_results, operations = self._run_update_operations(
+            issue_key, fields=fields, **kwargs
+        )
+        result = {
+            "message": (
+                "Issue updated successfully" if operations else "No issue updates were requested"
+            ),
+            "issue": raw,
+            "operations_performed": operations,
+        }
+        if attachment_results:
+            result["attachment_results"] = attachment_results
+        return result
+
+    @staticmethod
+    def _resolve_assignee(assignee: str | None) -> str | None:
+        if assignee is None or not assignee.strip():
+            return None
+        if not assignee.lstrip().startswith("{"):
+            return assignee
+        try:
+            parsed = json.loads(assignee)
+        except json.JSONDecodeError as exc:
+            raise ValueError("assignee must be a username or valid user JSON") from exc
+        if not isinstance(parsed, dict):
+            raise ValueError("assignee JSON must be an object")
+        identifier = next(
+            (
+                parsed.get(key)
+                for key in ("name", "username", "key", "accountId", "account_id")
+                if parsed.get(key)
+            ),
+            None,
+        )
+        if not isinstance(identifier, str):
+            raise ValueError("assignee JSON has no Jira Server user identifier")
+        return identifier
+
+    def assign(self, issue_key: str, assignee: str | None) -> dict:
+        self.provider.assign_issue(issue_key, self._resolve_assignee(assignee))
+        raw = self.provider.get_issue(issue_key)
+        return {
+            "message": "Issue assigned successfully",
+            "issue": JiraIssue.from_api_response(raw).to_simplified_dict(),
+        }
+
+    def assign_raw(self, issue_key: str, assignee: str | None) -> dict:
+        self.provider.assign_issue(issue_key, self._resolve_assignee(assignee))
+        return {
+            "message": "Issue assigned successfully",
+            "issue": self.provider.get_issue(issue_key),
+        }
 
     def reparent_subtask(self, issue_key: str, parent_key: str) -> dict:
         source = self.provider.get_issue(issue_key, fields="id,key,parent,issuetype,project")
@@ -358,11 +487,65 @@ class IssueService:
             "new_parent": new_parent,
         }
 
-    def transition(self, issue_key: str, transition: str) -> dict:
-        return self.provider.transition_issue(issue_key, transition)
+    def _resolve_transition_id(self, issue_key: str, transition: str) -> str:
+        selector = transition.strip().casefold()
+        resolved = next(
+            (
+                item.get("id")
+                for item in self.provider.get_issue_transitions(issue_key)
+                if str(item.get("id", "")).casefold() == selector
+                or str(item.get("name", "")).casefold() == selector
+            ),
+            None,
+        )
+        if resolved is None:
+            raise ValidationError(f"transition not available for {issue_key}: {transition}")
+        return str(resolved)
 
-    def transition_raw(self, issue_key: str, transition: str) -> dict:
-        return self.provider.transition_issue(issue_key, transition)
+    def transition(
+        self,
+        issue_key: str,
+        transition: str,
+        *,
+        fields: dict | None = None,
+        comment: str | None = None,
+        comment_format: str = "markdown",
+    ) -> dict:
+        if comment_format not in {"markdown", "jira"}:
+            raise ValueError("comment_format must be 'markdown' or 'jira'")
+        transition_id = self._resolve_transition_id(issue_key, transition)
+        body = markdown_to_jira(comment) if comment and comment_format == "markdown" else comment
+        self.provider.transition_issue(
+            issue_key, transition_id, fields=fields or None, comment=body
+        )
+        raw = self.provider.get_issue(issue_key)
+        return {
+            "message": "Issue transitioned successfully",
+            "transition": transition,
+            "issue": JiraIssue.from_api_response(raw).to_simplified_dict(),
+        }
+
+    def transition_raw(
+        self,
+        issue_key: str,
+        transition: str,
+        *,
+        fields: dict | None = None,
+        comment: str | None = None,
+        comment_format: str = "markdown",
+    ) -> dict:
+        if comment_format not in {"markdown", "jira"}:
+            raise ValueError("comment_format must be 'markdown' or 'jira'")
+        transition_id = self._resolve_transition_id(issue_key, transition)
+        body = markdown_to_jira(comment) if comment and comment_format == "markdown" else comment
+        self.provider.transition_issue(
+            issue_key, transition_id, fields=fields or None, comment=body
+        )
+        return {
+            "message": "Issue transitioned successfully",
+            "transition": transition,
+            "issue": self.provider.get_issue(issue_key),
+        }
 
     def get_transitions(self, issue_key: str) -> dict:
         return {"results": self.provider.get_issue_transitions(issue_key)}

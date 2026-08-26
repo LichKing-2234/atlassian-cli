@@ -324,7 +324,11 @@ class JiraServerProvider:
 
     def upload_issue_attachment(self, issue_key: str, file_path: str) -> dict:
         response = self.client.add_attachment(issue_key, file_path)
-        return response if isinstance(response, dict) else {"uploaded": bool(response)}
+        if isinstance(response, dict):
+            return response
+        if isinstance(response, list) and response and isinstance(response[0], dict):
+            return response[0]
+        return {"uploaded": bool(response)}
 
     def download_issue_attachment(
         self, attachment: dict, destination: str, *, issue_key: str
@@ -396,12 +400,44 @@ class JiraServerProvider:
     def delete_issue(self, issue_key: str) -> None:
         self.client.delete_issue(issue_key)
 
-    def transition_issue(self, issue_key: str, transition: str) -> dict:
-        self.client.set_issue_status(issue_key, transition)
+    def transition_issue(
+        self,
+        issue_key: str,
+        transition: str,
+        *,
+        fields: dict | None = None,
+        comment: str | None = None,
+    ) -> dict:
+        try:
+            transition_id = int(transition)
+        except ValueError as exc:
+            raise ValidationError("transition ID must be numeric") from exc
+        data = {"transition": {"id": transition_id}}
+        if fields:
+            data["fields"] = fields
+        if comment:
+            data["update"] = {"comment": [{"add": {"body": comment}}]}
+        self.client.post(
+            f"{self.client.resource_url('issue')}/{issue_key}/transitions",
+            data=data,
+        )
         return {"key": issue_key, "transition": transition}
 
     def get_issue_transitions(self, issue_key: str) -> list[dict]:
         return self.client.get_issue_transitions(issue_key)
+
+    def add_worklog(self, issue_key: str, time_spent: str, *, started: str | None = None) -> dict:
+        data = {"timeSpent": time_spent}
+        if started:
+            data["started"] = started
+        return self.client.post(
+            f"{self.client.resource_url('issue')}/{issue_key}/worklog",
+            data=data,
+        )
+
+    def assign_issue(self, issue_key: str, assignee: str | None) -> dict:
+        self.client.assign_issue(issue_key, assignee)
+        return {"key": issue_key}
 
     def search_fields(self, keyword: str, *, limit: int) -> list[dict]:
         fields = self.client.get_all_fields()
@@ -450,11 +486,19 @@ class JiraServerProvider:
             ]
         return options[:return_limit]
 
-    def add_comment(self, issue_key: str, body: str) -> dict:
-        return self.client.issue_add_comment(issue_key, body)
+    def add_comment(
+        self, issue_key: str, body: str, visibility: dict[str, str] | None = None
+    ) -> dict:
+        return self.client.issue_add_comment(issue_key, body, visibility)
 
-    def edit_comment(self, issue_key: str, comment_id: str, body: str) -> dict:
-        return self.client.issue_edit_comment(issue_key, comment_id, body)
+    def edit_comment(
+        self,
+        issue_key: str,
+        comment_id: str,
+        body: str,
+        visibility: dict[str, str] | None = None,
+    ) -> dict:
+        return self.client.issue_edit_comment(issue_key, comment_id, body, visibility)
 
     def list_projects(self) -> list[dict]:
         return self.client.projects()

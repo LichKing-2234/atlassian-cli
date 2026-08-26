@@ -282,6 +282,54 @@ def test_jira_issue_transitions_outputs_available_ids(monkeypatch) -> None:
     assert '"id": "31"' in result.stdout
 
 
+def test_jira_issue_transition_accepts_fields_and_comment(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured = {}
+
+    class FakeService:
+        def transition(self, issue_key, transition, **kwargs):
+            captured["args"] = (issue_key, transition, kwargs)
+            return {"message": "Issue transitioned successfully", "issue": {"key": issue_key}}
+
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "transition",
+            "DEMO-1",
+            "--transition-id",
+            "Done",
+            "--fields",
+            '{"resolution":{"name":"Fixed"}}',
+            "--comment",
+            "h2. Example Page",
+            "--comment-format",
+            "jira",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["args"] == (
+        "DEMO-1",
+        "Done",
+        {
+            "fields": {"resolution": {"name": "Fixed"}},
+            "comment": "h2. Example Page",
+            "comment_format": "jira",
+        },
+    )
+
+
 def test_jira_issue_delete_requires_confirmation(monkeypatch) -> None:
     from atlassian_cli.products.jira.commands import issue as issue_module
 
@@ -549,7 +597,7 @@ def test_jira_issue_create_raw_keeps_semantic_description_contract(monkeypatch) 
     assert captured["description_format"] == "markdown"
 
 
-def test_jira_issue_update_accepts_fields_attachments_and_additional_fields(monkeypatch) -> None:
+def test_jira_issue_update_accepts_optional_aligned_operations(monkeypatch) -> None:
     from atlassian_cli.products.jira.commands import issue as issue_module
 
     captured: dict[str, object] = {}
@@ -573,22 +621,46 @@ def test_jira_issue_update_accepts_fields_attachments_and_additional_fields(monk
             "issue",
             "update",
             "DEMO-1",
-            "--fields",
-            '{"summary":"Updated summary"}',
             "--additional-fields",
             '{"labels":["ops"]}',
             "--components",
             "API",
             "--attachments",
             '["release.txt"]',
+            "--transition",
+            "31",
+            "--comment",
+            "h2. Example Page",
+            "--comment-format",
+            "jira",
+            "--comment-visibility",
+            '{"type":"role","value":"reviewer-one"}',
+            "--worklog",
+            "1m",
+            "--worklog-started",
+            "2026-08-26T10:00:00.000+0000",
             "--output",
             "json",
         ],
     )
 
     assert result.exit_code == 0
-    assert captured["kwargs"]["fields"] == {"summary": "Updated summary"}
-    assert captured["kwargs"]["attachments"] == ["release.txt"]
+    assert captured == {
+        "issue_key": "DEMO-1",
+        "kwargs": {
+            "fields": {},
+            "additional_fields": {"labels": ["ops"]},
+            "components": ["API"],
+            "attachments": ["release.txt"],
+            "transition": "31",
+            "comment": "h2. Example Page",
+            "comment_format": "jira",
+            "comment_visibility": {"type": "role", "value": "reviewer-one"},
+            "worklog": "1m",
+            "worklog_started": "2026-08-26T10:00:00.000+0000",
+            "description_format": "markdown",
+        },
+    }
 
 
 def test_jira_issue_update_raw_routes_attachments_separately(monkeypatch) -> None:
@@ -597,10 +669,9 @@ def test_jira_issue_update_raw_routes_attachments_separately(monkeypatch) -> Non
     captured: dict[str, object] = {}
 
     class FakeService:
-        def update_raw(self, issue_key, fields, *, attachments=None):
+        def update_raw(self, issue_key, **kwargs):
             captured["issue_key"] = issue_key
-            captured["fields"] = fields
-            captured["attachments"] = attachments
+            captured["kwargs"] = kwargs
             return {"key": issue_key, "updated": True}
 
     monkeypatch.setattr(
@@ -628,9 +699,59 @@ def test_jira_issue_update_raw_routes_attachments_separately(monkeypatch) -> Non
     assert result.exit_code == 0
     assert captured == {
         "issue_key": "DEMO-1",
-        "fields": {"summary": "Updated summary"},
-        "attachments": ["release.txt"],
+        "kwargs": {
+            "fields": {"summary": "Updated summary"},
+            "additional_fields": {},
+            "components": None,
+            "attachments": ["release.txt"],
+            "transition": None,
+            "comment": None,
+            "comment_format": "markdown",
+            "comment_visibility": None,
+            "worklog": None,
+            "worklog_started": None,
+            "description_format": "markdown",
+        },
     }
+
+
+@pytest.mark.parametrize(
+    ("assignee_args", "expected"),
+    [(["--assignee", "example-user"], "example-user"), ([], None)],
+)
+def test_jira_issue_assign_supports_assignment_and_unassignment(
+    monkeypatch, assignee_args, expected
+) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured = {}
+
+    class FakeService:
+        def assign(self, issue_key, assignee):
+            captured["args"] = (issue_key, assignee)
+            return {"message": "Issue assigned successfully", "issue": {"key": issue_key}}
+
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "assign",
+            "DEMO-1",
+            *assignee_args,
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["args"] == ("DEMO-1", expected)
 
 
 def test_jira_issue_reparent_subtask_outputs_json(monkeypatch) -> None:

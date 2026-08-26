@@ -17,6 +17,7 @@ from atlassian_cli.products.factory import build_provider
 from atlassian_cli.products.jira.commands.attachment import app as attachment_app
 from atlassian_cli.products.jira.commands.link import app as link_app
 from atlassian_cli.products.jira.services.issue import IssueService
+from atlassian_cli.products.jira.visibility import parse_visibility
 
 app = typer.Typer(help="Jira issue commands")
 app.add_typer(attachment_app, name="attachment")
@@ -276,10 +277,21 @@ def create_issue(
 def update_issue(
     ctx: typer.Context,
     issue_key: str,
-    fields: str = typer.Option(..., "--fields"),
+    fields: str | None = typer.Option(None, "--fields"),
     additional_fields: str | None = typer.Option(None, "--additional-fields"),
     components: str | None = typer.Option(None, "--components"),
     attachments: str | None = typer.Option(None, "--attachments"),
+    transition: str | None = typer.Option(None, "--transition"),
+    comment: str | None = typer.Option(None, "--comment"),
+    comment_visibility: str | None = typer.Option(None, "--comment-visibility"),
+    worklog: str | None = typer.Option(None, "--worklog"),
+    worklog_started: str | None = typer.Option(None, "--worklog-started"),
+    description_format: JiraDescriptionFormat = typer.Option(
+        JiraDescriptionFormat.MARKDOWN, "--description-format"
+    ),
+    comment_format: JiraDescriptionFormat = typer.Option(
+        JiraDescriptionFormat.MARKDOWN, "--comment-format"
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
@@ -289,19 +301,45 @@ def update_issue(
     )
     parsed_components = _parse_csv(components)
     parsed_attachments = _parse_attachments(attachments)
-    payload = {**parsed_fields, **parsed_additional_fields}
-    if parsed_components:
-        payload["components"] = [{"name": name} for name in parsed_components]
+    try:
+        parsed_visibility = parse_visibility(comment_visibility, option_name="--comment-visibility")
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="--comment-visibility") from exc
+    kwargs = {
+        "fields": parsed_fields,
+        "additional_fields": parsed_additional_fields,
+        "components": parsed_components,
+        "attachments": parsed_attachments,
+        "transition": transition,
+        "comment": comment,
+        "comment_format": comment_format.value,
+        "comment_visibility": parsed_visibility,
+        "worklog": worklog,
+        "worklog_started": worklog_started,
+        "description_format": description_format.value,
+    }
     result = (
-        service.update_raw(issue_key, payload, attachments=parsed_attachments)
+        service.update_raw(issue_key, **kwargs)
         if is_raw_output(output)
-        else service.update(
-            issue_key,
-            fields=parsed_fields,
-            additional_fields=parsed_additional_fields,
-            components=parsed_components,
-            attachments=parsed_attachments,
-        )
+        else service.update(issue_key, **kwargs)
+    )
+    typer.echo(render_output(result, output=output))
+
+
+@app.command("assign")
+def assign_issue(
+    ctx: typer.Context,
+    issue_key: str,
+    assignee: str | None = typer.Option(
+        None, "--assignee", help="Jira username or user JSON; omit to unassign."
+    ),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_issue_service(ctx.obj)
+    result = (
+        service.assign_raw(issue_key, assignee)
+        if is_raw_output(output)
+        else service.assign(issue_key, assignee)
     )
     typer.echo(render_output(result, output=output))
 
@@ -310,14 +348,24 @@ def update_issue(
 def transition_issue(
     ctx: typer.Context,
     issue_key: str,
-    transition: str = typer.Option(..., "--to"),
+    transition: str = typer.Option(..., "--transition-id", "--to"),
+    fields: str | None = typer.Option(None, "--fields"),
+    comment: str | None = typer.Option(None, "--comment"),
+    comment_format: JiraDescriptionFormat = typer.Option(
+        JiraDescriptionFormat.MARKDOWN, "--comment-format"
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
+    kwargs = {
+        "fields": _parse_json_object(fields, option_name="--fields"),
+        "comment": comment,
+        "comment_format": comment_format.value,
+    }
     result = (
-        service.transition_raw(issue_key, transition)
+        service.transition_raw(issue_key, transition, **kwargs)
         if is_raw_output(output)
-        else service.transition(issue_key, transition)
+        else service.transition(issue_key, transition, **kwargs)
     )
     typer.echo(render_output(result, output=output))
 
