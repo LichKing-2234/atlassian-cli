@@ -12,12 +12,16 @@ class FakeCommentProvider:
             }
         ]
 
-    def add_comment(self, page_id: str, body: str) -> dict:
+    def add_comment(self, page_id: str, body: str, *, content_format: str = "markdown") -> dict:
         assert page_id == "1234"
+        assert content_format == "markdown"
         return {"id": "c2", "body": {"storage": {"value": body}}}
 
-    def reply_to_comment(self, comment_id: str, body: str) -> dict:
+    def reply_to_comment(
+        self, comment_id: str, body: str, *, content_format: str = "markdown"
+    ) -> dict:
         assert comment_id == "c1"
+        assert content_format == "markdown"
         return {"id": "c3", "body": {"storage": {"value": body}}}
 
 

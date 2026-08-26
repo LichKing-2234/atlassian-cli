@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import typer
 
 from atlassian_cli.output.modes import OutputMode, is_raw_output
@@ -27,14 +29,20 @@ def _is_default_parameter_source(ctx: typer.Context, name: str) -> bool:
 
 
 def _validate_page_write_inputs(
-    *, content_format: str, enable_heading_anchors: bool, emoji: str | None
+    *,
+    content_format: str,
+    enable_heading_anchors: bool,
+    emoji: str | None,
+    page_width: str | None,
+    table_layout: str | None,
+    subtype: str | None = None,
 ) -> None:
-    if content_format == "markdown":
+    if content_format not in {"markdown", "storage"}:
         raise typer.BadParameter(
-            "content-format=markdown is not supported on Confluence Server/DC; use storage",
+            "content-format must be markdown or storage on Confluence 6.12.4",
             param_hint="--content-format",
         )
-    if enable_heading_anchors:
+    if enable_heading_anchors and content_format != "markdown":
         raise typer.BadParameter(
             "enable-heading-anchors requires content-format=markdown",
             param_hint="--enable-heading-anchors",
@@ -44,6 +52,49 @@ def _validate_page_write_inputs(
             "emoji is not supported on Confluence 6.12.4",
             param_hint="--emoji",
         )
+    if page_width is not None:
+        raise typer.BadParameter(
+            "page-width is not supported on Confluence 6.12.4",
+            param_hint="--page-width",
+        )
+    if table_layout is not None:
+        raise typer.BadParameter(
+            "table-layout is not supported on Confluence 6.12.4",
+            param_hint="--table-layout",
+        )
+    if subtype is not None:
+        raise typer.BadParameter(
+            "subtype is only supported on Confluence Cloud",
+            param_hint="--subtype",
+        )
+
+
+def _resolve_page_content(content: str | None, content_file: str | None) -> str:
+    if content is not None and content_file:
+        raise typer.BadParameter(
+            "provide either --content or --content-file, not both",
+            param_hint="--content-file",
+        )
+    if content is None and not content_file:
+        raise typer.BadParameter(
+            "provide one of --content or --content-file",
+            param_hint="--content",
+        )
+    if content is not None:
+        return content
+    path = Path(content_file or "")
+    if not path.is_file():
+        raise typer.BadParameter(
+            f"content file does not exist or is not a regular file: {path}",
+            param_hint="--content-file",
+        )
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise typer.BadParameter(
+            f"could not read content file as UTF-8: {path}: {exc}",
+            param_hint="--content-file",
+        ) from exc
 
 
 @app.command("get")
@@ -234,33 +285,70 @@ def create_page(
     ctx: typer.Context,
     space_key: str = typer.Option(..., "--space-key", "--space"),
     title: str = typer.Option(..., "--title"),
-    content: str = typer.Option(..., "--content", "--body"),
-    parent_id: str | None = typer.Option(None, "--parent-id"),
-    content_format: str = typer.Option("storage", "--content-format"),
+    content: str | None = typer.Option(
+        None,
+        "--content",
+        "--body",
+        help="Inline page body. Mutually exclusive with --content-file.",
+    ),
+    content_file: str | None = typer.Option(
+        None,
+        "--content-file",
+        help="Read the UTF-8 page body from a file. Mutually exclusive with --content.",
+    ),
+    parent_id: str | None = typer.Option(None, "--parent-id", help="Parent page ID."),
+    content_format: str = typer.Option(
+        "markdown",
+        "--content-format",
+        help="Input format: markdown (default) or storage (raw escape hatch).",
+    ),
     enable_heading_anchors: bool = typer.Option(
         False,
         "--enable-heading-anchors",
-        help="Requires Markdown input, planned for the v0.2.0 compatibility release.",
+        help="Add Confluence anchor macros to Markdown headings.",
     ),
-    include_content: bool = typer.Option(False, "--include-content"),
+    include_content: bool = typer.Option(
+        False,
+        "--include-content",
+        help="Include stored page content in the response.",
+    ),
     emoji: str | None = typer.Option(
         None,
         "--emoji",
         help="Unsupported on Confluence 6.12.4.",
     ),
+    page_width: str | None = typer.Option(
+        None,
+        "--page-width",
+        help="Unsupported on Confluence 6.12.4.",
+    ),
+    table_layout: str | None = typer.Option(
+        None,
+        "--table-layout",
+        help="Unsupported on Confluence 6.12.4.",
+    ),
+    subtype: str | None = typer.Option(
+        None,
+        "--subtype",
+        help="Confluence Cloud only.",
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
+    resolved_content = _resolve_page_content(content, content_file)
     _validate_page_write_inputs(
         content_format=content_format,
         enable_heading_anchors=enable_heading_anchors,
         emoji=emoji,
+        page_width=page_width,
+        table_layout=table_layout,
+        subtype=subtype,
     )
     service = build_page_service(ctx.obj)
     payload = (
         service.create_raw(
             space_key=space_key,
             title=title,
-            body=content,
+            body=resolved_content,
             parent_id=parent_id,
             content_format=content_format,
             enable_heading_anchors=enable_heading_anchors,
@@ -270,7 +358,7 @@ def create_page(
         else service.create(
             space_key=space_key,
             title=title,
-            content=content,
+            content=resolved_content,
             parent_id=parent_id,
             content_format=content_format,
             enable_heading_anchors=enable_heading_anchors,
@@ -286,35 +374,74 @@ def update_page(
     ctx: typer.Context,
     page_id: str,
     title: str = typer.Option(..., "--title"),
-    content: str = typer.Option(..., "--content", "--body"),
-    parent_id: str | None = typer.Option(None, "--parent-id"),
-    content_format: str = typer.Option("storage", "--content-format"),
-    is_minor_edit: bool = typer.Option(False, "--is-minor-edit"),
-    version_comment: str | None = typer.Option(None, "--version-comment"),
+    content: str | None = typer.Option(
+        None,
+        "--content",
+        "--body",
+        help="Inline page body. Mutually exclusive with --content-file.",
+    ),
+    content_file: str | None = typer.Option(
+        None,
+        "--content-file",
+        help="Read the UTF-8 page body from a file. Mutually exclusive with --content.",
+    ),
+    parent_id: str | None = typer.Option(None, "--parent-id", help="New parent page ID."),
+    content_format: str = typer.Option(
+        "markdown",
+        "--content-format",
+        help="Input format: markdown (default) or storage (raw escape hatch).",
+    ),
+    is_minor_edit: bool = typer.Option(
+        False,
+        "--is-minor-edit",
+        help="Mark the new page version as a minor edit.",
+    ),
+    version_comment: str | None = typer.Option(
+        None,
+        "--version-comment",
+        help="Comment attached to the new page version.",
+    ),
     enable_heading_anchors: bool = typer.Option(
         False,
         "--enable-heading-anchors",
-        help="Requires Markdown input, planned for the v0.2.0 compatibility release.",
+        help="Add Confluence anchor macros to Markdown headings.",
     ),
-    include_content: bool = typer.Option(False, "--include-content"),
+    include_content: bool = typer.Option(
+        False,
+        "--include-content",
+        help="Include stored page content in the response.",
+    ),
     emoji: str | None = typer.Option(
         None,
         "--emoji",
         help="Unsupported on Confluence 6.12.4.",
     ),
+    page_width: str | None = typer.Option(
+        None,
+        "--page-width",
+        help="Unsupported on Confluence 6.12.4.",
+    ),
+    table_layout: str | None = typer.Option(
+        None,
+        "--table-layout",
+        help="Unsupported on Confluence 6.12.4.",
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
+    resolved_content = _resolve_page_content(content, content_file)
     _validate_page_write_inputs(
         content_format=content_format,
         enable_heading_anchors=enable_heading_anchors,
         emoji=emoji,
+        page_width=page_width,
+        table_layout=table_layout,
     )
     service = build_page_service(ctx.obj)
     payload = (
         service.update_raw(
             page_id,
             title=title,
-            body=content,
+            body=resolved_content,
             parent_id=parent_id,
             content_format=content_format,
             is_minor_edit=is_minor_edit,
@@ -326,7 +453,7 @@ def update_page(
         else service.update(
             page_id,
             title=title,
-            content=content,
+            content=resolved_content,
             parent_id=parent_id,
             content_format=content_format,
             is_minor_edit=is_minor_edit,

@@ -73,3 +73,13 @@ def test_parity_statuses_keep_evidence_states_distinct() -> None:
         "excluded",
         "unsupported",
     }
+
+
+def test_issue_50_confluence_write_rows_are_verified() -> None:
+    for operation in (
+        "confluence_create_page",
+        "confluence_update_page",
+        "confluence_add_comment",
+        "confluence_reply_to_comment",
+    ):
+        assert PARITY_EVIDENCE[operation].status is ParityStatus.VERIFIED
