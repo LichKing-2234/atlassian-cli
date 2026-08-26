@@ -513,7 +513,7 @@ def test_jira_issue_read_and_attachment_update_live(
         "raw-json",
     )
     assert fetched["key"] == issue_key
-    assert "<strong>example response</strong>" in fetched["renderedFields"]["description"]
+    assert fetched["renderedFields"]["description"] == "<p><b>example response</b></p>"
     assert [item["id"] for item in fetched["fields"]["comment"]["comments"]] == [
         latest_comment["id"]
     ]
