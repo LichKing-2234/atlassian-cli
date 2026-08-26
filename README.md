@@ -470,6 +470,24 @@ Previously supported Jira REST-shaped objects using `project`, `issuetype`, and 
 accepted unchanged; their `description` is treated as Jira wiki markup. New callers should use the
 semantic object shape above.
 
+### Confluence page read and navigation
+
+`confluence page get` accepts a numeric page ID, a full page URL containing a
+`/pages/<id>/` path or `pageId` query, and a Confluence `/x/<tiny-id>` link. URL and tiny-link
+selectors are resolved locally before the Confluence 6.12.4 content API is called.
+
+```bash
+atlassian confluence page get 1234
+atlassian confluence page get 'https://confluence.example.com/pages/viewpage.action?pageId=1234'
+atlassian confluence page get 'https://confluence.example.com/x/0gQ'
+atlassian confluence page children 1234 --expand body.storage,version --limit 25 --start 0
+atlassian confluence page tree DEMO --limit 100
+```
+
+Child-page reads expose Confluence 6.12.4 `expand`, `limit` (1-50), and zero-based `start`
+pagination. Page-tree `--limit` is a global cap (1-1000) across the flattened breadth-first
+result. Folder controls remain excluded because Confluence 6.12.4 child folders are not supported.
+
 ### Confluence page write input behavior
 
 Confluence page create/update interprets semantic text as Markdown by default and converts it to

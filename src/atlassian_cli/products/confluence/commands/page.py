@@ -100,7 +100,9 @@ def _resolve_page_content(content: str | None, content_file: str | None) -> str:
 @app.command("get")
 def get_page(
     ctx: typer.Context,
-    page_id: str | None = typer.Argument(None),
+    page_id: str | None = typer.Argument(
+        None, help="Page ID, full page URL, or Confluence tiny link."
+    ),
     title: str | None = typer.Option(None, "--title"),
     space_key: str | None = typer.Option(None, "--space-key", "--space"),
     include_metadata: bool = typer.Option(True, "--include-metadata/--no-include-metadata"),
@@ -193,10 +195,18 @@ def search_pages(
 def get_children(
     ctx: typer.Context,
     page_id: str,
+    expand: str = typer.Option("version,history", "--expand"),
+    limit: int = typer.Option(25, "--limit", min=1, max=50),
+    start: int = typer.Option(0, "--start", min=0),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
-    payload = service.children_raw(page_id) if is_raw_output(output) else service.children(page_id)
+    kwargs = {"expand": expand, "limit": limit, "start": start}
+    payload = (
+        service.children_raw(page_id, **kwargs)
+        if is_raw_output(output)
+        else service.children(page_id, **kwargs)
+    )
     typer.echo(render_output(payload, output=output))
 
 
@@ -204,10 +214,15 @@ def get_children(
 def get_tree(
     ctx: typer.Context,
     space_key: str,
+    limit: int = typer.Option(100, "--limit", min=1, max=1000),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_page_service(ctx.obj)
-    payload = service.tree_raw(space_key) if is_raw_output(output) else service.tree(space_key)
+    payload = (
+        service.tree_raw(space_key, limit=limit)
+        if is_raw_output(output)
+        else service.tree(space_key, limit=limit)
+    )
     typer.echo(render_output(payload, output=output))
 
 

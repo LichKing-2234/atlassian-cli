@@ -254,6 +254,20 @@ def test_confluence_page_help_lists_attachment_subcommand() -> None:
     assert "attachment" in plain_output
 
 
+def test_confluence_page_read_help_lists_fixed_version_navigation_inputs() -> None:
+    get_help = strip_ansi(runner.invoke(app, ["confluence", "page", "get", "--help"]).output)
+    children_help = strip_ansi(
+        runner.invoke(app, ["confluence", "page", "children", "--help"]).output
+    )
+    tree_help = strip_ansi(runner.invoke(app, ["confluence", "page", "tree", "--help"]).output)
+
+    assert "full page URL" in get_help
+    assert "tiny link" in get_help
+    for option in ("--expand", "--limit", "--start"):
+        assert option in children_help
+    assert "--limit" in tree_help
+
+
 def test_cli_rejects_removed_table_output_mode() -> None:
     result = runner.invoke(
         app,

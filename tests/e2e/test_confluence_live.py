@@ -1,11 +1,14 @@
 import base64
 import time
 from pathlib import Path
+from urllib.parse import urljoin
 
 import pytest
 
+from atlassian_cli.config.models import Product
 from tests.e2e.support import (
     CleanupRegistry,
+    build_live_context,
     resolve_confluence_write_target,
     run_failure,
     run_json,
@@ -257,6 +260,99 @@ def test_confluence_page_round_trip_live(live_env, confluence_fixed_version, tmp
         assert "example response" in diff["diff"]
     finally:
         registry.run()
+
+
+def test_confluence_page_read_navigation_contracts_live(
+    live_env, confluence_fixed_version, cleanup_registry
+) -> None:
+    target = resolve_confluence_write_target(live_env)
+    if str(target["space_key"]).startswith("~"):
+        context = build_live_context(Product.CONFLUENCE, live_env)
+        assert context.auth.username is not None
+        target["space_key"] = f"~{context.auth.username}"
+
+    def create_page(title: str, *, parent_id: str | None = None) -> str:
+        created = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "create",
+            "--space-key",
+            str(target["space_key"]),
+            "--title",
+            title,
+            "--content",
+            "example response",
+            *(["--parent-id", parent_id] if parent_id else []),
+            "--output",
+            "json",
+        )
+        page_id = str(created["page"]["id"])
+        cleanup_registry.add(
+            f"confluence page delete {page_id}",
+            lambda identifier=page_id: _delete_page(live_env, identifier),
+        )
+        return page_id
+
+    base_parent_id = target["parent_page_id"]
+    if base_parent_id is None:
+        homepage = confluence_fixed_version.get_space_homepage(str(target["space_key"]))
+        base_parent_id = str(homepage["id"])
+    parent_id = create_page(
+        unique_name("confluence-navigation-parent"), parent_id=str(base_parent_id)
+    )
+    child_ids = [
+        create_page(unique_name("confluence-navigation-child"), parent_id=parent_id)
+        for _ in range(3)
+    ]
+
+    base_url = str(confluence_fixed_version.client.url).rstrip("/")
+    full_url = f"{base_url}/pages/viewpage.action?pageId={parent_id}"
+    by_url = run_json(live_env, "confluence", "page", "get", full_url, "--output", "json")
+    assert by_url["metadata"]["id"] == parent_id
+
+    raw_parent = confluence_fixed_version.get_page(parent_id)
+    tiny_path = raw_parent.get("_links", {}).get("tinyui")
+    assert isinstance(tiny_path, str) and tiny_path
+    tiny_url = urljoin(f"{base_url}/", tiny_path.lstrip("/"))
+    by_tiny = run_json(live_env, "confluence", "page", "get", tiny_url, "--output", "json")
+    assert by_tiny["metadata"]["id"] == parent_id
+
+    all_children = confluence_fixed_version.get_page_children(
+        parent_id, expand="body.storage,version", limit=3, start=0
+    )
+    assert [str(item["id"]) for item in all_children] == child_ids
+    paged = run_json(
+        live_env,
+        "confluence",
+        "page",
+        "children",
+        parent_id,
+        "--expand",
+        "body.storage,version",
+        "--limit",
+        "1",
+        "--start",
+        "1",
+        "--output",
+        "raw-json",
+    )
+    assert len(paged) == 1
+    assert str(paged[0]["id"]) == child_ids[1]
+    assert "body" in paged[0] and "version" in paged[0]
+
+    tree = run_json(
+        live_env,
+        "confluence",
+        "page",
+        "tree",
+        str(target["space_key"]),
+        "--limit",
+        "2",
+        "--output",
+        "json",
+    )
+    assert len(tree["results"]) == 2
 
 
 def test_confluence_page_write_rejections_do_not_mutate_live(

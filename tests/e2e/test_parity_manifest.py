@@ -92,3 +92,12 @@ def test_confluence_attachment_upload_has_verified_alignment_evidence() -> None:
 def test_issue_58_jira_update_rows_are_verified() -> None:
     for operation in ("jira_update_issue", "jira_assign_issue", "jira_transition_issue"):
         assert PARITY_EVIDENCE[operation].status is ParityStatus.VERIFIED
+
+
+def test_issue_61_confluence_read_rows_are_verified() -> None:
+    for operation in (
+        "confluence_get_page",
+        "confluence_get_page_children",
+        "confluence_get_space_page_tree",
+    ):
+        assert PARITY_EVIDENCE[operation].status is ParityStatus.VERIFIED
