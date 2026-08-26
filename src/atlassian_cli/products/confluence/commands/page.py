@@ -26,6 +26,26 @@ def _is_default_parameter_source(ctx: typer.Context, name: str) -> bool:
     return getattr(source, "name", None) == "DEFAULT"
 
 
+def _validate_page_write_inputs(
+    *, content_format: str, enable_heading_anchors: bool, emoji: str | None
+) -> None:
+    if content_format == "markdown":
+        raise typer.BadParameter(
+            "content-format=markdown is not supported on Confluence Server/DC; use storage",
+            param_hint="--content-format",
+        )
+    if enable_heading_anchors:
+        raise typer.BadParameter(
+            "enable-heading-anchors requires content-format=markdown",
+            param_hint="--enable-heading-anchors",
+        )
+    if emoji is not None:
+        raise typer.BadParameter(
+            "emoji is not supported on Confluence 6.12.4",
+            param_hint="--emoji",
+        )
+
+
 @app.command("get")
 def get_page(
     ctx: typer.Context,
@@ -217,17 +237,25 @@ def create_page(
     content: str = typer.Option(..., "--content", "--body"),
     parent_id: str | None = typer.Option(None, "--parent-id"),
     content_format: str = typer.Option("storage", "--content-format"),
-    enable_heading_anchors: bool = typer.Option(False, "--enable-heading-anchors"),
+    enable_heading_anchors: bool = typer.Option(
+        False,
+        "--enable-heading-anchors",
+        help="Requires Markdown input, planned for the v0.2.0 compatibility release.",
+    ),
     include_content: bool = typer.Option(False, "--include-content"),
-    emoji: str | None = typer.Option(None, "--emoji"),
+    emoji: str | None = typer.Option(
+        None,
+        "--emoji",
+        help="Unsupported on Confluence 6.12.4.",
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
+    _validate_page_write_inputs(
+        content_format=content_format,
+        enable_heading_anchors=enable_heading_anchors,
+        emoji=emoji,
+    )
     service = build_page_service(ctx.obj)
-    if content_format == "markdown":
-        raise typer.BadParameter(
-            "content-format=markdown is not supported on Confluence Server/DC; use storage",
-            param_hint="--content-format",
-        )
     payload = (
         service.create_raw(
             space_key=space_key,
@@ -263,17 +291,25 @@ def update_page(
     content_format: str = typer.Option("storage", "--content-format"),
     is_minor_edit: bool = typer.Option(False, "--is-minor-edit"),
     version_comment: str | None = typer.Option(None, "--version-comment"),
-    enable_heading_anchors: bool = typer.Option(False, "--enable-heading-anchors"),
+    enable_heading_anchors: bool = typer.Option(
+        False,
+        "--enable-heading-anchors",
+        help="Requires Markdown input, planned for the v0.2.0 compatibility release.",
+    ),
     include_content: bool = typer.Option(False, "--include-content"),
-    emoji: str | None = typer.Option(None, "--emoji"),
+    emoji: str | None = typer.Option(
+        None,
+        "--emoji",
+        help="Unsupported on Confluence 6.12.4.",
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
+    _validate_page_write_inputs(
+        content_format=content_format,
+        enable_heading_anchors=enable_heading_anchors,
+        emoji=emoji,
+    )
     service = build_page_service(ctx.obj)
-    if content_format == "markdown":
-        raise typer.BadParameter(
-            "content-format=markdown is not supported on Confluence Server/DC; use storage",
-            param_hint="--content-format",
-        )
     payload = (
         service.update_raw(
             page_id,

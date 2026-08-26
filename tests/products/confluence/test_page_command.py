@@ -1,11 +1,104 @@
 import re
 
+import pytest
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
 
 runner = CliRunner()
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+@pytest.mark.parametrize(
+    ("command_args", "expected"),
+    [
+        (
+            [
+                "create",
+                "--space-key",
+                "DEMO",
+                "--title",
+                "Example Page",
+                "--content",
+                "<h1>Example Page</h1>",
+                "--emoji",
+                "example response",
+            ],
+            ("emoji is not supported on Confluence 6.12.4",),
+        ),
+        (
+            [
+                "create",
+                "--space-key",
+                "DEMO",
+                "--title",
+                "Example Page",
+                "--content",
+                "<h1>Example Page</h1>",
+                "--enable-heading-anchors",
+            ],
+            ("enable-heading-anchors requires", "content-format=markdown"),
+        ),
+        (
+            [
+                "update",
+                "1234",
+                "--title",
+                "Example Page",
+                "--content",
+                "<h1>Example Page</h1>",
+                "--emoji",
+                "example response",
+            ],
+            ("emoji is not supported on Confluence 6.12.4",),
+        ),
+        (
+            [
+                "update",
+                "1234",
+                "--title",
+                "Example Page",
+                "--content",
+                "<h1>Example Page</h1>",
+                "--enable-heading-anchors",
+            ],
+            ("enable-heading-anchors requires", "content-format=markdown"),
+        ),
+    ],
+)
+def test_confluence_page_write_rejects_ignored_inputs_before_service(
+    monkeypatch, command_args: list[str], expected: tuple[str, ...]
+) -> None:
+    from atlassian_cli.products.confluence.commands import page as page_module
+
+    def fail_build(*_args, **_kwargs):
+        raise AssertionError("service must not be built for a rejected input")
+
+    monkeypatch.setattr(
+        page_module,
+        "build_page_service",
+        fail_build,
+    )
+
+    result = runner.invoke(
+        app,
+        ["--url", "https://confluence.example.com", "confluence", "page", *command_args],
+    )
+
+    assert result.exit_code != 0
+    plain_output = ANSI_ESCAPE_RE.sub("", result.output)
+    assert all(part in plain_output for part in expected)
+
+
+@pytest.mark.parametrize("command", ["create", "update"])
+def test_confluence_page_write_help_names_fixed_version_limits(command: str) -> None:
+    result = runner.invoke(app, ["confluence", "page", command, "--help"])
+
+    assert result.exit_code == 0
+    plain_output = ANSI_ESCAPE_RE.sub("", result.output)
+    compact_output = " ".join(plain_output.replace("│", " ").split())
+    assert "Requires Markdown input" in compact_output
+    assert "Unsupported on Confluence 6.12.4" in compact_output
 
 
 def test_confluence_page_get_outputs_json(monkeypatch) -> None:

@@ -6,6 +6,7 @@ import pytest
 from tests.e2e.support import (
     CleanupRegistry,
     resolve_confluence_write_target,
+    run_failure,
     run_json,
     unique_name,
 )
@@ -179,6 +180,72 @@ def test_confluence_page_round_trip_live(live_env) -> None:
         assert "version two" in diff["diff"] or "+<p>version two</p>" in diff["diff"]
     finally:
         registry.run()
+
+
+def test_confluence_page_write_rejections_do_not_mutate_live(
+    live_env, confluence_fixed_version, cleanup_registry
+) -> None:
+    target = resolve_confluence_write_target(live_env)
+    rejected_title = unique_name("confluence-rejected-create")
+    run_failure(
+        live_env,
+        "confluence",
+        "page",
+        "create",
+        "--space-key",
+        str(target["space_key"]),
+        "--title",
+        rejected_title,
+        "--content",
+        "<h1>Example Page</h1>",
+        "--emoji",
+        "example response",
+        expected="emoji is not supported on Confluence 6.12.4",
+    )
+    assert (
+        confluence_fixed_version.get_page_by_title(str(target["space_key"]), rejected_title) is None
+    )
+
+    title = unique_name("confluence-rejected-update")
+    created = run_json(
+        live_env,
+        "confluence",
+        "page",
+        "create",
+        "--space-key",
+        str(target["space_key"]),
+        "--title",
+        title,
+        "--content",
+        "<h1>Example Page</h1>",
+        *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
+        "--output",
+        "json",
+    )
+    page_id = created["page"]["id"]
+    cleanup_registry.add(
+        f"confluence page delete {page_id}",
+        lambda: _delete_page(live_env, page_id),
+    )
+    before = confluence_fixed_version.get_page(page_id)
+
+    run_failure(
+        live_env,
+        "confluence",
+        "page",
+        "update",
+        page_id,
+        "--title",
+        title,
+        "--content",
+        "<h1>Changed</h1>",
+        "--enable-heading-anchors",
+        expected="enable-heading-anchors requires",
+    )
+
+    after = confluence_fixed_version.get_page(page_id)
+    assert after["version"]["number"] == before["version"]["number"]
+    assert after["body"]["storage"]["value"] == before["body"]["storage"]["value"]
 
 
 def test_confluence_page_move_and_children_live(live_env) -> None:

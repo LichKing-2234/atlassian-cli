@@ -372,6 +372,18 @@ Jira Server 7.11 issue reads support the deployment-relevant `mcp-atlassian` con
 uploads each file through Jira's attachment endpoint. Attachment paths are never inserted into
 the issue fields payload. The dedicated `jira issue attachment upload` command remains available.
 
+### Confluence page write input behavior
+
+Confluence Server 6.12.4 page create/update currently accepts storage content. Markdown input and
+heading-anchor generation land together in the `v0.2.0` compatibility release because the pinned
+upstream generates heading anchors only during Markdown-to-storage conversion.
+
+- `--content-format markdown` fails explicitly until that migration is available.
+- `--enable-heading-anchors` fails instead of being silently ignored for storage content.
+- `--emoji` fails explicitly because Confluence 6.12.4 support is not established.
+
+These validations run before the page service or Confluence mutation API is called.
+
 ### Jira issue link behavior
 
 Jira Server 7.11.0 manages issue links through dedicated REST resources. The CLI keeps

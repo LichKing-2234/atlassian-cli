@@ -1,3 +1,5 @@
+import pytest
+
 from atlassian_cli.products.confluence.providers.server import ConfluenceServerProvider
 
 
@@ -245,3 +247,41 @@ def test_create_page_rejects_markdown_content_format_until_supported() -> None:
         assert "content_format" in str(exc)
     else:
         raise AssertionError("expected NotImplementedError")
+
+
+@pytest.mark.parametrize(
+    ("operation", "unsupported", "message"),
+    [
+        ("create", {"enable_heading_anchors": True}, "heading anchors require Markdown"),
+        ("create", {"emoji": "example response"}, "emoji is not supported"),
+        ("update", {"enable_heading_anchors": True}, "heading anchors require Markdown"),
+        ("update", {"emoji": "example response"}, "emoji is not supported"),
+    ],
+)
+def test_page_write_rejects_unsupported_inputs_before_client_mutation(
+    operation: str, unsupported: dict, message: str
+) -> None:
+    class FakeClient:
+        def create_page(self, **kwargs):
+            raise AssertionError(f"create must not run: {kwargs}")
+
+        def update_page(self, **kwargs):
+            raise AssertionError(f"update must not run: {kwargs}")
+
+    provider = build_provider_with_client(FakeClient())
+
+    with pytest.raises(NotImplementedError, match=message):
+        if operation == "create":
+            provider.create_page(
+                space_key="DEMO",
+                title="Example Page",
+                body="<h1>Example Page</h1>",
+                **unsupported,
+            )
+        else:
+            provider.update_page(
+                page_id="1234",
+                title="Example Page",
+                body="<h1>Example Page</h1>",
+                **unsupported,
+            )
