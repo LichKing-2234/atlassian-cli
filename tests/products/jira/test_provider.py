@@ -85,6 +85,38 @@ def test_get_field_options_filters_issue_type_by_name() -> None:
     assert calls["args"] == ("TEST", "projects.issuetypes.fields")
 
 
+def test_get_field_options_filters_values_before_applying_return_limit() -> None:
+    class FakeClient:
+        @staticmethod
+        def issue_createmeta(project_key: str, expand: str) -> dict:
+            return {
+                "projects": [
+                    {
+                        "issuetypes": [
+                            {
+                                "name": "Task",
+                                "fields": {
+                                    "priority": {
+                                        "allowedValues": [
+                                            {"id": "1", "name": "Highest"},
+                                            {"id": "2", "name": "High"},
+                                            {"id": "3", "name": "Low"},
+                                        ]
+                                    }
+                                },
+                            }
+                        ]
+                    }
+                ]
+            }
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.get_field_options("priority", "DEMO", "Task", contains="high", return_limit=1)
+
+    assert result == [{"id": "1", "name": "Highest"}]
+
+
 def test_get_issue_forwards_server_options_and_limits_newest_comments() -> None:
     calls = {}
 
@@ -155,6 +187,73 @@ def test_get_issue_keeps_issue_read_when_comment_fetch_fails() -> None:
 
     assert result["key"] == "DEMO-1"
     assert result["fields"]["comment"]["comments"] == []
+
+
+def test_search_users_uses_assignable_project_endpoint() -> None:
+    calls = {}
+
+    class FakeClient:
+        @staticmethod
+        def resource_url(path: str) -> str:
+            calls["path"] = path
+            return f"https://jira.example.com/rest/api/2/{path}"
+
+        @staticmethod
+        def get(url: str, *, params: dict) -> list[dict]:
+            calls["request"] = (url, params)
+            return [{"name": "example-user"}]
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.search_users("example", project_key="DEMO", issue_key=None, limit=12)
+
+    assert result == [{"name": "example-user"}]
+    assert calls == {
+        "path": "user/assignable/search",
+        "request": (
+            "https://jira.example.com/rest/api/2/user/assignable/search",
+            {"username": "example", "project": "DEMO", "maxResults": 12},
+        ),
+    }
+
+
+def test_search_users_uses_assignable_issue_scope() -> None:
+    calls = {}
+
+    class FakeClient:
+        @staticmethod
+        def resource_url(path: str) -> str:
+            return f"https://jira.example.com/rest/api/2/{path}"
+
+        @staticmethod
+        def get(url: str, *, params: dict) -> list[dict]:
+            calls["request"] = (url, params)
+            return []
+
+    provider = build_provider_with_client(FakeClient())
+
+    assert provider.search_users("example", project_key=None, issue_key="DEMO-1", limit=7) == []
+    assert calls["request"] == (
+        "https://jira.example.com/rest/api/2/user/assignable/search",
+        {"username": "example", "issueKey": "DEMO-1", "maxResults": 7},
+    )
+
+
+def test_search_fields_filters_live_fields_before_applying_limit() -> None:
+    class FakeClient:
+        @staticmethod
+        def get_all_fields() -> list[dict]:
+            return [
+                {"id": "customfield_10001", "name": "Story Points"},
+                {"id": "customfield_10002", "name": "Story Estimate"},
+                {"id": "summary", "name": "Summary"},
+            ]
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.search_fields("story", limit=1)
+
+    assert result == [{"id": "customfield_10001", "name": "Story Points"}]
 
 
 def test_list_issue_attachments_fetches_attachment_field_only() -> None:

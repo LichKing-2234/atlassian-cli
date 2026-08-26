@@ -235,6 +235,9 @@ ssh example-user@example-host
 - `atlassian jira issue attachment list DEMO-1`
 - `atlassian jira issue attachment upload DEMO-1 ./report.pdf`
 - `atlassian jira issue attachment download DEMO-1 --name report.pdf --destination ./report.pdf`
+- `atlassian jira user search --query example --project-key DEMO --limit 25`
+- `atlassian jira field search --keyword story --limit 25`
+- `atlassian jira field options customfield_10001 --project-key DEMO --issue-type Task --contains ready --return-limit 25`
 - `atlassian confluence page get 1234`
 - `atlassian confluence page attachment list 1234`
 - `atlassian confluence page attachment upload 1234 ./diagram.png`
@@ -371,6 +374,23 @@ Jira Server 7.11 issue reads support the deployment-relevant `mcp-atlassian` con
 `jira issue update --attachments '["./report.pdf"]'` updates ordinary fields first and then
 uploads each file through Jira's attachment endpoint. Attachment paths are never inserted into
 the issue fields payload. The dedicated `jira issue attachment upload` command remains available.
+
+### Jira user and field discovery
+
+Jira Server 7.11 user search returns assignable users from the official
+`user/assignable/search` API. Pass exactly one scope:
+
+- `--project-key DEMO` searches users assignable in a project.
+- `--issue-key DEMO-1` searches users assignable to one issue.
+- `--query` is required and `--limit` caps the server response.
+
+`jira field search` fetches the live field list on every call, accepts optional
+`--keyword` (with `--query` retained as an alias), and applies `--limit` after matching.
+Because there is no field cache, a separate refresh input is unnecessary.
+
+`jira field options` reads Jira 7.11 create metadata for `--project-key` and
+`--issue-type`. Use `--contains` for case-insensitive value/name matching and
+`--return-limit` to cap matches; `--project` and `--limit` remain aliases.
 
 ### Confluence page write input behavior
 
