@@ -639,17 +639,19 @@ def test_confluence_page_search_accepts_spaces_filter(monkeypatch) -> None:
 def test_confluence_page_children_outputs_json(monkeypatch) -> None:
     from atlassian_cli.products.confluence.commands import page as page_module
 
+    captured = {}
+
+    def children(_self, page_id, *, expand, limit, start):
+        captured["args"] = (page_id, expand, limit, start)
+        return {"results": [{"id": "child-1", "title": "Child One"}]}
+
     monkeypatch.setattr(
         page_module,
         "build_page_service",
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {
-                "children": lambda self, page_id: {
-                    "results": [{"id": "child-1", "title": "Child One"}]
-                }
-            },
+            {"children": children},
         )(),
     )
 
@@ -662,6 +664,12 @@ def test_confluence_page_children_outputs_json(monkeypatch) -> None:
             "page",
             "children",
             "1234",
+            "--expand",
+            "body.storage,version",
+            "--limit",
+            "1",
+            "--start",
+            "2",
             "--output",
             "json",
         ],
@@ -669,10 +677,17 @@ def test_confluence_page_children_outputs_json(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert '"id": "child-1"' in result.stdout
+    assert captured["args"] == ("1234", "body.storage,version", 1, 2)
 
 
 def test_confluence_page_tree_outputs_json(monkeypatch) -> None:
     from atlassian_cli.products.confluence.commands import page as page_module
+
+    captured = {}
+
+    def tree(_self, space_key, *, limit):
+        captured["args"] = (space_key, limit)
+        return {"results": [{"id": "root", "depth": 0}]}
 
     monkeypatch.setattr(
         page_module,
@@ -680,7 +695,7 @@ def test_confluence_page_tree_outputs_json(monkeypatch) -> None:
         lambda *_args, **_kwargs: type(
             "FakeService",
             (),
-            {"tree": lambda self, space_key: {"results": [{"id": "root", "depth": 0}]}},
+            {"tree": tree},
         )(),
     )
 
@@ -693,6 +708,8 @@ def test_confluence_page_tree_outputs_json(monkeypatch) -> None:
             "page",
             "tree",
             "DEMO",
+            "--limit",
+            "1",
             "--output",
             "json",
         ],
@@ -700,6 +717,7 @@ def test_confluence_page_tree_outputs_json(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert '"depth": 0' in result.stdout
+    assert captured["args"] == ("DEMO", 1)
 
 
 def test_confluence_page_history_outputs_json(monkeypatch) -> None:

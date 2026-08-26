@@ -2,6 +2,7 @@ from collections import deque
 from difflib import unified_diff
 
 from atlassian_cli.models.common import nested_get
+from atlassian_cli.products.confluence.page_reference import resolve_page_id
 from atlassian_cli.products.confluence.providers.base import ConfluenceProvider
 from atlassian_cli.products.confluence.schemas import ConfluencePage
 
@@ -40,7 +41,7 @@ class PageService:
         convert_to_markdown: bool = False,
     ) -> dict:
         raw = self.provider.get_page(
-            page_id,
+            resolve_page_id(page_id),
             include_metadata=include_metadata,
             convert_to_markdown=convert_to_markdown,
         )
@@ -54,7 +55,7 @@ class PageService:
         convert_to_markdown: bool = False,
     ) -> dict:
         return self.provider.get_page(
-            page_id,
+            resolve_page_id(page_id),
             include_metadata=include_metadata,
             convert_to_markdown=convert_to_markdown,
         )
@@ -107,33 +108,63 @@ class PageService:
     ) -> list[dict]:
         return self.provider.search_pages(query, limit=limit, spaces_filter=spaces_filter)
 
-    def children(self, page_id: str) -> dict:
+    def children(
+        self,
+        page_id: str,
+        *,
+        expand: str = "version,history",
+        limit: int = 25,
+        start: int = 0,
+    ) -> dict:
         return {
             "results": [
-                self._normalize_page(item) for item in self.provider.get_page_children(page_id)
+                self._normalize_page(item)
+                for item in self.provider.get_page_children(
+                    page_id, expand=expand, limit=limit, start=start
+                )
             ]
         }
 
-    def children_raw(self, page_id: str) -> list[dict]:
-        return self.provider.get_page_children(page_id)
+    def children_raw(
+        self,
+        page_id: str,
+        *,
+        expand: str = "version,history",
+        limit: int = 25,
+        start: int = 0,
+    ) -> list[dict]:
+        return self.provider.get_page_children(page_id, expand=expand, limit=limit, start=start)
 
-    def tree(self, space_key: str) -> dict:
+    def tree(self, space_key: str, *, limit: int = 100) -> dict:
+        if limit <= 0:
+            return {"results": []}
         root = self.provider.get_space_homepage(space_key)
         results: list[dict] = []
         queue = deque([(root, 0)])
 
-        while queue:
+        while queue and len(results) < limit:
             page, depth = queue.popleft()
             normalized = self._normalize_page(page)
             normalized["depth"] = depth
             results.append(normalized)
-            for child in self.provider.get_page_children(str(page.get("id", ""))):
-                queue.append((child, depth + 1))
+            start = 0
+            while len(results) + len(queue) < limit:
+                batch_limit = min(50, limit - len(results) - len(queue))
+                children = self.provider.get_page_children(
+                    str(page.get("id", "")),
+                    expand="version,history",
+                    limit=batch_limit,
+                    start=start,
+                )
+                queue.extend((child, depth + 1) for child in children)
+                if len(children) < batch_limit:
+                    break
+                start += len(children)
 
         return {"results": results}
 
-    def tree_raw(self, space_key: str) -> dict:
-        return self.tree(space_key)
+    def tree_raw(self, space_key: str, *, limit: int = 100) -> dict:
+        return self.tree(space_key, limit=limit)
 
     def history(
         self,

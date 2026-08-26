@@ -203,6 +203,28 @@ def test_page_service_exposes_raw_page_payload() -> None:
     assert "body" in result
 
 
+@pytest.mark.parametrize(
+    "reference",
+    [
+        "https://confluence.example.com/spaces/DEMO/pages/1234/Example+Page",
+        "https://confluence.example.com/pages/viewpage.action?pageId=1234",
+        "https://confluence.example.com/x/0gQ",
+    ],
+)
+def test_page_service_resolves_supported_page_references(reference: str) -> None:
+    calls = []
+
+    class CapturingProvider(FakePageProvider):
+        def get_page(self, page_id: str, **kwargs) -> dict:
+            calls.append(page_id)
+            return super().get_page(page_id, **kwargs)
+
+    result = PageService(provider=CapturingProvider()).get(reference)
+
+    assert calls == ["1234"]
+    assert result["metadata"]["id"] == "1234"
+
+
 def test_page_service_get_by_title_normalizes_page_payload() -> None:
     service = PageService(provider=FakePageProvider())
 
@@ -249,22 +271,39 @@ def test_page_service_search_normalizes_results() -> None:
 
 
 def test_page_service_children_normalizes_results() -> None:
-    service = PageService(provider=FakePageProvider())
+    calls = []
 
-    result = service.children("root")
+    class CapturingProvider(FakePageProvider):
+        def get_page_children(self, page_id, *, expand, limit, start):
+            calls.append((page_id, expand, limit, start))
+            return super().get_page_children(page_id)
+
+    service = PageService(provider=CapturingProvider())
+
+    result = service.children("root", expand="body.storage,version", limit=1, start=2)
 
     assert result["results"][0]["id"] == "child-1"
+    assert calls == [("root", "body.storage,version", 1, 2)]
 
 
 def test_page_service_tree_flattens_hierarchy() -> None:
-    service = PageService(provider=FakePageProvider())
+    calls = []
 
-    result = service.tree("DEMO")
+    class CapturingProvider(FakePageProvider):
+        def get_page_children(self, page_id, *, expand, limit, start):
+            calls.append((page_id, expand, limit, start))
+            return super().get_page_children(page_id)[:limit]
 
+    service = PageService(provider=CapturingProvider())
+
+    result = service.tree("DEMO", limit=2)
+
+    assert len(result["results"]) == 2
     assert result["results"][0]["id"] == "root"
     assert result["results"][0]["depth"] == 0
     assert result["results"][1]["id"] == "child-1"
     assert result["results"][1]["depth"] == 1
+    assert calls == [("root", "version,history", 1, 0)]
 
 
 def test_page_service_history_normalizes_version_payload() -> None:

@@ -184,6 +184,7 @@ PARITY_EVIDENCE = {
         ("page_id", "title", "space_key"),
         61,
         False,
+        status=ParityStatus.VERIFIED,
     ),
     "confluence_get_page_children": ParityEvidence(
         Product.CONFLUENCE,
@@ -191,9 +192,15 @@ PARITY_EVIDENCE = {
         ("parent_id", "expand", "limit", "start"),
         61,
         False,
+        status=ParityStatus.VERIFIED,
     ),
     "confluence_get_space_page_tree": ParityEvidence(
-        Product.CONFLUENCE, GapKind.DRIFTED, ("space_key", "limit"), 61, False
+        Product.CONFLUENCE,
+        GapKind.DRIFTED,
+        ("space_key", "limit"),
+        61,
+        False,
+        status=ParityStatus.VERIFIED,
     ),
     "confluence_create_page": ParityEvidence(
         Product.CONFLUENCE,

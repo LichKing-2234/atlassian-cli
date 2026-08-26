@@ -28,6 +28,26 @@ def test_search_pages_escapes_query_before_building_cql() -> None:
     assert calls["expand"] == "space,version"
 
 
+def test_get_page_children_forwards_fixed_version_pagination_and_expand() -> None:
+    calls = {}
+
+    class FakeClient:
+        @staticmethod
+        def get(path: str, *, params: dict) -> dict:
+            calls["request"] = (path, params)
+            return {"results": [{"id": "child-1"}], "start": 2, "limit": 1}
+
+    result = build_provider_with_client(FakeClient()).get_page_children(
+        "1234", expand="body.storage,version", limit=1, start=2
+    )
+
+    assert result == [{"id": "child-1"}]
+    assert calls["request"] == (
+        "rest/api/content/1234/child/page",
+        {"expand": "body.storage,version", "limit": 1, "start": 2},
+    )
+
+
 def test_download_attachment_writes_file_to_destination(tmp_path) -> None:
     calls: list[tuple[str, object]] = []
 

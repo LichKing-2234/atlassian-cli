@@ -24,7 +24,14 @@ class ConfluenceProvider(Protocol):
         *,
         spaces_filter: list[str] | None = None,
     ) -> list[dict]: ...
-    def get_page_children(self, page_id: str) -> list[dict]: ...
+    def get_page_children(
+        self,
+        page_id: str,
+        *,
+        expand: str = "version,history",
+        limit: int = 25,
+        start: int = 0,
+    ) -> list[dict]: ...
     def get_space_homepage(self, space_key: str) -> dict: ...
     def move_page(
         self,

@@ -93,8 +93,20 @@ class ConfluenceServerProvider:
         results = raw.get("results", [])
         return [item.get("content", item) for item in results if isinstance(item, dict)]
 
-    def get_page_children(self, page_id: str) -> list[dict]:
-        return self.client.get_child_pages(page_id)
+    def get_page_children(
+        self,
+        page_id: str,
+        *,
+        expand: str = "version,history",
+        limit: int = 25,
+        start: int = 0,
+    ) -> list[dict]:
+        response = self.client.get(
+            f"rest/api/content/{page_id}/child/page",
+            params={"expand": expand, "limit": limit, "start": start},
+        )
+        results = response.get("results", []) if isinstance(response, dict) else []
+        return [item for item in results if isinstance(item, dict)]
 
     def get_space_homepage(self, space_key: str) -> dict:
         return self.client.get_home_page_of_space(space_key)
