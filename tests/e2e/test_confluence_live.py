@@ -1,3 +1,4 @@
+import base64
 import time
 from pathlib import Path
 
@@ -539,11 +540,17 @@ def test_confluence_comment_round_trip_live(live_env, confluence_fixed_version) 
         registry.run()
 
 
-def test_confluence_attachment_round_trip_live(live_env, tmp_path) -> None:
+def test_confluence_attachment_round_trip_live(
+    live_env, confluence_fixed_version, tmp_path
+) -> None:
     registry = CleanupRegistry()
     page_id = None
     try:
         target = resolve_confluence_write_target(live_env)
+        username = getattr(confluence_fixed_version.client, "username", None)
+        if not username:
+            raise RuntimeError("Confluence live attachment writes require a configured username")
+        target["space_key"] = f"~{username}"
         page = run_json(
             live_env,
             "confluence",
@@ -577,6 +584,11 @@ def test_confluence_attachment_round_trip_live(live_env, tmp_path) -> None:
             "json",
         )
         assert uploaded["id"]
+        uploaded_metadata = confluence_fixed_version.client.get(
+            f"rest/api/content/{uploaded['id']}",
+            params={"expand": "version"},
+        )
+        assert uploaded_metadata["version"]["minorEdit"] is False
 
         listed = run_json(
             live_env,
@@ -648,5 +660,71 @@ def test_confluence_attachment_round_trip_live(live_env, tmp_path) -> None:
             "json",
         )
         assert Path(page_downloaded["path"]).read_text() == "example diagram\n"
+    finally:
+        registry.run()
+
+
+def test_confluence_attachment_upload_inputs_live(live_env, confluence_fixed_version) -> None:
+    registry = CleanupRegistry()
+    page_id = None
+    try:
+        target = resolve_confluence_write_target(live_env)
+        username = getattr(confluence_fixed_version.client, "username", None)
+        if not username:
+            raise RuntimeError("Confluence live attachment writes require a configured username")
+        target["space_key"] = f"~{username}"
+        page = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "create",
+            "--space-key",
+            str(target["space_key"]),
+            "--title",
+            unique_name("Example Page"),
+            "--content",
+            "<p>example response</p>",
+            *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
+            "--output",
+            "json",
+        )
+        page_id = page["page"]["id"]
+        registry.add(f"confluence page delete {page_id}", lambda: _delete_page(live_env, page_id))
+
+        filename = unique_name("example response")
+        content = b"\x00\x01example response\xff"
+        uploaded = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "attachment",
+            "upload",
+            page_id,
+            "--content-base64",
+            base64.b64encode(content).decode("ascii"),
+            "--filename",
+            filename,
+            "--comment",
+            "example comment",
+            "--minor-edit",
+            "--output",
+            "json",
+        )
+
+        attachment = confluence_fixed_version.client.get(
+            f"rest/api/content/{uploaded['id']}",
+            params={"expand": "version"},
+        )
+        assert attachment["title"] == filename
+        assert attachment["version"]["message"] == "example comment"
+        assert attachment["version"]["minorEdit"] is True
+
+        download_url = confluence_fixed_version.client.url_joiner(
+            confluence_fixed_version.client.url,
+            attachment["_links"]["download"],
+        )
+        response = confluence_fixed_version.client._session.get(download_url)
+        response.raise_for_status()
+        assert response.content == content
     finally:
         registry.run()

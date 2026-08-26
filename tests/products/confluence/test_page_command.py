@@ -376,6 +376,57 @@ def test_confluence_page_attachment_download_outputs_json(monkeypatch, tmp_path)
     assert str(target) in result.stdout
 
 
+def test_confluence_page_attachment_upload_accepts_base64_content(monkeypatch) -> None:
+    from atlassian_cli.products.confluence.commands import page_attachment as attachment_module
+
+    calls = {}
+
+    class FakeService:
+        def upload(self, page_id: str, file_path: str | None, **kwargs) -> dict:
+            calls["args"] = (page_id, file_path, kwargs)
+            return {"id": "55", "title": kwargs["filename"]}
+
+    monkeypatch.setattr(
+        attachment_module,
+        "build_attachment_service",
+        lambda *_args, **_kwargs: FakeService(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "page",
+            "attachment",
+            "upload",
+            "1234",
+            "--content-base64",
+            "ZXhhbXBsZSByZXNwb25zZQ==",
+            "--filename",
+            "diagram.png",
+            "--comment",
+            "example comment",
+            "--minor-edit",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls["args"] == (
+        "1234",
+        None,
+        {
+            "content_base64": "ZXhhbXBsZSByZXNwb25zZQ==",
+            "filename": "diagram.png",
+            "comment": "example comment",
+            "minor_edit": True,
+        },
+    )
+
+
 def test_confluence_page_get_renders_storage_html_in_markdown_output(monkeypatch) -> None:
     from atlassian_cli.products.confluence.commands import page as page_module
 

@@ -86,8 +86,12 @@ def test_upload_attachment_returns_first_result_item(tmp_path) -> None:
     calls = {}
 
     class FakeClient:
-        def attach_file(self, file_path: str, *, page_id: str, comment: str | None):
-            calls["args"] = (file_path, page_id, comment)
+        def get_attachments_from_content(self, page_id: str, *, filename: str):
+            calls["lookup"] = (page_id, filename)
+            return {"results": []}
+
+        def post(self, path: str, **kwargs):
+            calls["path"] = path
             return {
                 "results": [
                     {
@@ -109,7 +113,10 @@ def test_upload_attachment_returns_first_result_item(tmp_path) -> None:
         "title": "deploy.log",
         "_links": {"download": "/download/attachments/55/deploy.log"},
     }
-    assert calls["args"] == (str(upload_file), "1234", None)
+    assert calls == {
+        "lookup": ("1234", "deploy.log"),
+        "path": "rest/api/content/1234/child/attachment",
+    }
 
 
 def test_list_attachments_forwards_pagination_and_filters() -> None:
@@ -142,22 +149,90 @@ def test_list_attachments_forwards_pagination_and_filters() -> None:
     assert calls["args"] == ("1234", 5, 10, "diagram.png", "image/png")
 
 
-def test_upload_attachment_forwards_comment(tmp_path) -> None:
+def test_upload_attachment_from_content_updates_existing_attachment() -> None:
     calls = {}
 
     class FakeClient:
-        def attach_file(self, file_path: str, *, page_id: str, comment: str | None):
-            calls["args"] = (file_path, page_id, comment)
+        def get_attachments_from_content(self, page_id: str, *, filename: str):
+            calls["lookup"] = (page_id, filename)
+            return {"results": [{"id": "55", "title": filename}]}
+
+        def post(self, path: str, *, headers: dict, files: dict, data: dict):
+            calls["request"] = {
+                "path": path,
+                "headers": headers,
+                "file": files["file"],
+                "comment": files["comment"],
+                "data": data,
+            }
+            return {"results": [{"id": "55", "title": "diagram.png"}]}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.upload_attachment(
+        "1234",
+        None,
+        content=b"example response",
+        filename="diagram.png",
+        comment="example comment",
+        minor_edit=True,
+    )
+
+    assert result == {"id": "55", "title": "diagram.png"}
+    assert calls == {
+        "lookup": ("1234", "diagram.png"),
+        "request": {
+            "path": "rest/api/content/1234/child/attachment/55/data",
+            "headers": {"X-Atlassian-Token": "no-check"},
+            "file": ("diagram.png", b"example response"),
+            "comment": (None, "example comment", "text/plain; charset=utf-8"),
+            "data": {"minorEdit": "true"},
+        },
+    }
+
+
+def test_upload_attachment_posts_fixed_version_multipart_contract(tmp_path) -> None:
+    calls = {}
+
+    class FakeClient:
+        def get_attachments_from_content(self, page_id: str, *, filename: str):
+            calls["lookup"] = (page_id, filename)
+            return {"results": []}
+
+        def post(self, path: str, *, headers: dict, files: dict, data: dict):
+            calls["request"] = {
+                "path": path,
+                "headers": headers,
+                "filename": files["file"][0],
+                "content": files["file"][1].read(),
+                "comment": files["comment"],
+                "data": data,
+            }
             return {"results": [{"id": "55", "title": "diagram.png"}]}
 
     upload_file = tmp_path / "diagram.png"
-    upload_file.write_bytes(b"png")
+    upload_file.write_bytes(b"example response")
     provider = build_provider_with_client(FakeClient())
 
-    result = provider.upload_attachment("1234", str(upload_file), comment="example comment")
+    result = provider.upload_attachment(
+        "1234",
+        str(upload_file),
+        comment="example comment",
+        minor_edit=False,
+    )
 
     assert result == {"id": "55", "title": "diagram.png"}
-    assert calls["args"] == (str(upload_file), "1234", "example comment")
+    assert calls == {
+        "lookup": ("1234", "diagram.png"),
+        "request": {
+            "path": "rest/api/content/1234/child/attachment",
+            "headers": {"X-Atlassian-Token": "no-check"},
+            "filename": "diagram.png",
+            "content": b"example response",
+            "comment": (None, "example comment", "text/plain; charset=utf-8"),
+            "data": {"minorEdit": "false"},
+        },
+    }
 
 
 def test_reply_to_comment_posts_comment_container_payload() -> None:
