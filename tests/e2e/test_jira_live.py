@@ -30,6 +30,17 @@ def _jira_additional_fields(payload: dict) -> dict:
     }
 
 
+def _discover_project_component(provider, project_key: str) -> str:
+    components = provider.client.get(f"rest/api/2/project/{project_key}/components")
+    component_name = next(
+        (item.get("name") for item in components if isinstance(item, dict) and item.get("name")),
+        None,
+    )
+    if component_name is None:
+        raise RuntimeError(f"Jira project {project_key} has no discoverable component")
+    return component_name
+
+
 def _discover_jira_reparent_target(provider, *, reporter_name: str | None):
     issue_types = provider.client.get("rest/api/2/issuetype")
     subtask_ids = {str(item.get("id")) for item in issue_types if item.get("subtask") is True}
@@ -434,6 +445,8 @@ def test_jira_issue_read_and_attachment_update_live(
         issue_type,
         "--summary",
         summary,
+        "--description",
+        "**example response**",
         "--additional-fields",
         json.dumps(_jira_additional_fields(payload)),
         "--output",
@@ -487,7 +500,9 @@ def test_jira_issue_read_and_attachment_update_live(
         "get",
         issue_key,
         "--fields",
-        "summary",
+        "summary,description",
+        "--expand",
+        "renderedFields",
         "--comment-limit",
         "1",
         "--properties",
@@ -498,6 +513,7 @@ def test_jira_issue_read_and_attachment_update_live(
         "raw-json",
     )
     assert fetched["key"] == issue_key
+    assert fetched["renderedFields"]["description"] == "<p><b>example response</b></p>"
     assert [item["id"] for item in fetched["fields"]["comment"]["comments"]] == [
         latest_comment["id"]
     ]
@@ -617,14 +633,7 @@ def test_jira_issue_create_and_batch_contracts_live(
         project_key=live_env.jira_project,
         reporter_name=jira_context.auth.username,
     )
-    components = jira_fixed_version.client.get(
-        f"rest/api/2/project/{live_env.jira_project}/components"
-    )
-    component_name = next(
-        (item.get("name") for item in components if isinstance(item, dict) and item.get("name")),
-        None,
-    )
-    assert component_name is not None
+    component_name = _discover_project_component(jira_fixed_version, live_env.jira_project)
 
     def required_fields(summary: str) -> dict:
         payload = build_jira_create_payload(
@@ -812,6 +821,7 @@ def test_jira_issue_update_assignment_transition_contracts_live(
         project_key=live_env.jira_project,
         reporter_name=jira_context.auth.username,
     )
+    component_name = _discover_project_component(jira_fixed_version, live_env.jira_project)
     summary = unique_name("jira-update-contract")
     payload = build_jira_create_payload(
         jira_fixed_version,
@@ -885,6 +895,7 @@ def test_jira_issue_update_assignment_transition_contracts_live(
     attachment_path.write_bytes(b"example response\n")
     started = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000%z")
     updated_summary = f"{summary}-updated"
+    updated_label = "DEMO"
     updated = run_json(
         live_env,
         "jira",
@@ -898,6 +909,10 @@ def test_jira_issue_update_assignment_transition_contracts_live(
                 "description": "## Example Update",
             }
         ),
+        "--additional-fields",
+        json.dumps({"labels": [updated_label]}),
+        "--components",
+        component_name,
         "--attachments",
         json.dumps([str(attachment_path)]),
         "--transition",
@@ -922,12 +937,14 @@ def test_jira_issue_update_assignment_transition_contracts_live(
     ]
 
     readback = jira_fixed_version.get_issue(
-        issue_key, fields="summary,description,status,attachment"
+        issue_key, fields="summary,description,status,attachment,labels,components"
     )["fields"]
     assert readback["summary"] == updated_summary
     assert readback["description"] == "h2. Example Update"
     assert any(item["filename"] == "report.pdf" for item in readback["attachment"])
     assert readback["status"]["name"] == transition["to"]
+    assert updated_label in readback["labels"]
+    assert component_name in [item["name"] for item in readback["components"]]
 
     comments = jira_fixed_version.client.issue_get_comments(issue_key)["comments"]
     update_comment = next(item for item in comments if item["body"] == "h2. Example Comment")

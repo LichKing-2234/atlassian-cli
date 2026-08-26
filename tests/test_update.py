@@ -29,6 +29,16 @@ def test_package_version_matches_pyproject() -> None:
     assert __version__ == pyproject["project"]["version"]
 
 
+def test_release_version_is_0_2_1_in_source_and_lock() -> None:
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+    lock = tomllib.loads(Path("uv.lock").read_text())
+    locked_package = next(item for item in lock["package"] if item["name"] == "atlassian-cli")
+
+    assert __version__ == "0.2.1"
+    assert pyproject["project"]["version"] == "0.2.1"
+    assert locked_package["version"] == "0.2.1"
+
+
 class FakeResponse:
     def __init__(self, payload: dict) -> None:
         self.payload = payload

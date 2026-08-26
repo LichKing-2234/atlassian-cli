@@ -395,7 +395,10 @@ Jira Server 7.11 issue reads support the deployment-relevant `mcp-atlassian` con
 
 - `--comment-limit 0..100` includes the newest requested comments; `0` omits comments.
 - `--properties triage,ops` requests those issue properties.
-- `--update-history false` reads the issue without updating the caller's view history.
+- `--update-history false` is accepted on the exact Jira 7.11 live target and is forwarded to
+  the issue GET query. Jira 7.11 exposes no stable independent read-back for the current user's
+  browsing-history side effect, so the boolean is owned jointly by the provider query contract
+  and successful fixed-version live execution rather than a claimed history read-back.
 
 `jira issue update --attachments '["./report.pdf"]'` updates ordinary fields first and then
 uploads each file through Jira's attachment endpoint. Attachment paths are never inserted into
@@ -685,12 +688,62 @@ Bitbucket pull request comments and build status behavior:
 - `atlassian bitbucket pr build-status DEMO example-repo 42 --latest-only` checks only the pull request head commit.
 - `atlassian bitbucket commit build-status abc123` checks a specific commit.
 
+### Ordinary-user parity evidence
+
+The v0.2.1 audit maps every included `mcp-atlassian` operation family to one direct public
+CLI command. The executable evidence ledger in `tests/e2e/parity_manifest.py` also records
+the pinned upstream operation, fixed-version official API, contract test, and live test.
+
+| Operation family | Direct CLI command |
+| --- | --- |
+| `jira_get_issue_watchers` | `atlassian jira issue watcher list` |
+| `jira_add_watcher` | `atlassian jira issue watcher add` |
+| `jira_remove_watcher` | `atlassian jira issue watcher remove` |
+| `jira_get_worklog` | `atlassian jira issue worklog list` |
+| `jira_add_worklog` | `atlassian jira issue worklog add` |
+| `jira_create_remote_issue_link` | `atlassian jira issue remote-link create` |
+| `confluence_get_labels` | `atlassian confluence page label list` |
+| `confluence_add_label` | `atlassian confluence page label add` |
+| `confluence_upload_attachments` | `atlassian confluence attachment upload-many` |
+| `confluence_delete_attachment` | `atlassian confluence attachment delete` |
+| `confluence_get_page_restrictions` | `atlassian confluence page restriction get` |
+| `jira_search_assignable_users` | `atlassian jira user search` |
+| `jira_get_issue` | `atlassian jira issue get` |
+| `jira_search_fields` | `atlassian jira field search` |
+| `jira_get_field_options` | `atlassian jira field options` |
+| `jira_create_issue` | `atlassian jira issue create` |
+| `jira_batch_create_issues` | `atlassian jira issue batch-create` |
+| `jira_update_issue` | `atlassian jira issue update` |
+| `jira_assign_issue` | `atlassian jira issue assign` |
+| `jira_add_comment` | `atlassian jira comment add` |
+| `jira_edit_comment` | `atlassian jira comment edit` |
+| `jira_transition_issue` | `atlassian jira issue transition` |
+| `confluence_get_page` | `atlassian confluence page get` |
+| `confluence_get_page_children` | `atlassian confluence page children` |
+| `confluence_get_space_page_tree` | `atlassian confluence page tree` |
+| `confluence_create_page` | `atlassian confluence page create` |
+| `confluence_update_page` | `atlassian confluence page update` |
+| `confluence_add_comment` | `atlassian confluence comment add` |
+| `confluence_reply_to_comment` | `atlassian confluence comment reply` |
+| `confluence_upload_attachment` | `atlassian confluence page attachment upload` |
+
+### Deferred and excluded parity surfaces
+
+Six client-composed conveniences remain follow-on candidates rather than direct parity claims:
+Jira issue date/status-history summaries, Jira download-all attachments, Confluence section
+replacement, Confluence Server user search, Confluence page-wide attachment download, and
+Confluence Server page copy. Their corresponding CLI leaves remain absent.
+
+Bulk restriction mutation remains excluded because Confluence 6.12.4 does not document it;
+`confluence page restriction` remains read-only. Jira 7.11 watcher commands retain Server
+username inputs (`--user-identifier` and `--username`) and do not expose Cloud `--account-id`.
+
 ## Scope
 
-The CLI now covers the `mcp-atlassian` `TOOLSETS=default` Jira and Confluence command groups for Server/Data Center:
+The CLI now covers the included ordinary-user Jira and Confluence capabilities for the fixed Server/Data Center versions:
 
-- Jira issues, issue links, fields, comments, attachments, and transitions
-- Confluence pages, comments, and attachments
+- Jira issues, links, fields, comments, attachments, transitions, watchers, and worklogs
+- Confluence pages, comments, attachments, labels, and restriction reads
 
 Normalized json and yaml output now follows MCP-style resource envelopes more closely. This is a breaking change for scripts that consumed older normalized output.
 
@@ -699,7 +752,8 @@ Raw modes with unchanged behavior:
 - `raw-json`
 - `raw-yaml`
 
-One default MCP capability remains explicitly unsupported in CLI v1: Jira batch changelog fetch. That workflow depends on Cloud support, and the current CLI still rejects `--deployment cloud`.
+Jira batch changelog fetch remains outside the fixed Jira 7.11 Core parity boundary because that
+workflow depends on Cloud support; the current CLI still rejects `--deployment cloud`.
 
 ## Contributing
 

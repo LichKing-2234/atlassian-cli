@@ -7,10 +7,8 @@ from urllib.parse import urljoin
 
 import pytest
 
-from atlassian_cli.config.models import Product
 from tests.e2e.support import (
     CleanupRegistry,
-    build_live_context,
     resolve_confluence_write_target,
     run_failure,
     run_json,
@@ -31,6 +29,16 @@ def _delete_page(live_env, page_id: str) -> None:
         "--output",
         "json",
     )
+
+
+def _resolve_fixed_write_target(live_env, provider) -> dict[str, str | None]:
+    target = resolve_confluence_write_target(live_env)
+    if str(target["space_key"]).startswith("~"):
+        username = getattr(provider.client, "username", None)
+        if not username:
+            raise RuntimeError("Confluence live writes require a configured username")
+        target["space_key"] = f"~{username}"
+    return target
 
 
 def test_confluence_space_and_search_live(live_env) -> None:
@@ -109,7 +117,7 @@ def test_confluence_page_round_trip_live(live_env, confluence_fixed_version, tmp
     second_parent_id = None
     page_id = None
     try:
-        target = resolve_confluence_write_target(live_env)
+        target = _resolve_fixed_write_target(live_env, confluence_fixed_version)
         first_parent = run_json(
             live_env,
             "confluence",
@@ -260,6 +268,58 @@ def test_confluence_page_round_trip_live(live_env, confluence_fixed_version, tmp
         assert diff["from_version"] == created["page"]["version"]
         assert diff["to_version"] == updated["page"]["version"]
         assert "example response" in diff["diff"]
+
+        update_file = tmp_path / "page-update.md"
+        update_file.write_text("# Example Page\n\n**example response**\n", encoding="utf-8")
+        file_updated = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "update",
+            page_id,
+            "--title",
+            title,
+            "--content-file",
+            str(update_file),
+            "--enable-heading-anchors",
+            "--version-comment",
+            "example response",
+            "--output",
+            "json",
+        )
+        file_read = confluence_fixed_version.client.get_page_by_id(
+            page_id,
+            expand="version,body.storage",
+        )
+        assert file_read["version"]["number"] == file_updated["page"]["version"]
+        assert file_read["version"]["number"] > updated_read["version"]["number"]
+        assert '<ac:structured-macro ac:name="anchor"' in file_read["body"]["storage"]["value"]
+        assert "<strong>example response</strong>" in file_read["body"]["storage"]["value"]
+
+        storage_updated = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "update",
+            page_id,
+            "--title",
+            title,
+            "--content",
+            "<p>example response</p>",
+            "--content-format",
+            "storage",
+            "--version-comment",
+            "example comment",
+            "--output",
+            "json",
+        )
+        storage_read = confluence_fixed_version.client.get_page_by_id(
+            page_id,
+            expand="version,body.storage",
+        )
+        assert storage_read["version"]["number"] == storage_updated["page"]["version"]
+        assert storage_read["version"]["number"] > file_read["version"]["number"]
+        assert storage_read["body"]["storage"]["value"] == "<p>example response</p>"
     finally:
         registry.run()
 
@@ -267,11 +327,7 @@ def test_confluence_page_round_trip_live(live_env, confluence_fixed_version, tmp
 def test_confluence_page_read_navigation_contracts_live(
     live_env, confluence_fixed_version, cleanup_registry
 ) -> None:
-    target = resolve_confluence_write_target(live_env)
-    if str(target["space_key"]).startswith("~"):
-        context = build_live_context(Product.CONFLUENCE, live_env)
-        assert context.auth.username is not None
-        target["space_key"] = f"~{context.auth.username}"
+    target = _resolve_fixed_write_target(live_env, confluence_fixed_version)
 
     def create_page(title: str, *, parent_id: str | None = None) -> str:
         created = run_json(
@@ -300,9 +356,8 @@ def test_confluence_page_read_navigation_contracts_live(
     if base_parent_id is None:
         homepage = confluence_fixed_version.get_space_homepage(str(target["space_key"]))
         base_parent_id = str(homepage["id"])
-    parent_id = create_page(
-        unique_name("confluence-navigation-parent"), parent_id=str(base_parent_id)
-    )
+    parent_title = unique_name("confluence-navigation-parent")
+    parent_id = create_page(parent_title, parent_id=str(base_parent_id))
     child_ids = [
         create_page(unique_name("confluence-navigation-child"), parent_id=parent_id)
         for _ in range(3)
@@ -319,6 +374,20 @@ def test_confluence_page_read_navigation_contracts_live(
     tiny_url = urljoin(f"{base_url}/", tiny_path.lstrip("/"))
     by_tiny = run_json(live_env, "confluence", "page", "get", tiny_url, "--output", "json")
     assert by_tiny["metadata"]["id"] == parent_id
+
+    by_title = run_json(
+        live_env,
+        "confluence",
+        "page",
+        "get",
+        "--title",
+        parent_title,
+        "--space-key",
+        str(target["space_key"]),
+        "--output",
+        "json",
+    )
+    assert by_title["metadata"]["id"] == parent_id
 
     all_children = confluence_fixed_version.get_page_children(
         parent_id, expand="body.storage,version", limit=3, start=0
@@ -360,11 +429,7 @@ def test_confluence_page_read_navigation_contracts_live(
 def test_confluence_label_and_restriction_contracts_live(
     live_env, confluence_fixed_version, cleanup_registry
 ) -> None:
-    target = resolve_confluence_write_target(live_env)
-    if str(target["space_key"]).startswith("~"):
-        context = build_live_context(Product.CONFLUENCE, live_env)
-        assert context.auth.username is not None
-        target["space_key"] = f"~{context.auth.username}"
+    target = _resolve_fixed_write_target(live_env, confluence_fixed_version)
 
     parent_id = target["parent_page_id"]
     if parent_id is None:
@@ -469,7 +534,7 @@ def test_confluence_label_and_restriction_contracts_live(
 def test_confluence_page_write_rejections_do_not_mutate_live(
     live_env, confluence_fixed_version, cleanup_registry
 ) -> None:
-    target = resolve_confluence_write_target(live_env)
+    target = _resolve_fixed_write_target(live_env, confluence_fixed_version)
     rejected_title = unique_name("confluence-rejected-create")
     run_failure(
         live_env,
@@ -639,7 +704,7 @@ def test_confluence_comment_round_trip_live(live_env, confluence_fixed_version) 
     registry = CleanupRegistry()
     page_id = None
     try:
-        target = resolve_confluence_write_target(live_env)
+        target = _resolve_fixed_write_target(live_env, confluence_fixed_version)
         page = run_json(
             live_env,
             "confluence",
@@ -753,11 +818,7 @@ def test_confluence_attachment_round_trip_live(
     registry = CleanupRegistry()
     page_id = None
     try:
-        target = resolve_confluence_write_target(live_env)
-        username = getattr(confluence_fixed_version.client, "username", None)
-        if not username:
-            raise RuntimeError("Confluence live attachment writes require a configured username")
-        target["space_key"] = f"~{username}"
+        target = _resolve_fixed_write_target(live_env, confluence_fixed_version)
         page = run_json(
             live_env,
             "confluence",
@@ -871,15 +932,13 @@ def test_confluence_attachment_round_trip_live(
         registry.run()
 
 
-def test_confluence_attachment_upload_inputs_live(live_env, confluence_fixed_version) -> None:
+def test_confluence_attachment_upload_inputs_live(
+    live_env, confluence_fixed_version, tmp_path
+) -> None:
     registry = CleanupRegistry()
     page_id = None
     try:
-        target = resolve_confluence_write_target(live_env)
-        username = getattr(confluence_fixed_version.client, "username", None)
-        if not username:
-            raise RuntimeError("Confluence live attachment writes require a configured username")
-        target["space_key"] = f"~{username}"
+        target = _resolve_fixed_write_target(live_env, confluence_fixed_version)
         page = run_json(
             live_env,
             "confluence",
@@ -897,6 +956,37 @@ def test_confluence_attachment_upload_inputs_live(live_env, confluence_fixed_ver
         )
         page_id = page["page"]["id"]
         registry.add(f"confluence page delete {page_id}", lambda: _delete_page(live_env, page_id))
+
+        path_file = tmp_path / "example response"
+        path_content = b"example response"
+        path_file.write_bytes(path_content)
+        path_uploaded = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "attachment",
+            "upload",
+            page_id,
+            str(path_file),
+            "--comment",
+            "example comment",
+            "--output",
+            "json",
+        )
+        path_attachment = confluence_fixed_version.client.get(
+            f"rest/api/content/{path_uploaded['id']}",
+            params={"expand": "version"},
+        )
+        assert path_attachment["title"] == path_file.name
+        assert path_attachment["version"]["message"] == "example comment"
+        assert path_attachment["version"]["minorEdit"] is False
+        path_download_url = confluence_fixed_version.client.url_joiner(
+            confluence_fixed_version.client.url,
+            path_attachment["_links"]["download"],
+        )
+        path_response = confluence_fixed_version.client._session.get(path_download_url)
+        path_response.raise_for_status()
+        assert path_response.content == path_content
 
         filename = unique_name("example response")
         content = b"\x00\x01example response\xff"
@@ -943,11 +1033,7 @@ def test_confluence_attachment_multi_upload_delete_live(
     registry = CleanupRegistry()
     page_id = None
     try:
-        target = resolve_confluence_write_target(live_env)
-        username = getattr(confluence_fixed_version.client, "username", None)
-        if not username:
-            raise RuntimeError("Confluence live attachment writes require a configured username")
-        target["space_key"] = f"~{username}"
+        target = _resolve_fixed_write_target(live_env, confluence_fixed_version)
         page = run_json(
             live_env,
             "confluence",

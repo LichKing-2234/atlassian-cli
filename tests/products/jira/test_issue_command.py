@@ -720,6 +720,58 @@ def test_jira_issue_create_accepts_additional_fields(monkeypatch) -> None:
     assert captured["additional_fields"] == {"customfield_10001": {"id": "11"}}
 
 
+def test_jira_issue_create_maps_all_semantic_inputs(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured = {}
+
+    class FakeService:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return {"message": "Issue created successfully", "issue": {"key": "DEMO-1"}}
+
+    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "DEMO",
+            "jira",
+            "issue",
+            "create",
+            "--project-key",
+            "DEMO",
+            "--issue-type",
+            "Task",
+            "--summary",
+            "Example issue summary",
+            "--assignee",
+            "example-user-id",
+            "--description",
+            "# Example Page",
+            "--components",
+            "DEMO",
+            "--additional-fields",
+            '{"labels":["DEMO"]}',
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {
+        "project_key": "DEMO",
+        "summary": "Example issue summary",
+        "issue_type": "Task",
+        "assignee": "example-user-id",
+        "description": "# Example Page",
+        "description_format": "markdown",
+        "components": ["DEMO"],
+        "additional_fields": {"labels": ["DEMO"]},
+    }
+
+
 def test_jira_issue_create_accepts_jira_markup_description_format(monkeypatch) -> None:
     from atlassian_cli.products.jira.commands import issue as issue_module
 
@@ -864,6 +916,67 @@ def test_jira_issue_update_accepts_optional_aligned_operations(monkeypatch) -> N
             "worklog_started": "2026-08-26T10:00:00.000+0000",
             "description_format": "markdown",
         },
+    }
+
+
+def test_jira_issue_update_maps_non_default_fields_and_operations(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured = {}
+
+    class FakeService:
+        def update(self, issue_key, **kwargs):
+            captured.update(issue_key=issue_key, **kwargs)
+            return {"message": "Issue updated successfully", "issue": {"key": issue_key}}
+
+    monkeypatch.setattr(issue_module, "build_issue_service", lambda *_args: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "DEMO",
+            "jira",
+            "issue",
+            "update",
+            "DEMO-1",
+            "--fields",
+            '{"summary":"Example issue summary"}',
+            "--additional-fields",
+            '{"labels":["DEMO"]}',
+            "--components",
+            "DEMO",
+            "--attachments",
+            '["example response"]',
+            "--transition",
+            "31",
+            "--comment",
+            "example comment",
+            "--comment-visibility",
+            '{"type":"role","value":"reviewer-one"}',
+            "--worklog",
+            "1m",
+            "--worklog-started",
+            "2026-08-26T10:00:00.000+0000",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {
+        "issue_key": "DEMO-1",
+        "fields": {"summary": "Example issue summary"},
+        "additional_fields": {"labels": ["DEMO"]},
+        "components": ["DEMO"],
+        "attachments": ["example response"],
+        "transition": "31",
+        "comment": "example comment",
+        "comment_format": "markdown",
+        "comment_visibility": {"type": "role", "value": "reviewer-one"},
+        "worklog": "1m",
+        "worklog_started": "2026-08-26T10:00:00.000+0000",
+        "description_format": "markdown",
     }
 
 
