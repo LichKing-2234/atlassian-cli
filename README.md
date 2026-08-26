@@ -395,7 +395,10 @@ Jira Server 7.11 issue reads support the deployment-relevant `mcp-atlassian` con
 
 - `--comment-limit 0..100` includes the newest requested comments; `0` omits comments.
 - `--properties triage,ops` requests those issue properties.
-- `--update-history false` reads the issue without updating the caller's view history.
+- `--update-history false` is accepted on the exact Jira 7.11 live target and is forwarded to
+  the issue GET query. Jira 7.11 exposes no stable independent read-back for the current user's
+  browsing-history side effect, so the boolean is owned jointly by the provider query contract
+  and successful fixed-version live execution rather than a claimed history read-back.
 
 `jira issue update --attachments '["./report.pdf"]'` updates ordinary fields first and then
 uploads each file through Jira's attachment endpoint. Attachment paths are never inserted into
@@ -749,7 +752,8 @@ Raw modes with unchanged behavior:
 - `raw-json`
 - `raw-yaml`
 
-One default MCP capability remains explicitly unsupported in CLI v1: Jira batch changelog fetch. That workflow depends on Cloud support, and the current CLI still rejects `--deployment cloud`.
+Jira batch changelog fetch remains outside the fixed Jira 7.11 Core parity boundary because that
+workflow depends on Cloud support; the current CLI still rejects `--deployment cloud`.
 
 ## Contributing
 

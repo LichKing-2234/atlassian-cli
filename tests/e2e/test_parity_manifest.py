@@ -167,7 +167,9 @@ def test_complete_parity_evidence_map_is_executable() -> None:
         assert COVERAGE_MANIFEST[evidence.cli_command] == evidence.live_test.rsplit("::", 1)[-1]
         assert evidence.readme_anchor in readme
         assert _test_node_exists(evidence.contract_test)
+        assert all(_test_node_exists(node_id) for node_id in evidence.additional_contract_tests)
         assert _test_node_exists(evidence.live_test)
+    assert PARITY_EVIDENCE["jira_get_issue"].fixed_version_limitations
 
 
 def _command_options(command_path: str) -> set[str]:

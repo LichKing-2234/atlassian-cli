@@ -34,6 +34,8 @@ class ParityEvidence:
     live_test: str = ""
     upstream_operation: str = ""
     official_api: str = ""
+    additional_contract_tests: tuple[str, ...] = ()
+    fixed_version_limitations: tuple[str, ...] = ()
 
     @property
     def implementation_issues(self) -> tuple[int, ...]:
@@ -46,6 +48,8 @@ class EvidenceReference:
     contract_test: str
     live_test: str
     official_api: str
+    additional_contract_tests: tuple[str, ...] = ()
+    fixed_version_limitations: tuple[str, ...] = ()
 
 
 class NegativeDisposition(StrEnum):
@@ -448,7 +452,7 @@ PARITY_REFERENCES = {
         "jira issue worklog add",
         "tests/products/jira/test_issue_command.py::test_jira_issue_worklog_add_routes_all_semantic_inputs",
         "tests/e2e/test_jira_live.py::test_jira_watcher_and_worklog_contracts_live",
-        "POST /rest/api/2/issue/{issueKey}/worklog (Jira 7.11)",
+        "PUT /rest/api/2/issue/{issueKey} for originalEstimate; POST /rest/api/2/issue/{issueKey}/worklog with remaining-estimate adjustment query (Jira 7.11)",
     ),
     "jira_create_remote_issue_link": EvidenceReference(
         "jira issue remote-link create",
@@ -488,15 +492,27 @@ PARITY_REFERENCES = {
     ),
     "jira_search_assignable_users": EvidenceReference(
         "jira user search",
-        "tests/products/jira/test_user_service.py::test_user_service_search_forwards_assignable_scope_and_limit",
+        "tests/products/jira/test_user_command.py::test_jira_user_search_maps_project_and_issue_scopes",
         "tests/e2e/test_jira_live.py::test_jira_project_and_metadata_live",
         "GET /rest/api/2/user/assignable/search (Jira 7.11)",
+        additional_contract_tests=(
+            "tests/products/jira/test_user_service.py::"
+            "test_user_service_search_covers_project_and_issue_scopes",
+        ),
     ),
     "jira_get_issue": EvidenceReference(
         "jira issue get",
         "tests/products/jira/test_issue_command.py::test_jira_issue_get_passes_fields_expand_and_comment_limit",
         "tests/e2e/test_jira_live.py::test_jira_issue_read_and_attachment_update_live",
-        "GET /rest/api/2/issue/{issueIdOrKey} (Jira 7.11)",
+        "GET /rest/api/2/issue/{issueIdOrKey} and GET /rest/api/2/issue/{issueIdOrKey}/comment (Jira 7.11; updateHistory has no stable independent read-back resource)",
+        additional_contract_tests=(
+            "tests/products/jira/test_provider.py::"
+            "test_get_issue_forwards_server_options_and_limits_newest_comments",
+        ),
+        fixed_version_limitations=(
+            "Jira 7.11 accepts updateHistory=false, but exposes no stable independent read-back "
+            "for the current user's browsing-history side effect.",
+        ),
     ),
     "jira_search_fields": EvidenceReference(
         "jira field search",
@@ -512,7 +528,7 @@ PARITY_REFERENCES = {
     ),
     "jira_create_issue": EvidenceReference(
         "jira issue create",
-        "tests/products/jira/test_issue_command.py::test_jira_issue_create_accepts_additional_fields",
+        "tests/products/jira/test_issue_command.py::test_jira_issue_create_maps_all_semantic_inputs",
         "tests/e2e/test_jira_live.py::test_jira_issue_create_and_batch_contracts_live",
         "POST /rest/api/2/issue (Jira 7.11)",
     ),
@@ -524,9 +540,9 @@ PARITY_REFERENCES = {
     ),
     "jira_update_issue": EvidenceReference(
         "jira issue update",
-        "tests/products/jira/test_issue_command.py::test_jira_issue_update_accepts_optional_aligned_operations",
+        "tests/products/jira/test_issue_command.py::test_jira_issue_update_maps_non_default_fields_and_operations",
         "tests/e2e/test_jira_live.py::test_jira_issue_update_assignment_transition_contracts_live",
-        "PUT /rest/api/2/issue/{issueIdOrKey} and dedicated operation endpoints (Jira 7.11)",
+        "PUT /rest/api/2/issue/{issueIdOrKey}; POST /rest/api/2/issue/{issueIdOrKey}/attachments; POST /rest/api/2/issue/{issueIdOrKey}/transitions; POST /rest/api/2/issue/{issueIdOrKey}/comment; POST /rest/api/2/issue/{issueIdOrKey}/worklog (Jira 7.11)",
     ),
     "jira_assign_issue": EvidenceReference(
         "jira issue assign",
@@ -554,7 +570,7 @@ PARITY_REFERENCES = {
     ),
     "confluence_get_page": EvidenceReference(
         "confluence page get",
-        "tests/products/confluence/test_page_command.py::test_confluence_page_get_by_title_outputs_json",
+        "tests/products/confluence/test_page_command.py::test_confluence_page_get_maps_id_and_title_space_selectors",
         "tests/e2e/test_confluence_live.py::test_confluence_page_read_navigation_contracts_live",
         "GET /rest/api/content/{id} or /rest/api/content?spaceKey&title (Confluence 6.12.4)",
     ),
@@ -572,13 +588,13 @@ PARITY_REFERENCES = {
     ),
     "confluence_create_page": EvidenceReference(
         "confluence page create",
-        "tests/products/confluence/test_page_command.py::test_confluence_page_create_reads_markdown_from_content_file",
+        "tests/products/confluence/test_page_command.py::test_confluence_page_create_maps_inline_file_parent_anchors_and_storage",
         "tests/e2e/test_confluence_live.py::test_confluence_page_round_trip_live",
         "POST /rest/api/content (Confluence 6.12.4)",
     ),
     "confluence_update_page": EvidenceReference(
         "confluence page update",
-        "tests/products/confluence/test_page_command.py::test_confluence_page_update_maps_file_parent_and_version_inputs",
+        "tests/products/confluence/test_page_command.py::test_confluence_page_update_maps_file_and_explicit_storage_inputs",
         "tests/e2e/test_confluence_live.py::test_confluence_page_round_trip_live",
         "PUT /rest/api/content/{id} (Confluence 6.12.4)",
     ),
@@ -596,7 +612,7 @@ PARITY_REFERENCES = {
     ),
     "confluence_upload_attachment": EvidenceReference(
         "confluence page attachment upload",
-        "tests/products/confluence/test_attachment_command.py::test_confluence_attachment_upload_accepts_base64_content",
+        "tests/products/confluence/test_page_command.py::test_confluence_page_attachment_upload_maps_file_and_base64_sources",
         "tests/e2e/test_confluence_live.py::test_confluence_attachment_upload_inputs_live",
         "POST /rest/api/content/{id}/child/attachment (Confluence 6.12.4)",
     ),
@@ -612,6 +628,8 @@ PARITY_EVIDENCE = {
         live_test=reference.live_test,
         upstream_operation=f"{operation}@{MCP_ATLASSIAN_REVISION}",
         official_api=reference.official_api,
+        additional_contract_tests=reference.additional_contract_tests,
+        fixed_version_limitations=reference.fixed_version_limitations,
     )
     for operation, evidence in PARITY_EVIDENCE.items()
     for reference in (PARITY_REFERENCES[operation],)

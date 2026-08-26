@@ -149,11 +149,22 @@ def test_readme_scopes_semantic_alignment_to_included_fixed_version_capabilities
     assert "included ordinary-user Jira and Confluence capabilities" in readme
     assert "fixed Server/Data Center versions" in readme
     assert "TOOLSETS=default" not in readme
+    assert "One default MCP capability" not in readme
+    assert "outside the fixed Jira 7.11 Core parity boundary" in readme
     assert (
         "normalized json and yaml output now follows mcp-style resource envelopes" in readme.lower()
     )
     assert "raw-json" in readme
     assert "raw-yaml" in readme
+
+
+def test_readme_documents_update_history_observability_limit() -> None:
+    readme = Path("README.md").read_text()
+
+    assert "--update-history false" in readme
+    assert "no stable independent read-back" in readme
+    assert "provider query contract" in readme
+    assert "successful fixed-version live execution" in readme
 
 
 def test_readme_documents_jira_create_and_batch_semantic_contracts() -> None:

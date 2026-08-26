@@ -203,6 +203,92 @@ def test_confluence_page_create_reads_markdown_from_content_file(monkeypatch, tm
     assert captured["content_format"] == "markdown"
 
 
+def test_confluence_page_create_maps_inline_file_parent_anchors_and_storage(
+    monkeypatch, tmp_path
+) -> None:
+    from atlassian_cli.products.confluence.commands import page as page_module
+
+    calls = []
+
+    class FakeService:
+        def create(self, **kwargs):
+            calls.append(kwargs)
+            return {"message": "Page created successfully", "page": {"id": "1234"}}
+
+    content_file = tmp_path / "page.md"
+    content_file.write_text("# Example Page\n", encoding="utf-8")
+    monkeypatch.setattr(page_module, "build_page_service", lambda *_args: FakeService())
+
+    storage_result = runner.invoke(
+        app,
+        [
+            "--url",
+            "DEMO",
+            "confluence",
+            "page",
+            "create",
+            "--space-key",
+            "DEMO",
+            "--title",
+            "Example Page",
+            "--content",
+            "<p>example response</p>",
+            "--content-format",
+            "storage",
+            "--parent-id",
+            "1234",
+            "--output",
+            "json",
+        ],
+    )
+    file_result = runner.invoke(
+        app,
+        [
+            "--url",
+            "DEMO",
+            "confluence",
+            "page",
+            "create",
+            "--space-key",
+            "DEMO",
+            "--title",
+            "Example Page",
+            "--content-file",
+            str(content_file),
+            "--parent-id",
+            "5678",
+            "--enable-heading-anchors",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert storage_result.exit_code == 0
+    assert file_result.exit_code == 0
+    assert calls == [
+        {
+            "space_key": "DEMO",
+            "title": "Example Page",
+            "content": "<p>example response</p>",
+            "parent_id": "1234",
+            "content_format": "storage",
+            "enable_heading_anchors": False,
+            "include_content": False,
+            "emoji": None,
+        },
+        {
+            "space_key": "DEMO",
+            "title": "Example Page",
+            "content": "# Example Page\n",
+            "parent_id": "5678",
+            "content_format": "markdown",
+            "enable_heading_anchors": True,
+            "include_content": False,
+            "emoji": None,
+        },
+    ]
+
+
 def test_confluence_page_update_maps_file_parent_and_version_inputs(monkeypatch, tmp_path) -> None:
     from atlassian_cli.products.confluence.commands import page as page_module
 
@@ -255,6 +341,99 @@ def test_confluence_page_update_maps_file_parent_and_version_inputs(monkeypatch,
         "include_content": False,
         "emoji": None,
     }
+
+
+def test_confluence_page_update_maps_file_and_explicit_storage_inputs(
+    monkeypatch, tmp_path
+) -> None:
+    from atlassian_cli.products.confluence.commands import page as page_module
+
+    calls = []
+
+    class FakeService:
+        def update(self, page_id, **kwargs):
+            calls.append((page_id, kwargs))
+            return {"message": "Page updated successfully", "page": {"id": page_id}}
+
+    content_file = tmp_path / "page.md"
+    content_file.write_text("## Example Page\n", encoding="utf-8")
+    monkeypatch.setattr(page_module, "build_page_service", lambda *_args: FakeService())
+
+    file_result = runner.invoke(
+        app,
+        [
+            "--url",
+            "DEMO",
+            "confluence",
+            "page",
+            "update",
+            "1234",
+            "--title",
+            "Example Page",
+            "--content-file",
+            str(content_file),
+            "--parent-id",
+            "5678",
+            "--is-minor-edit",
+            "--version-comment",
+            "example comment",
+            "--enable-heading-anchors",
+            "--output",
+            "json",
+        ],
+    )
+    storage_result = runner.invoke(
+        app,
+        [
+            "--url",
+            "DEMO",
+            "confluence",
+            "page",
+            "update",
+            "1234",
+            "--title",
+            "Example Page",
+            "--content",
+            "<p>example response</p>",
+            "--content-format",
+            "storage",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert file_result.exit_code == 0
+    assert storage_result.exit_code == 0
+    assert calls == [
+        (
+            "1234",
+            {
+                "title": "Example Page",
+                "content": "## Example Page\n",
+                "parent_id": "5678",
+                "content_format": "markdown",
+                "is_minor_edit": True,
+                "version_comment": "example comment",
+                "enable_heading_anchors": True,
+                "include_content": False,
+                "emoji": None,
+            },
+        ),
+        (
+            "1234",
+            {
+                "title": "Example Page",
+                "content": "<p>example response</p>",
+                "parent_id": None,
+                "content_format": "storage",
+                "is_minor_edit": False,
+                "version_comment": None,
+                "enable_heading_anchors": False,
+                "include_content": False,
+                "emoji": None,
+            },
+        ),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -329,6 +508,51 @@ def test_confluence_page_get_outputs_json(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert '"metadata"' in result.stdout
+
+
+def test_confluence_page_get_maps_id_and_title_space_selectors(monkeypatch) -> None:
+    from atlassian_cli.products.confluence.commands import page as page_module
+
+    calls = []
+
+    class FakeService:
+        def get(self, page_id, **kwargs):
+            calls.append(("id", page_id, kwargs))
+            return {"metadata": {"id": page_id, "title": "Example Page"}}
+
+        def get_by_title(self, space_key, title, **kwargs):
+            calls.append(("title", space_key, title, kwargs))
+            return {"metadata": {"id": "1234", "title": title}}
+
+    monkeypatch.setattr(page_module, "build_page_service", lambda *_args: FakeService())
+
+    by_id = runner.invoke(
+        app,
+        ["--url", "DEMO", "confluence", "page", "get", "1234", "--output", "json"],
+    )
+    by_title = runner.invoke(
+        app,
+        [
+            "--url",
+            "DEMO",
+            "confluence",
+            "page",
+            "get",
+            "--title",
+            "Example Page",
+            "--space-key",
+            "DEMO",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert by_id.exit_code == 0
+    assert by_title.exit_code == 0
+    assert calls == [
+        ("id", "1234", {}),
+        ("title", "DEMO", "Example Page", {}),
+    ]
 
 
 def test_confluence_page_attachment_download_outputs_json(monkeypatch, tmp_path) -> None:
@@ -425,6 +649,85 @@ def test_confluence_page_attachment_upload_accepts_base64_content(monkeypatch) -
             "minor_edit": True,
         },
     )
+
+
+def test_confluence_page_attachment_upload_maps_file_and_base64_sources(monkeypatch) -> None:
+    from atlassian_cli.products.confluence.commands import page_attachment as attachment_module
+
+    calls = []
+
+    class FakeService:
+        def upload(self, page_id, file_path, **kwargs):
+            calls.append((page_id, file_path, kwargs))
+            return {"id": "55", "title": kwargs.get("filename") or file_path}
+
+    monkeypatch.setattr(
+        attachment_module,
+        "build_attachment_service",
+        lambda *_args: FakeService(),
+    )
+
+    file_result = runner.invoke(
+        app,
+        [
+            "--url",
+            "DEMO",
+            "confluence",
+            "page",
+            "attachment",
+            "upload",
+            "1234",
+            "example response",
+            "--comment",
+            "example comment",
+            "--output",
+            "json",
+        ],
+    )
+    base64_result = runner.invoke(
+        app,
+        [
+            "--url",
+            "DEMO",
+            "confluence",
+            "page",
+            "attachment",
+            "upload",
+            "1234",
+            "--content-base64",
+            "ZXhhbXBsZSByZXNwb25zZQ==",
+            "--filename",
+            "example response",
+            "--minor-edit",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert file_result.exit_code == 0
+    assert base64_result.exit_code == 0
+    assert calls == [
+        (
+            "1234",
+            "example response",
+            {
+                "content_base64": None,
+                "filename": None,
+                "comment": "example comment",
+                "minor_edit": False,
+            },
+        ),
+        (
+            "1234",
+            None,
+            {
+                "content_base64": "ZXhhbXBsZSByZXNwb25zZQ==",
+                "filename": "example response",
+                "comment": None,
+                "minor_edit": True,
+            },
+        ),
+    ]
 
 
 def test_confluence_page_get_renders_storage_html_in_markdown_output(monkeypatch) -> None:
