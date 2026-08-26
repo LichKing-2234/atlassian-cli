@@ -133,6 +133,32 @@ def test_jira_issue_help_lists_reparent_subtask_subcommand() -> None:
     assert "reparent-subtask" in plain_output
 
 
+def test_jira_update_assignment_and_transition_help_lists_aligned_inputs() -> None:
+    issue_help = strip_ansi(runner.invoke(app, ["jira", "issue", "--help"]).output)
+    update_help = strip_ansi(runner.invoke(app, ["jira", "issue", "update", "--help"]).output)
+    assign_help = strip_ansi(runner.invoke(app, ["jira", "issue", "assign", "--help"]).output)
+    transition_help = strip_ansi(
+        runner.invoke(app, ["jira", "issue", "transition", "--help"]).output
+    )
+
+    assert "assign" in issue_help
+    for option in (
+        "--fields",
+        "--additional-fields",
+        "--components",
+        "--attachments",
+        "--transition",
+        "--comment",
+        "--comment-visibility",
+        "--worklog",
+        "--worklog-started",
+    ):
+        assert option in update_help
+    assert "--assignee" in assign_help
+    for option in ("--transition-id", "--to", "--fields", "--comment"):
+        assert option in transition_help
+
+
 def test_jira_discovery_help_lists_aligned_inputs() -> None:
     user_help = strip_ansi(runner.invoke(app, ["jira", "user", "search", "--help"]).output)
     field_help = strip_ansi(runner.invoke(app, ["jira", "field", "search", "--help"]).output)

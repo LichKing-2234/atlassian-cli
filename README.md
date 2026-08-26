@@ -384,6 +384,28 @@ Jira Server 7.11 issue reads support the deployment-relevant `mcp-atlassian` con
 uploads each file through Jira's attachment endpoint. Attachment paths are never inserted into
 the issue fields payload. The dedicated `jira issue attachment upload` command remains available.
 
+All update parts are optional and directly composable in one command: `--fields`,
+`--additional-fields`, `--components`, `--attachments`, `--transition`, `--comment`,
+`--comment-visibility`, `--worklog`, and `--worklog-started`. Description and comment text use
+Markdown by default; use `--description-format jira` or `--comment-format jira` to preserve Jira
+wiki markup.
+
+```bash
+atlassian jira issue update DEMO-1 \
+  --fields '{"description":"## Example Page"}' \
+  --comment "**example comment**" \
+  --comment-visibility '{"type":"role","value":"reviewer-one"}' \
+  --worklog 1m
+
+atlassian jira issue assign DEMO-1 --assignee example-user-id
+atlassian jira issue assign DEMO-1
+atlassian jira issue transition DEMO-1 --transition-id 31 --comment "example response"
+```
+
+`jira issue assign` uses Jira's dedicated assignment API; omitting `--assignee` unassigns the
+issue. Transition names and IDs are resolved against the issue's available transitions, and the
+numeric ID is sent to Jira 7.11 with optional transition fields and comment.
+
 ### Jira user and field discovery
 
 Jira Server 7.11 user search returns assignable users from the official

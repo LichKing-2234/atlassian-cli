@@ -631,3 +631,144 @@ def test_issue_service_update_returns_message_issue_and_attachment_results() -> 
     assert result["issue"]["attachment_results"] == [
         {"id": "10001", "filename": "release.txt", "size": 42}
     ]
+
+
+def test_issue_service_update_runs_aligned_operations_and_converts_markdown() -> None:
+    calls = []
+
+    class FakeProvider:
+        def update_issue(self, issue_key, fields, *, attachments=None):
+            calls.append(("update", issue_key, fields, attachments))
+            return {"key": issue_key, "attachment_results": [{"id": "10001"}]}
+
+        def transition_issue(self, issue_key, transition, *, fields=None, comment=None):
+            calls.append(("transition", issue_key, transition, fields, comment))
+            return {"key": issue_key, "transition": transition}
+
+        @staticmethod
+        def get_issue_transitions(issue_key):
+            assert issue_key == "DEMO-1"
+            return [{"id": 31, "name": "Done"}]
+
+        def add_comment(self, issue_key, body, visibility=None):
+            calls.append(("comment", issue_key, body, visibility))
+            return {"id": "10002", "body": body, "visibility": visibility}
+
+        def add_worklog(self, issue_key, time_spent, *, started=None):
+            calls.append(("worklog", issue_key, time_spent, started))
+            return {"id": "10003", "timeSpent": time_spent, "started": started}
+
+        def get_issue(self, issue_key, **kwargs):
+            calls.append(("get", issue_key))
+            return {
+                "key": issue_key,
+                "fields": {"summary": "Updated summary", "status": {"name": "Done"}},
+            }
+
+    result = IssueService(provider=FakeProvider()).update(
+        "DEMO-1",
+        fields={"description": "## Example Page"},
+        additional_fields={"labels": ["ops"]},
+        components=["API"],
+        attachments=["release.txt"],
+        transition="Done",
+        comment="**example comment**",
+        comment_visibility={"type": "role", "value": "reviewer-one"},
+        worklog="1m",
+        worklog_started="2026-08-26T10:00:00.000+0000",
+    )
+
+    assert calls == [
+        (
+            "update",
+            "DEMO-1",
+            {
+                "description": "h2. Example Page",
+                "labels": ["ops"],
+                "components": [{"name": "API"}],
+            },
+            ["release.txt"],
+        ),
+        ("transition", "DEMO-1", "31", None, None),
+        (
+            "comment",
+            "DEMO-1",
+            "*example comment*",
+            {"type": "role", "value": "reviewer-one"},
+        ),
+        ("worklog", "DEMO-1", "1m", "2026-08-26T10:00:00.000+0000"),
+        ("get", "DEMO-1"),
+    ]
+    assert result["message"] == "Issue updated successfully"
+    assert result["issue"]["key"] == "DEMO-1"
+    assert result["issue"]["attachment_results"] == [{"id": "10001"}]
+    assert result["operations_performed"] == [
+        "fields_updated",
+        "attachments_uploaded",
+        "transitioned:Done",
+        "comment_added",
+        "worklog_added",
+    ]
+
+
+def test_issue_service_assign_resolves_user_json_and_unassigns() -> None:
+    calls = []
+
+    class FakeProvider:
+        def assign_issue(self, issue_key, assignee):
+            calls.append(("assign", issue_key, assignee))
+            return {"assigned": True}
+
+        def get_issue(self, issue_key, **kwargs):
+            calls.append(("get", issue_key))
+            return {"key": issue_key, "fields": {"assignee": None}}
+
+    service = IssueService(provider=FakeProvider())
+
+    assigned = service.assign("DEMO-1", '{"name":"example-user"}')
+    unassigned = service.assign("DEMO-1", None)
+
+    assert calls == [
+        ("assign", "DEMO-1", "example-user"),
+        ("get", "DEMO-1"),
+        ("assign", "DEMO-1", None),
+        ("get", "DEMO-1"),
+    ]
+    assert assigned["issue"]["key"] == "DEMO-1"
+    assert unassigned["issue"]["assignee"]["name"] == "Unassigned"
+
+
+def test_issue_service_transition_resolves_name_and_converts_comment() -> None:
+    calls = []
+
+    class FakeProvider:
+        @staticmethod
+        def get_issue_transitions(issue_key):
+            assert issue_key == "DEMO-1"
+            return [{"id": 31, "name": "Done"}]
+
+        def transition_issue(self, issue_key, transition, *, fields=None, comment=None):
+            calls.append((issue_key, transition, fields, comment))
+            return {"key": issue_key, "transition": transition}
+
+        @staticmethod
+        def get_issue(issue_key, **kwargs):
+            return {"key": issue_key, "fields": {"status": {"name": "Done"}}}
+
+    result = IssueService(provider=FakeProvider()).transition(
+        "DEMO-1",
+        "done",
+        fields={"resolution": {"name": "Fixed"}},
+        comment="**example comment**",
+    )
+
+    assert calls == [
+        (
+            "DEMO-1",
+            "31",
+            {"resolution": {"name": "Fixed"}},
+            "*example comment*",
+        )
+    ]
+    assert result["message"] == "Issue transitioned successfully"
+    assert result["issue"]["status"]["name"] == "Done"

@@ -149,10 +149,16 @@ PARITY_EVIDENCE = {
         ),
         58,
         True,
+        status=ParityStatus.VERIFIED,
         additional_implementation_issues=(56,),
     ),
     "jira_assign_issue": ParityEvidence(
-        Product.JIRA, GapKind.DRIFTED, ("issue_key", "assignee"), 58, True
+        Product.JIRA,
+        GapKind.DRIFTED,
+        ("issue_key", "assignee"),
+        58,
+        True,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_add_comment": ParityEvidence(
         Product.JIRA, GapKind.DRIFTED, ("issue_key", "body", "visibility"), 62, True
@@ -170,6 +176,7 @@ PARITY_EVIDENCE = {
         ("issue_key", "transition_id", "fields", "comment"),
         58,
         True,
+        status=ParityStatus.VERIFIED,
     ),
     "confluence_get_page": ParityEvidence(
         Product.CONFLUENCE,

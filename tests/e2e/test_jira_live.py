@@ -1,7 +1,9 @@
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+from requests import HTTPError
 
 from atlassian_cli.config.models import Product
 from tests.e2e.support import (
@@ -220,7 +222,11 @@ def test_jira_issue_round_trip_live(live_env, tmp_path) -> None:
     try:
         jira_context = build_live_context(Product.JIRA, live_env)
         provider = build_live_provider(Product.JIRA, live_env)
-        issue_type = live_env.jira_issue_type or "Task"
+        issue_type = live_env.jira_issue_type or discover_jira_issue_type(
+            provider,
+            project_key=live_env.jira_project,
+            reporter_name=jira_context.auth.username,
+        )
         payload = build_jira_create_payload(
             provider,
             project_key=live_env.jira_project,
@@ -794,6 +800,161 @@ def test_jira_issue_create_and_batch_contracts_live(
         limit=10,
     )
     assert search["issues"] == []
+
+
+def test_jira_issue_update_assignment_transition_contracts_live(
+    live_env, jira_fixed_version, cleanup_registry, tmp_path
+) -> None:
+    jira_context = build_live_context(Product.JIRA, live_env)
+    assert jira_context.auth.username is not None
+    issue_type = live_env.jira_issue_type or discover_jira_issue_type(
+        jira_fixed_version,
+        project_key=live_env.jira_project,
+        reporter_name=jira_context.auth.username,
+    )
+    summary = unique_name("jira-update-contract")
+    payload = build_jira_create_payload(
+        jira_fixed_version,
+        project_key=live_env.jira_project,
+        summary=summary,
+        issue_type=issue_type,
+        env_overrides={},
+        reporter_name=jira_context.auth.username,
+    )
+    payload.pop("assignee", None)
+    created = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "create",
+        "--project-key",
+        live_env.jira_project,
+        "--issue-type",
+        issue_type,
+        "--summary",
+        summary,
+        "--additional-fields",
+        json.dumps(_jira_additional_fields(payload)),
+        "--output",
+        "json",
+    )
+    issue_key = created["issue"]["key"]
+    cleanup_registry.add(
+        f"jira issue delete {issue_key}",
+        lambda: run_json(
+            live_env,
+            "jira",
+            "issue",
+            "delete",
+            issue_key,
+            "--yes",
+            "--output",
+            "json",
+        ),
+    )
+
+    assigned = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "assign",
+        issue_key,
+        "--assignee",
+        jira_context.auth.username,
+        "--output",
+        "json",
+    )
+    assert assigned["issue"]["assignee"]["name"] == jira_context.auth.username
+    unassigned = run_json(live_env, "jira", "issue", "assign", issue_key, "--output", "json")
+    assert unassigned["issue"]["assignee"]["name"] == "Unassigned"
+
+    transitions = jira_fixed_version.get_issue_transitions(issue_key)
+    assert transitions
+    transition = transitions[0]
+    visibility = None
+    for candidate in discover_jira_comment_visibilities(jira_fixed_version, live_env.jira_project):
+        try:
+            probe = jira_fixed_version.add_comment(issue_key, "example response", candidate)
+        except HTTPError:
+            continue
+        if probe.get("visibility") == candidate:
+            visibility = candidate
+            break
+    assert visibility is not None
+    attachment_path = tmp_path / "report.pdf"
+    attachment_path.write_bytes(b"example response\n")
+    started = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000%z")
+    updated_summary = f"{summary}-updated"
+    updated = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "update",
+        issue_key,
+        "--fields",
+        json.dumps(
+            {
+                "summary": updated_summary,
+                "description": "## Example Update",
+            }
+        ),
+        "--attachments",
+        json.dumps([str(attachment_path)]),
+        "--transition",
+        str(transition["id"]),
+        "--comment",
+        "## Example Comment",
+        "--comment-visibility",
+        json.dumps(visibility),
+        "--worklog",
+        "1m",
+        "--worklog-started",
+        started,
+        "--output",
+        "json",
+    )
+    assert updated["operations_performed"] == [
+        "fields_updated",
+        "attachments_uploaded",
+        f"transitioned:{transition['id']}",
+        "comment_added",
+        "worklog_added",
+    ]
+
+    readback = jira_fixed_version.get_issue(
+        issue_key, fields="summary,description,status,attachment"
+    )["fields"]
+    assert readback["summary"] == updated_summary
+    assert readback["description"] == "h2. Example Update"
+    assert any(item["filename"] == "report.pdf" for item in readback["attachment"])
+    assert readback["status"]["name"] == transition["to"]
+
+    comments = jira_fixed_version.client.issue_get_comments(issue_key)["comments"]
+    update_comment = next(item for item in comments if item["body"] == "h2. Example Comment")
+    assert update_comment["visibility"] == visibility
+    worklogs = jira_fixed_version.client.issue_get_worklog(issue_key)["worklogs"]
+    assert any(item.get("timeSpentSeconds") == 60 for item in worklogs)
+
+    next_transitions = jira_fixed_version.get_issue_transitions(issue_key)
+    assert next_transitions
+    transitioned = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "transition",
+        issue_key,
+        "--transition-id",
+        str(next_transitions[0]["id"]),
+        "--fields",
+        "{}",
+        "--comment",
+        "**example transition**",
+        "--output",
+        "json",
+    )
+    assert transitioned["issue"]["key"] == issue_key
+    comments = jira_fixed_version.client.issue_get_comments(issue_key)["comments"]
+    assert any(item["body"] == "*example transition*" for item in comments)
 
 
 def test_jira_issue_link_round_trip_live(live_env, jira_fixed_version) -> None:
