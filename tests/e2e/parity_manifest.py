@@ -196,8 +196,12 @@ PARITY_EVIDENCE = {
         ),
         50,
         True,
+        status=ParityStatus.VERIFIED,
         additional_implementation_issues=(51,),
     ),
+    # Confluence 6.12.4 accepts version.minorEdit=true but its update, page, and
+    # history resources all report false; provider coverage owns the outgoing
+    # boolean contract while live coverage records that fixed-version limit.
     "confluence_update_page": ParityEvidence(
         Product.CONFLUENCE,
         GapKind.DRIFTED,
@@ -214,13 +218,24 @@ PARITY_EVIDENCE = {
         ),
         50,
         True,
+        status=ParityStatus.VERIFIED,
         additional_implementation_issues=(51,),
     ),
     "confluence_add_comment": ParityEvidence(
-        Product.CONFLUENCE, GapKind.DRIFTED, ("page_id", "body"), 50, True
+        Product.CONFLUENCE,
+        GapKind.DRIFTED,
+        ("page_id", "body"),
+        50,
+        True,
+        status=ParityStatus.VERIFIED,
     ),
     "confluence_reply_to_comment": ParityEvidence(
-        Product.CONFLUENCE, GapKind.DRIFTED, ("comment_id", "body"), 50, True
+        Product.CONFLUENCE,
+        GapKind.DRIFTED,
+        ("comment_id", "body"),
+        50,
+        True,
+        status=ParityStatus.VERIFIED,
     ),
     "confluence_upload_attachment": ParityEvidence(
         Product.CONFLUENCE,

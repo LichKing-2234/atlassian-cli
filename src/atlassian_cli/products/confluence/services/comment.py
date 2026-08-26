@@ -19,18 +19,26 @@ class CommentService:
     def list_raw(self, page_id: str) -> list[dict]:
         return self.provider.list_comments(page_id)
 
-    def add(self, page_id: str, body: str) -> dict:
+    def add(self, page_id: str, body: str, *, content_format: str = "markdown") -> dict:
         return ConfluenceComment.from_api_response(
-            self.provider.add_comment(page_id, body)
+            self.provider.add_comment(page_id, body, content_format=content_format)
         ).to_simplified_dict()
 
-    def add_raw(self, page_id: str, body: str) -> dict:
-        return self.provider.add_comment(page_id, body)
+    def add_raw(self, page_id: str, body: str, *, content_format: str = "markdown") -> dict:
+        return self.provider.add_comment(page_id, body, content_format=content_format)
 
-    def reply(self, comment_id: str, body: str) -> dict:
+    def reply(self, comment_id: str, body: str, *, content_format: str = "markdown") -> dict:
         return ConfluenceComment.from_api_response(
-            self.provider.reply_to_comment(comment_id, body)
+            self.provider.reply_to_comment(
+                comment_id,
+                body,
+                content_format=content_format,
+            )
         ).to_simplified_dict()
 
-    def reply_raw(self, comment_id: str, body: str) -> dict:
-        return self.provider.reply_to_comment(comment_id, body)
+    def reply_raw(self, comment_id: str, body: str, *, content_format: str = "markdown") -> dict:
+        return self.provider.reply_to_comment(
+            comment_id,
+            body,
+            content_format=content_format,
+        )

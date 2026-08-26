@@ -2,6 +2,7 @@ from atlassian import Confluence
 
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.auth.session_patch import patch_session_headers
+from atlassian_cli.products.confluence.content import markdown_to_storage
 
 
 class ConfluenceServerProvider:
@@ -28,8 +29,12 @@ class ConfluenceServerProvider:
 
     @staticmethod
     def _reject_unsupported_page_write_inputs(
-        *, enable_heading_anchors: bool, emoji: str | None
+        *, content_format: str, enable_heading_anchors: bool, emoji: str | None
     ) -> None:
+        if content_format != "storage":
+            raise NotImplementedError(
+                "Confluence 6.12.4 content_format must be markdown or storage"
+            )
         if enable_heading_anchors:
             raise NotImplementedError("Confluence Server/DC heading anchors require Markdown")
         if emoji is not None:
@@ -135,10 +140,15 @@ class ConfluenceServerProvider:
         emoji: str | None = None,
     ) -> dict:
         if content_format == "markdown":
-            raise NotImplementedError(
-                "Confluence Server/DC provider does not support content_format=markdown"
+            body = markdown_to_storage(
+                body,
+                base_url=str(getattr(self.client, "url", "")),
+                enable_heading_anchors=enable_heading_anchors,
             )
+            content_format = "storage"
+            enable_heading_anchors = False
         self._reject_unsupported_page_write_inputs(
+            content_format=content_format,
             enable_heading_anchors=enable_heading_anchors,
             emoji=emoji,
         )
@@ -165,10 +175,15 @@ class ConfluenceServerProvider:
         emoji: str | None = None,
     ) -> dict:
         if content_format == "markdown":
-            raise NotImplementedError(
-                "Confluence Server/DC provider does not support content_format=markdown"
+            body = markdown_to_storage(
+                body,
+                base_url=str(getattr(self.client, "url", "")),
+                enable_heading_anchors=enable_heading_anchors,
             )
+            content_format = "storage"
+            enable_heading_anchors = False
         self._reject_unsupported_page_write_inputs(
+            content_format=content_format,
             enable_heading_anchors=enable_heading_anchors,
             emoji=emoji,
         )
@@ -181,6 +196,7 @@ class ConfluenceServerProvider:
             representation=representation,
             minor_edit=is_minor_edit,
             version_comment=version_comment,
+            always_update=True,
         )
 
     def delete_page(self, page_id: str) -> dict:
@@ -203,10 +219,26 @@ class ConfluenceServerProvider:
             return [item for item in response if isinstance(item, dict)]
         return []
 
-    def add_comment(self, page_id: str, body: str) -> dict:
+    def add_comment(self, page_id: str, body: str, *, content_format: str = "markdown") -> dict:
+        if content_format == "markdown":
+            body = markdown_to_storage(
+                body,
+                base_url=str(getattr(self.client, "url", "")),
+            )
+        elif content_format != "storage":
+            raise ValueError("content_format must be markdown or storage")
         return self.client.add_comment(page_id, body)
 
-    def reply_to_comment(self, comment_id: str, body: str) -> dict:
+    def reply_to_comment(
+        self, comment_id: str, body: str, *, content_format: str = "markdown"
+    ) -> dict:
+        if content_format == "markdown":
+            body = markdown_to_storage(
+                body,
+                base_url=str(getattr(self.client, "url", "")),
+            )
+        elif content_format != "storage":
+            raise ValueError("content_format must be markdown or storage")
         session = getattr(self.client, "_session", None)
         base_url = str(getattr(self.client, "url", "")).rstrip("/")
         if session is None or not base_url:

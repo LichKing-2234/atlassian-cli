@@ -97,12 +97,65 @@ def test_confluence_space_and_search_live(live_env) -> None:
         registry.run()
 
 
-def test_confluence_page_round_trip_live(live_env) -> None:
+def test_confluence_page_round_trip_live(live_env, confluence_fixed_version, tmp_path) -> None:
     registry = CleanupRegistry()
+    first_parent_id = None
+    second_parent_id = None
     page_id = None
     try:
         target = resolve_confluence_write_target(live_env)
+        first_parent = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "create",
+            "--space-key",
+            str(target["space_key"]),
+            "--title",
+            unique_name("confluence-parent-one"),
+            "--content",
+            "<p>example response</p>",
+            "--content-format",
+            "storage",
+            *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
+            "--output",
+            "json",
+        )
+        first_parent_id = first_parent["page"]["id"]
+        registry.add(
+            f"confluence page delete {first_parent_id}",
+            lambda: _delete_page(live_env, first_parent_id),
+        )
+        first_parent_read = confluence_fixed_version.get_page(first_parent_id)
+        assert first_parent_read["body"]["storage"]["value"] == "<p>example response</p>"
+
+        second_parent = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "create",
+            "--space-key",
+            str(target["space_key"]),
+            "--title",
+            unique_name("confluence-parent-two"),
+            "--content",
+            "# Example Page",
+            *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
+            "--output",
+            "json",
+        )
+        second_parent_id = second_parent["page"]["id"]
+        registry.add(
+            f"confluence page delete {second_parent_id}",
+            lambda: _delete_page(live_env, second_parent_id),
+        )
+
         title = unique_name("confluence-page")
+        content_file = tmp_path / "page.md"
+        content_file.write_text(
+            "# Example Page\n\n**example comment**\n",
+            encoding="utf-8",
+        )
         created = run_json(
             live_env,
             "confluence",
@@ -112,25 +165,25 @@ def test_confluence_page_round_trip_live(live_env) -> None:
             str(target["space_key"]),
             "--title",
             title,
-            "--content",
-            "<p>version one</p>",
-            *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
+            "--content-file",
+            str(content_file),
+            "--parent-id",
+            first_parent_id,
+            "--enable-heading-anchors",
             "--output",
             "json",
         )
         page_id = created["page"]["id"]
         registry.add(f"confluence page delete {page_id}", lambda: _delete_page(live_env, page_id))
 
-        fetched = run_json(
-            live_env,
-            "confluence",
-            "page",
-            "get",
+        created_read = confluence_fixed_version.client.get_page_by_id(
             page_id,
-            "--output",
-            "json",
+            expand="ancestors,version,body.storage",
         )
-        assert fetched["metadata"]["id"] == page_id
+        created_body = created_read["body"]["storage"]["value"]
+        assert '<ac:structured-macro ac:name="anchor"' in created_body
+        assert "<strong>example comment</strong>" in created_body
+        assert created_read["ancestors"][-1]["id"] == first_parent_id
 
         updated = run_json(
             live_env,
@@ -139,14 +192,37 @@ def test_confluence_page_round_trip_live(live_env) -> None:
             "update",
             page_id,
             "--title",
-            f"{title} updated",
+            title,
             "--content",
-            "<p>version two</p>",
+            "## Example Page\n\n*example response*",
+            "--parent-id",
+            second_parent_id,
+            "--is-minor-edit",
+            "--version-comment",
+            "example comment",
+            "--enable-heading-anchors",
             "--output",
             "json",
         )
         assert updated["page"]["id"] == page_id
         assert updated["page"]["version"] >= created["page"]["version"]
+
+        updated_read = confluence_fixed_version.client.get_page_by_id(
+            page_id,
+            expand="ancestors,version,body.storage",
+        )
+        updated_body = updated_read["body"]["storage"]["value"]
+        assert '<ac:structured-macro ac:name="anchor"' in updated_body
+        assert "<em>example response</em>" in updated_body
+        assert updated_read["ancestors"][-1]["id"] == second_parent_id
+        # Confluence 6.12.4 accepts minorEdit=true but reports false in both the
+        # PUT response and subsequent version read-back. The provider contract
+        # test verifies the outgoing true value.
+        assert updated_read["version"]["message"] == "example comment"
+        history_read = confluence_fixed_version.client.history(page_id)["lastUpdated"]
+        assert history_read["number"] == updated_read["version"]["number"]
+        assert history_read["message"] == "example comment"
+        assert history_read["minorEdit"] is False
 
         history = run_json(
             live_env,
@@ -177,7 +253,7 @@ def test_confluence_page_round_trip_live(live_env) -> None:
         assert diff["page_id"] == page_id
         assert diff["from_version"] == created["page"]["version"]
         assert diff["to_version"] == updated["page"]["version"]
-        assert "version two" in diff["diff"] or "+<p>version two</p>" in diff["diff"]
+        assert "example response" in diff["diff"]
     finally:
         registry.run()
 
@@ -238,9 +314,41 @@ def test_confluence_page_write_rejections_do_not_mutate_live(
         "--title",
         title,
         "--content",
-        "<h1>Changed</h1>",
+        "<h1>Example Page</h1>",
+        "--content-format",
+        "storage",
         "--enable-heading-anchors",
         expected="enable-heading-anchors requires",
+    )
+
+    run_failure(
+        live_env,
+        "confluence",
+        "page",
+        "update",
+        page_id,
+        "--title",
+        title,
+        "--content",
+        "# Example Page",
+        "--table-layout",
+        "wide",
+        expected="table-layout",
+    )
+
+    run_failure(
+        live_env,
+        "confluence",
+        "page",
+        "update",
+        page_id,
+        "--title",
+        title,
+        "--content",
+        "# Example Page",
+        "--content-format",
+        "wiki",
+        expected="content-format must be markdown",
     )
 
     after = confluence_fixed_version.get_page(page_id)
@@ -319,7 +427,7 @@ def test_confluence_page_move_and_children_live(live_env) -> None:
         registry.run()
 
 
-def test_confluence_comment_round_trip_live(live_env) -> None:
+def test_confluence_comment_round_trip_live(live_env, confluence_fixed_version) -> None:
     registry = CleanupRegistry()
     page_id = None
     try:
@@ -334,7 +442,7 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
             "--title",
             unique_name("confluence-comment"),
             "--content",
-            "<p>comment page</p>",
+            "# Example Page",
             *(["--parent-id", str(target["parent_page_id"])] if target["parent_page_id"] else []),
             "--output",
             "json",
@@ -349,11 +457,16 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
             "add",
             page_id,
             "--body",
-            "example comment",
+            "**example comment**",
             "--output",
             "json",
         )
         assert comment["id"]
+        comment_read = confluence_fixed_version.client.get_page_by_id(
+            comment["id"],
+            expand="body.storage",
+        )
+        assert comment_read["body"]["storage"]["value"] == "<p><strong>example comment</strong></p>"
 
         reply = run_json(
             live_env,
@@ -362,11 +475,54 @@ def test_confluence_comment_round_trip_live(live_env) -> None:
             "reply",
             comment["id"],
             "--body",
-            "example response",
+            "*example response*",
             "--output",
             "json",
         )
         assert reply["id"]
+        reply_read = confluence_fixed_version.client.get_page_by_id(
+            reply["id"],
+            expand="body.storage",
+        )
+        assert reply_read["body"]["storage"]["value"] == "<p><em>example response</em></p>"
+
+        storage_comment = run_json(
+            live_env,
+            "confluence",
+            "comment",
+            "add",
+            page_id,
+            "--body",
+            "<p>example comment</p>",
+            "--content-format",
+            "storage",
+            "--output",
+            "json",
+        )
+        storage_comment_read = confluence_fixed_version.client.get_page_by_id(
+            storage_comment["id"],
+            expand="body.storage",
+        )
+        assert storage_comment_read["body"]["storage"]["value"] == "<p>example comment</p>"
+
+        storage_reply = run_json(
+            live_env,
+            "confluence",
+            "comment",
+            "reply",
+            storage_comment["id"],
+            "--body",
+            "<p>example response</p>",
+            "--content-format",
+            "storage",
+            "--output",
+            "json",
+        )
+        storage_reply_read = confluence_fixed_version.client.get_page_by_id(
+            storage_reply["id"],
+            expand="body.storage",
+        )
+        assert storage_reply_read["body"]["storage"]["value"] == "<p>example response</p>"
 
         comments = run_json(
             live_env,

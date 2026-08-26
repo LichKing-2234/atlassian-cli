@@ -394,15 +394,37 @@ Because there is no field cache, a separate refresh input is unnecessary.
 
 ### Confluence page write input behavior
 
-Confluence Server 6.12.4 page create/update currently accepts storage content. Markdown input and
-heading-anchor generation land together in the `v0.2.0` compatibility release because the pinned
-upstream generates heading anchors only during Markdown-to-storage conversion.
+Confluence page create/update interprets semantic text as Markdown by default and converts it to
+Confluence storage XHTML before writing. Pass exactly one of `--content/--body` or
+`--content-file`; the file form reads UTF-8 text. Use `--content-format storage` as the explicit
+raw escape hatch for caller-supplied storage XHTML.
 
-- `--content-format markdown` fails explicitly until that migration is available.
-- `--enable-heading-anchors` fails instead of being silently ignored for storage content.
-- `--emoji` fails explicitly because Confluence 6.12.4 support is not established.
+```console
+atlassian confluence page create --space-key DEMO --title "Example Page" --content "# Example Page"
+atlassian confluence page create --space-key DEMO --title "Example Page" --content-file page.md --enable-heading-anchors
+atlassian confluence page update 1234 --title "Example Page" --content "## Example Page" --parent-id 5678 --is-minor-edit --version-comment "example comment"
+atlassian confluence page update 1234 --title "Example Page" --content-format storage --content "<p>example response</p>"
+```
 
-These validations run before the page service or Confluence mutation API is called.
+`--enable-heading-anchors` adds Confluence anchor macros while converting Markdown and is rejected
+with storage input. `--parent-id`, `--is-minor-edit`, and `--version-comment` map to the documented
+Confluence 6.12.4 page operations.
+
+Confluence 6.12.4 accepts the official `version.minorEdit=true` update input but reports
+`minorEdit=false` in the update response, page version, and independent history read-back. The CLI
+therefore preserves the upstream request intent without claiming that this fixed version persists
+a readable true value. Version creation and `--version-comment` remain independently readable.
+
+Page `--emoji`, `--page-width`, and `--table-layout` are not established by the Confluence 6.12.4
+API and fail before mutation. `--subtype` is Confluence Cloud-only and also fails before mutation.
+Only `markdown` and `storage` are accepted by `--content-format` for this fixed-version boundary.
+
+Page comments and replies use the same Markdown/storage contract:
+
+```console
+atlassian confluence comment add 1234 --body "**example comment**"
+atlassian confluence comment reply 5678 --body "<p>example response</p>" --content-format storage
+```
 
 ### Jira issue link behavior
 

@@ -8,7 +8,27 @@ def test_readme_mentions_markdown_default_and_interactive_lists() -> None:
     assert "interactive" in readme
     assert "raw-json" in readme
     assert "raw-yaml" in readme
-    assert "table" not in readme
+
+
+def test_readme_documents_confluence_write_contract() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    for value in (
+        "Markdown by default",
+        "--content-file",
+        "--content-format storage",
+        "--enable-heading-anchors",
+        "--is-minor-edit",
+        "--version-comment",
+        "confluence comment add",
+        "confluence comment reply",
+        "--page-width",
+        "--table-layout",
+        "--subtype",
+        "independent history read-back",
+        "Confluence 6.12.4",
+    ):
+        assert value in readme
 
 
 def test_readme_mentions_interactive_preview_browser() -> None:

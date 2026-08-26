@@ -35,6 +35,8 @@ ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
                 "Example Page",
                 "--content",
                 "<h1>Example Page</h1>",
+                "--content-format",
+                "storage",
                 "--enable-heading-anchors",
             ],
             ("enable-heading-anchors requires", "content-format=markdown"),
@@ -60,9 +62,65 @@ ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
                 "Example Page",
                 "--content",
                 "<h1>Example Page</h1>",
+                "--content-format",
+                "storage",
                 "--enable-heading-anchors",
             ],
             ("enable-heading-anchors requires", "content-format=markdown"),
+        ),
+        (
+            [
+                "create",
+                "--space-key",
+                "DEMO",
+                "--title",
+                "Example Page",
+                "--content",
+                "# Example Page",
+                "--page-width",
+                "full-width",
+            ],
+            ("page-width", "not supported on Confluence 6.12.4"),
+        ),
+        (
+            [
+                "update",
+                "1234",
+                "--title",
+                "Example Page",
+                "--content",
+                "# Example Page",
+                "--table-layout",
+                "wide",
+            ],
+            ("table-layout", "not supported on Confluence 6.12.4"),
+        ),
+        (
+            [
+                "create",
+                "--space-key",
+                "DEMO",
+                "--title",
+                "Example Page",
+                "--content",
+                "# Example Page",
+                "--subtype",
+                "live",
+            ],
+            ("subtype", "only supported on Confluence Cloud"),
+        ),
+        (
+            [
+                "update",
+                "1234",
+                "--title",
+                "Example Page",
+                "--content",
+                "# Example Page",
+                "--content-format",
+                "wiki",
+            ],
+            ("content-format must be markdown", "storage on Confluence 6.12.4"),
         ),
     ],
 )
@@ -87,6 +145,7 @@ def test_confluence_page_write_rejects_ignored_inputs_before_service(
 
     assert result.exit_code != 0
     plain_output = ANSI_ESCAPE_RE.sub("", result.output)
+    plain_output = " ".join(plain_output.replace("│", " ").split())
     assert all(part in plain_output for part in expected)
 
 
@@ -97,8 +156,143 @@ def test_confluence_page_write_help_names_fixed_version_limits(command: str) -> 
     assert result.exit_code == 0
     plain_output = ANSI_ESCAPE_RE.sub("", result.output)
     compact_output = " ".join(plain_output.replace("│", " ").split())
-    assert "Requires Markdown input" in compact_output
+    assert "Input format: markdown (default) or storage (raw escape hatch)." in compact_output
+    assert "Read the UTF-8 page body from a file" in compact_output
+    assert "Add Confluence anchor macros to Markdown headings." in compact_output
     assert "Unsupported on Confluence 6.12.4" in compact_output
+    if command == "update":
+        assert "Mark the new page version as a minor edit." in compact_output
+        assert "Comment attached to the new page version." in compact_output
+
+
+def test_confluence_page_create_reads_markdown_from_content_file(monkeypatch, tmp_path) -> None:
+    from atlassian_cli.products.confluence.commands import page as page_module
+
+    captured = {}
+
+    class FakeService:
+        def create(self, **kwargs):
+            captured.update(kwargs)
+            return {"message": "Page created successfully", "page": {"id": "1234"}}
+
+    content_file = tmp_path / "page.md"
+    content_file.write_text("# Example Page\n\nexample response\n", encoding="utf-8")
+    monkeypatch.setattr(page_module, "build_page_service", lambda *_args: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "page",
+            "create",
+            "--space-key",
+            "DEMO",
+            "--title",
+            "Example Page",
+            "--content-file",
+            str(content_file),
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["content"] == "# Example Page\n\nexample response\n"
+    assert captured["content_format"] == "markdown"
+
+
+def test_confluence_page_update_maps_file_parent_and_version_inputs(monkeypatch, tmp_path) -> None:
+    from atlassian_cli.products.confluence.commands import page as page_module
+
+    captured = {}
+
+    class FakeService:
+        def update(self, page_id, **kwargs):
+            captured["page_id"] = page_id
+            captured.update(kwargs)
+            return {"message": "Page updated successfully", "page": {"id": page_id}}
+
+    content_file = tmp_path / "page.md"
+    content_file.write_text("## Example Page\n", encoding="utf-8")
+    monkeypatch.setattr(page_module, "build_page_service", lambda *_args: FakeService())
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://confluence.example.com",
+            "confluence",
+            "page",
+            "update",
+            "1234",
+            "--title",
+            "Example Page",
+            "--content-file",
+            str(content_file),
+            "--parent-id",
+            "5678",
+            "--is-minor-edit",
+            "--version-comment",
+            "example comment",
+            "--enable-heading-anchors",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {
+        "page_id": "1234",
+        "title": "Example Page",
+        "content": "## Example Page\n",
+        "parent_id": "5678",
+        "content_format": "markdown",
+        "is_minor_edit": True,
+        "version_comment": "example comment",
+        "enable_heading_anchors": True,
+        "include_content": False,
+        "emoji": None,
+    }
+
+
+@pytest.mark.parametrize(
+    "command_args",
+    [
+        ["create", "--space-key", "DEMO", "--title", "Example Page"],
+        [
+            "create",
+            "--space-key",
+            "DEMO",
+            "--title",
+            "Example Page",
+            "--content",
+            "# Example Page",
+            "--content-file",
+            "page.md",
+        ],
+        ["update", "1234", "--title", "Example Page"],
+    ],
+)
+def test_confluence_page_write_requires_exactly_one_content_source(
+    monkeypatch, command_args: list[str]
+) -> None:
+    from atlassian_cli.products.confluence.commands import page as page_module
+
+    monkeypatch.setattr(
+        page_module,
+        "build_page_service",
+        lambda *_args: (_ for _ in ()).throw(AssertionError("service must not be built")),
+    )
+
+    result = runner.invoke(
+        app,
+        ["--url", "https://confluence.example.com", "confluence", "page", *command_args],
+    )
+
+    assert result.exit_code != 0
+    assert "--content" in ANSI_ESCAPE_RE.sub("", result.output)
 
 
 def test_confluence_page_get_outputs_json(monkeypatch) -> None:

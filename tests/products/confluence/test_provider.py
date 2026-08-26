@@ -185,7 +185,7 @@ def test_reply_to_comment_posts_comment_container_payload() -> None:
 
     provider = build_provider_with_client(FakeClient())
 
-    result = provider.reply_to_comment("c1", "example response")
+    result = provider.reply_to_comment("c1", "example response", content_format="storage")
 
     assert result["id"] == "c2"
     assert calls["url"] == "https://confluence.example.com/rest/api/content/"
@@ -216,6 +216,53 @@ def test_list_comments_returns_results_items() -> None:
     assert result == [{"id": "c1", "body": {"storage": {"value": "example approval"}}}]
 
 
+def test_add_comment_converts_markdown_to_storage() -> None:
+    calls = {}
+
+    class FakeClient:
+        url = "https://confluence.example.com"
+
+        def add_comment(self, page_id: str, body: str):
+            calls["page_id"] = page_id
+            calls["body"] = body
+            return {"id": "c1", "body": {"storage": {"value": body}}}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.add_comment("1234", "**example comment**")
+
+    assert result["id"] == "c1"
+    assert calls["page_id"] == "1234"
+    assert calls["body"] == "<p><strong>example comment</strong></p>"
+
+
+def test_reply_to_comment_converts_markdown_to_storage() -> None:
+    calls = {}
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"id": "c2"}
+
+    class FakeSession:
+        def post(self, url: str, json: dict):
+            calls["json"] = json
+            return FakeResponse()
+
+    class FakeClient:
+        url = "https://confluence.example.com"
+        _session = FakeSession()
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.reply_to_comment("c1", "*example response*")
+
+    assert result["id"] == "c2"
+    assert calls["json"]["body"]["storage"]["value"] == "<p><em>example response</em></p>"
+
+
 def test_get_page_rejects_markdown_conversion_until_supported() -> None:
     class FakeClient:
         pass
@@ -230,23 +277,58 @@ def test_get_page_rejects_markdown_conversion_until_supported() -> None:
         raise AssertionError("expected NotImplementedError")
 
 
-def test_create_page_rejects_markdown_content_format_until_supported() -> None:
+def test_create_page_converts_markdown_with_heading_anchors_to_storage() -> None:
+    calls = {}
+
     class FakeClient:
-        pass
+        def create_page(self, **kwargs):
+            calls.update(kwargs)
+            return {"id": "1234"}
 
     provider = build_provider_with_client(FakeClient())
 
-    try:
-        provider.create_page(
-            space_key="DEMO",
-            title="Example Page",
-            body="# Example",
-            content_format="markdown",
-        )
-    except NotImplementedError as exc:
-        assert "content_format" in str(exc)
-    else:
-        raise AssertionError("expected NotImplementedError")
+    result = provider.create_page(
+        space_key="DEMO",
+        title="Example Page",
+        body="# Example Page",
+        content_format="markdown",
+        enable_heading_anchors=True,
+    )
+
+    assert result == {"id": "1234"}
+    assert calls["representation"] == "storage"
+    assert "<h1" in calls["body"]
+    assert 'ac:name="anchor"' in calls["body"]
+
+
+def test_update_page_converts_markdown_and_forwards_version_inputs() -> None:
+    calls = {}
+
+    class FakeClient:
+        def update_page(self, **kwargs):
+            calls.update(kwargs)
+            return {"id": "1234", "version": {"number": 2}}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.update_page(
+        page_id="1234",
+        title="Example Page",
+        body="## Example Page",
+        parent_id="5678",
+        content_format="markdown",
+        is_minor_edit=True,
+        version_comment="example comment",
+        enable_heading_anchors=True,
+    )
+
+    assert result["version"]["number"] == 2
+    assert calls["representation"] == "storage"
+    assert 'ac:name="anchor"' in calls["body"]
+    assert calls["parent_id"] == "5678"
+    assert calls["minor_edit"] is True
+    assert calls["version_comment"] == "example comment"
+    assert calls["always_update"] is True
 
 
 @pytest.mark.parametrize(
@@ -254,8 +336,10 @@ def test_create_page_rejects_markdown_content_format_until_supported() -> None:
     [
         ("create", {"enable_heading_anchors": True}, "heading anchors require Markdown"),
         ("create", {"emoji": "example response"}, "emoji is not supported"),
+        ("create", {"content_format": "wiki"}, "content_format"),
         ("update", {"enable_heading_anchors": True}, "heading anchors require Markdown"),
         ("update", {"emoji": "example response"}, "emoji is not supported"),
+        ("update", {"content_format": "xhtml"}, "content_format"),
     ],
 )
 def test_page_write_rejects_unsupported_inputs_before_client_mutation(

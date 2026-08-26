@@ -128,7 +128,7 @@ class FakePageProvider:
         assert title == "Example Page"
         assert body == "## Runbook"
         assert parent_id == "5678"
-        assert content_format == "storage"
+        assert content_format == "markdown"
         assert enable_heading_anchors is True
         assert emoji == "📝"
         return self.get_page("1235")
@@ -304,7 +304,7 @@ def test_page_service_create_returns_message_and_page() -> None:
         title="Example Page",
         content="## Runbook",
         parent_id="5678",
-        content_format="storage",
+        content_format="markdown",
         enable_heading_anchors=True,
         include_content=False,
         emoji="📝",
