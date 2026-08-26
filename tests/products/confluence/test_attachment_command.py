@@ -1,9 +1,12 @@
+import re
+
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
 from atlassian_cli.products.confluence.services.attachment import AttachmentService
 
 runner = CliRunner()
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 def test_confluence_attachment_download_outputs_json(monkeypatch, tmp_path) -> None:
@@ -184,7 +187,7 @@ def test_confluence_attachment_upload_rejects_invalid_sources_before_http(monkey
         )
 
         assert result.exit_code != 0
-        assert expected in result.output
+        assert expected in ANSI_ESCAPE_RE.sub("", result.output)
 
 
 def test_confluence_attachment_upload_help_documents_aligned_inputs() -> None:
@@ -197,7 +200,7 @@ def test_confluence_attachment_upload_help_documents_aligned_inputs() -> None:
         result = runner.invoke(app, command)
 
         assert result.exit_code == 0
-        output = " ".join(result.output.split())
+        output = " ".join(ANSI_ESCAPE_RE.sub("", result.output).split())
         for value in (
             "--content-base64",
             "--filename",
