@@ -445,6 +445,8 @@ def test_jira_issue_read_and_attachment_update_live(
         issue_type,
         "--summary",
         summary,
+        "--description",
+        "**example response**",
         "--additional-fields",
         json.dumps(_jira_additional_fields(payload)),
         "--output",
@@ -498,7 +500,7 @@ def test_jira_issue_read_and_attachment_update_live(
         "get",
         issue_key,
         "--fields",
-        "summary",
+        "summary,description",
         "--expand",
         "renderedFields",
         "--comment-limit",
@@ -511,7 +513,7 @@ def test_jira_issue_read_and_attachment_update_live(
         "raw-json",
     )
     assert fetched["key"] == issue_key
-    assert fetched["renderedFields"]["summary"] == summary
+    assert "<strong>example response</strong>" in fetched["renderedFields"]["description"]
     assert [item["id"] for item in fetched["fields"]["comment"]["comments"]] == [
         latest_comment["id"]
     ]
