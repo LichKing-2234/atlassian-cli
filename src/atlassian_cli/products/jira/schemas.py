@@ -94,6 +94,54 @@ class JiraComment(ApiModel):
         return {key: value for key, value in payload.items() if value not in (None, "")}
 
 
+class JiraWorklog(ApiModel):
+    id: str | None = None
+    comment: str | None = None
+    created: str | None = None
+    updated: str | None = None
+    started: str | None = None
+    time_spent: str | None = None
+    time_spent_seconds: int = 0
+    author: JiraUser | None = None
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any] | None, **kwargs: Any) -> "JiraWorklog":
+        data = data or {}
+        raw_comment = data.get("comment")
+        try:
+            time_spent_seconds = int(data.get("timeSpentSeconds") or 0)
+        except (TypeError, ValueError):
+            time_spent_seconds = 0
+        return cls(
+            id=coerce_str(data.get("id")),
+            comment=(
+                adf_to_text(raw_comment)
+                if isinstance(raw_comment, dict)
+                else coerce_str(raw_comment)
+            ),
+            created=coerce_str(data.get("created")),
+            updated=coerce_str(data.get("updated")),
+            started=coerce_str(data.get("started")),
+            time_spent=coerce_str(data.get("timeSpent")),
+            time_spent_seconds=time_spent_seconds,
+            author=JiraUser.from_api_response(data.get("author")) if data.get("author") else None,
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "id": self.id,
+            "comment": self.comment,
+            "created": self.created,
+            "updated": self.updated,
+            "started": self.started,
+            "time_spent": self.time_spent,
+            "time_spent_seconds": self.time_spent_seconds,
+        }
+        if self.author:
+            payload["author"] = self.author.to_simplified_dict()
+        return {key: value for key, value in payload.items() if value not in (None, "", {})}
+
+
 class JiraAttachment(ApiModel):
     id: str | None = None
     filename: str = ""

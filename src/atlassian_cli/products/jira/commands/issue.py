@@ -20,8 +20,12 @@ from atlassian_cli.products.jira.services.issue import IssueService
 from atlassian_cli.products.jira.visibility import parse_visibility
 
 app = typer.Typer(help="Jira issue commands")
+watcher_app = typer.Typer(help="Jira issue watcher commands")
+worklog_app = typer.Typer(help="Jira issue worklog commands")
 app.add_typer(attachment_app, name="attachment")
 app.add_typer(link_app, name="link")
+app.add_typer(watcher_app, name="watcher")
+app.add_typer(worklog_app, name="worklog")
 
 
 def build_issue_service(context) -> IssueService:
@@ -439,6 +443,114 @@ def batch_create_issues(
         payload = service.batch_create_raw(issues, validate_only=validate_only)
     else:
         payload = service.batch_create(issues, validate_only=validate_only)
+    typer.echo(render_output(payload, output=output))
+
+
+@watcher_app.command("list")
+def list_watchers(
+    ctx: typer.Context,
+    issue_key: str,
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_issue_service(ctx.obj)
+    payload = (
+        service.get_watchers_raw(issue_key)
+        if is_raw_output(output)
+        else service.get_watchers(issue_key)
+    )
+    typer.echo(render_output(payload, output=output))
+
+
+@watcher_app.command("add")
+def add_watcher(
+    ctx: typer.Context,
+    issue_key: str,
+    user_identifier: str = typer.Option(
+        ...,
+        "--user-identifier",
+        help="Jira Server username to add; Cloud account IDs are not supported.",
+    ),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_issue_service(ctx.obj)
+    payload = (
+        service.add_watcher_raw(issue_key, user_identifier)
+        if is_raw_output(output)
+        else service.add_watcher(issue_key, user_identifier)
+    )
+    typer.echo(render_output(payload, output=output))
+
+
+@watcher_app.command("remove")
+def remove_watcher(
+    ctx: typer.Context,
+    issue_key: str,
+    username: str = typer.Option(
+        ...,
+        "--username",
+        help="Jira Server username to remove; Cloud account IDs are not supported.",
+    ),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_issue_service(ctx.obj)
+    payload = (
+        service.remove_watcher_raw(issue_key, username)
+        if is_raw_output(output)
+        else service.remove_watcher(issue_key, username)
+    )
+    typer.echo(render_output(payload, output=output))
+
+
+@worklog_app.command("list")
+def list_worklogs(
+    ctx: typer.Context,
+    issue_key: str,
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_issue_service(ctx.obj)
+    payload = (
+        service.get_worklogs_raw(issue_key)
+        if is_raw_output(output)
+        else service.get_worklogs(issue_key)
+    )
+    typer.echo(render_output(payload, output=output))
+
+
+@worklog_app.command("add")
+def add_worklog(
+    ctx: typer.Context,
+    issue_key: str,
+    time_spent: str = typer.Option(..., "--time-spent", help="Time spent in Jira format."),
+    comment: str | None = typer.Option(
+        None, "--comment", help="Worklog comment; Markdown by default."
+    ),
+    started: str | None = typer.Option(None, "--started", help="Work start time in ISO format."),
+    original_estimate: str | None = typer.Option(
+        None, "--original-estimate", help="New original estimate for the issue."
+    ),
+    remaining_estimate: str | None = typer.Option(
+        None, "--remaining-estimate", help="New remaining estimate after logging work."
+    ),
+    comment_format: JiraDescriptionFormat = typer.Option(
+        JiraDescriptionFormat.MARKDOWN,
+        "--comment-format",
+        help="Comment input format: markdown (converted) or jira (passed through).",
+    ),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_issue_service(ctx.obj)
+    kwargs = {
+        "comment": comment,
+        "comment_format": comment_format.value,
+        "started": started,
+        "original_estimate": original_estimate,
+        "remaining_estimate": remaining_estimate,
+    }
+    payload = (
+        service.add_worklog_raw(issue_key, time_spent, **kwargs)
+        if is_raw_output(output)
+        else service.add_worklog(issue_key, time_spent, **kwargs)
+    )
     typer.echo(render_output(payload, output=output))
 
 

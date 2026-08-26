@@ -190,6 +190,27 @@ def test_readme_documents_jira_comment_contracts() -> None:
         assert value in readme
 
 
+def test_readme_documents_jira_watcher_and_worklog_contracts() -> None:
+    readme = Path("README.md").read_text()
+
+    for value in (
+        "Jira watcher and worklog behavior",
+        "jira issue watcher list DEMO-1",
+        "jira issue watcher add DEMO-1 --user-identifier example-user-id",
+        "jira issue watcher remove DEMO-1 --username example-user-id",
+        "jira issue worklog list DEMO-1",
+        "jira issue worklog add DEMO-1",
+        "--time-spent 1m",
+        "--comment-format jira",
+        "--started",
+        "--original-estimate",
+        "--remaining-estimate",
+        "Cloud account IDs are excluded",
+        "7.11.0#711000-sha1:ff06e53",
+    ):
+        assert value in readme
+
+
 def test_readme_mentions_init_command() -> None:
     readme = Path("README.md").read_text()
     normalized_readme = " ".join(readme.lower().split())

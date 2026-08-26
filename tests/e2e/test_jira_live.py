@@ -957,6 +957,178 @@ def test_jira_issue_update_assignment_transition_contracts_live(
     assert any(item["body"] == "*example transition*" for item in comments)
 
 
+def test_jira_watcher_and_worklog_contracts_live(
+    live_env, jira_fixed_version, cleanup_registry
+) -> None:
+    jira_context = build_live_context(Product.JIRA, live_env)
+    assert jira_context.auth.username is not None
+    username = jira_context.auth.username
+    issue_type = live_env.jira_issue_type or discover_jira_issue_type(
+        jira_fixed_version,
+        project_key=live_env.jira_project,
+        reporter_name=username,
+    )
+    summary = unique_name("jira-watcher-worklog")
+    create_fields = build_jira_create_payload(
+        jira_fixed_version,
+        project_key=live_env.jira_project,
+        summary=summary,
+        issue_type=issue_type,
+        env_overrides={},
+        reporter_name=username,
+    )
+    create_fields.pop("assignee", None)
+    created = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "create",
+        "--project-key",
+        live_env.jira_project,
+        "--issue-type",
+        issue_type,
+        "--summary",
+        summary,
+        "--additional-fields",
+        json.dumps(_jira_additional_fields(create_fields)),
+        "--output",
+        "json",
+    )
+    issue_key = created["issue"]["key"]
+    cleanup_registry.add(
+        f"jira issue delete {issue_key}",
+        lambda: run_json(
+            live_env,
+            "jira",
+            "issue",
+            "delete",
+            issue_key,
+            "--yes",
+            "--output",
+            "json",
+        ),
+    )
+
+    def watcher_names() -> set[str]:
+        result = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "watcher",
+            "list",
+            issue_key,
+            "--output",
+            "json",
+        )
+        return {item["name"] for item in result["watchers"] if item.get("name")}
+
+    if username in watcher_names():
+        run_json(
+            live_env,
+            "jira",
+            "issue",
+            "watcher",
+            "remove",
+            issue_key,
+            "--username",
+            username,
+            "--output",
+            "json",
+        )
+        assert username not in watcher_names()
+
+    added_watcher = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "watcher",
+        "add",
+        issue_key,
+        "--user-identifier",
+        username,
+        "--output",
+        "json",
+    )
+    assert added_watcher["user"] == username
+    assert username in watcher_names()
+
+    removed_watcher = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "watcher",
+        "remove",
+        issue_key,
+        "--username",
+        username,
+        "--output",
+        "json",
+    )
+    assert removed_watcher["user"] == username
+    assert username not in watcher_names()
+
+    started = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000%z")
+    added_worklog = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "worklog",
+        "add",
+        issue_key,
+        "--time-spent",
+        "1m",
+        "--comment",
+        "**example comment**",
+        "--started",
+        started,
+        "--original-estimate",
+        "1h",
+        "--remaining-estimate",
+        "30m",
+        "--output",
+        "json",
+    )
+    worklog_id = added_worklog["worklog"]["id"]
+    worklog_url = (
+        f"{jira_fixed_version.client.resource_url('issue')}/{issue_key}/worklog/{worklog_id}"
+    )
+    cleanup_registry.add(
+        f"jira worklog delete {worklog_id}",
+        lambda: jira_fixed_version.client.delete(worklog_url, params={"adjustEstimate": "auto"}),
+    )
+
+    worklogs = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "worklog",
+        "list",
+        issue_key,
+        "--output",
+        "json",
+    )["worklogs"]
+    readback = next(item for item in worklogs if item["id"] == worklog_id)
+    assert readback["comment"] == "*example comment*"
+    assert readback["time_spent_seconds"] == 60
+    assert readback["started"] == started
+
+    issue = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "get",
+        issue_key,
+        "--fields",
+        "timetracking",
+        "--comment-limit",
+        "0",
+        "--output",
+        "raw-json",
+    )
+    assert issue["fields"]["timetracking"]["originalEstimateSeconds"] == 3600
+    assert issue["fields"]["timetracking"]["remainingEstimateSeconds"] == 1800
+
+
 def test_jira_issue_link_round_trip_live(live_env, jira_fixed_version) -> None:
     registry = CleanupRegistry()
     jira_context = build_live_context(Product.JIRA, live_env)

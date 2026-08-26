@@ -132,6 +132,15 @@ class JiraServerProvider:
             expand=expand,
         )
 
+    def get_issue_watchers(self, issue_key: str) -> dict:
+        return self.client.issue_get_watchers(issue_key)
+
+    def add_watcher(self, issue_key: str, user_identifier: str) -> dict | None:
+        return self.client.issue_add_watcher(issue_key, user_identifier)
+
+    def remove_watcher(self, issue_key: str, username: str) -> dict | None:
+        return self.client.issue_delete_watcher(issue_key, user=username)
+
     def create_issue(self, fields: dict) -> dict:
         return self.client.issue_create(fields=fields)
 
@@ -426,14 +435,62 @@ class JiraServerProvider:
     def get_issue_transitions(self, issue_key: str) -> list[dict]:
         return self.client.get_issue_transitions(issue_key)
 
-    def add_worklog(self, issue_key: str, time_spent: str, *, started: str | None = None) -> dict:
+    def get_worklogs(self, issue_key: str) -> dict:
+        url = f"{self.client.resource_url('issue')}/{issue_key}/worklog"
+        worklogs = []
+        start_at = 0
+        total = 0
+        while True:
+            response = self.client.get(
+                url,
+                params={"startAt": start_at, "maxResults": 100},
+            )
+            if not isinstance(response, dict) or not isinstance(response.get("worklogs"), list):
+                raise TransportError("Jira worklog list returned an invalid response")
+            page = response["worklogs"]
+            worklogs.extend(page)
+            try:
+                total = int(response.get("total", len(worklogs)))
+            except (TypeError, ValueError):
+                total = len(worklogs)
+            start_at += len(page)
+            if not page or start_at >= total:
+                break
+        return {
+            "startAt": 0,
+            "maxResults": len(worklogs),
+            "total": total,
+            "worklogs": worklogs,
+        }
+
+    def add_worklog(
+        self,
+        issue_key: str,
+        time_spent: str,
+        *,
+        comment: str | None = None,
+        started: str | None = None,
+        original_estimate: str | None = None,
+        remaining_estimate: str | None = None,
+    ) -> dict:
+        if original_estimate:
+            self.client.issue_update(
+                issue_key,
+                fields={"timetracking": {"originalEstimate": original_estimate}},
+            )
         data = {"timeSpent": time_spent}
+        if comment:
+            data["comment"] = comment
         if started:
             data["started"] = started
-        return self.client.post(
-            f"{self.client.resource_url('issue')}/{issue_key}/worklog",
-            data=data,
-        )
+        url = f"{self.client.resource_url('issue')}/{issue_key}/worklog"
+        if remaining_estimate:
+            return self.client.post(
+                url,
+                data=data,
+                params={"adjustEstimate": "new", "newEstimate": remaining_estimate},
+            )
+        return self.client.post(url, data=data)
 
     def assign_issue(self, issue_key: str, assignee: str | None) -> dict:
         self.client.assign_issue(issue_key, assignee)

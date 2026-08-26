@@ -522,6 +522,29 @@ atlassian confluence comment add 1234 --body "**example comment**"
 atlassian confluence comment reply 5678 --body "<p>example response</p>" --content-format storage
 ```
 
+### Jira watcher and worklog behavior
+
+Jira `7.11.0#711000-sha1:ff06e53` exposes issue watchers and worklogs through official issue
+resources. Watcher mutations accept Jira Server usernames only; Cloud account IDs are excluded.
+
+```bash
+atlassian jira issue watcher list DEMO-1
+atlassian jira issue watcher add DEMO-1 --user-identifier example-user-id
+atlassian jira issue watcher remove DEMO-1 --username example-user-id
+atlassian jira issue worklog list DEMO-1
+atlassian jira issue worklog add DEMO-1 \
+  --time-spent 1m \
+  --comment "**example comment**" \
+  --started "2026-01-01T10:00:00.000+0000" \
+  --original-estimate 1h \
+  --remaining-estimate 30m
+```
+
+Worklog comments use Markdown by default and are converted to Jira wiki markup. Use
+`--comment-format jira` to preserve caller-supplied wiki markup. `--original-estimate` updates the
+issue time-tracking field before creation; `--remaining-estimate` uses Jira's documented worklog
+estimate adjustment.
+
 ### Jira comment behavior
 
 Jira comment writes accept the same issue, body, comment ID, and Jira Core
