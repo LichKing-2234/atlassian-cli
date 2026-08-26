@@ -131,6 +131,7 @@ def test_readme_mentions_full_local_e2e_suite() -> None:
 
     assert "CONTRIBUTING.md" in readme
     assert "tests/e2e/test_jira_live.py" in contributing
+    assert "tests/e2e/test_jira_comments_live.py" in contributing
     assert "tests/e2e/test_confluence_live.py" in contributing
     assert "tests/e2e/test_bitbucket_live.py" in contributing
     assert "ATLASSIAN_E2E=1" in contributing
@@ -170,6 +171,23 @@ def test_readme_documents_jira_create_and_batch_semantic_contracts() -> None:
     ):
         assert value in readme
     assert "Markdown is the default" in readme
+
+
+def test_readme_documents_jira_comment_contracts() -> None:
+    readme = Path("README.md").read_text()
+
+    for value in (
+        'atlassian jira comment add DEMO-1 --body "**example comment**"',
+        "atlassian jira comment edit DEMO-1 COMMENT_ID",
+        "--body-format jira",
+        "Markdown",
+        "Jira wiki markup",
+        '"type":"role"',
+        '"type":"group"',
+        "group-level comment visibility",
+        "Jira Service Management",
+    ):
+        assert value in readme
 
 
 def test_readme_mentions_init_command() -> None:

@@ -522,6 +522,22 @@ atlassian confluence comment add 1234 --body "**example comment**"
 atlassian confluence comment reply 5678 --body "<p>example response</p>" --content-format storage
 ```
 
+### Jira comment behavior
+
+Jira comment writes accept the same issue, body, comment ID, and Jira Core
+visibility inputs as the aligned `mcp-atlassian` operations:
+
+- `atlassian jira comment add DEMO-1 --body "**example comment**" --visibility '{"type":"role","value":"reviewer-one"}'`
+- `atlassian jira comment edit DEMO-1 COMMENT_ID --body "example response" --visibility '{"type":"group","value":"reviewer-one"}'`
+
+Comment bodies use Markdown by default and are converted to Jira wiki markup before
+the write. Pass `--body-format jira` to either command when the body is already Jira
+wiki markup and must be preserved exactly. `--visibility` accepts a JSON object with
+non-empty `type` and `value` fields; Jira 7.11 Core supports the `role` and `group`
+types. Group restrictions require group-level comment visibility to be enabled in
+Jira; otherwise Jira rejects them. Jira Service Management public/private comments
+use a separate API and are not part of these commands.
+
 ### Jira issue link behavior
 
 Jira Server 7.11.0 manages issue links through dedicated REST resources. The CLI keeps

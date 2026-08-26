@@ -160,8 +160,16 @@ PARITY_EVIDENCE = {
         True,
         status=ParityStatus.VERIFIED,
     ),
+    # The fixed Jira 7.11 target stores role restrictions. Its deployment-level
+    # group visibility setting is disabled, so live coverage records Jira's
+    # structured commentLevel rejection while provider tests own the group payload.
     "jira_add_comment": ParityEvidence(
-        Product.JIRA, GapKind.DRIFTED, ("issue_key", "body", "visibility"), 62, True
+        Product.JIRA,
+        GapKind.DRIFTED,
+        ("issue_key", "body", "visibility"),
+        62,
+        True,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_edit_comment": ParityEvidence(
         Product.JIRA,
@@ -169,6 +177,7 @@ PARITY_EVIDENCE = {
         ("issue_key", "comment_id", "body", "visibility"),
         62,
         True,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_transition_issue": ParityEvidence(
         Product.JIRA,
