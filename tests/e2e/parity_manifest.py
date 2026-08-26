@@ -89,10 +89,20 @@ PARITY_EVIDENCE = {
         status=ParityStatus.VERIFIED,
     ),
     "confluence_get_labels": ParityEvidence(
-        Product.CONFLUENCE, GapKind.MISSING, ("page_id",), 59, False
+        Product.CONFLUENCE,
+        GapKind.MISSING,
+        ("page_id",),
+        59,
+        False,
+        status=ParityStatus.VERIFIED,
     ),
     "confluence_add_label": ParityEvidence(
-        Product.CONFLUENCE, GapKind.MISSING, ("page_id", "name"), 59, True
+        Product.CONFLUENCE,
+        GapKind.MISSING,
+        ("page_id", "name"),
+        59,
+        True,
+        status=ParityStatus.VERIFIED,
     ),
     "confluence_upload_attachments": ParityEvidence(
         Product.CONFLUENCE,
@@ -105,7 +115,12 @@ PARITY_EVIDENCE = {
         Product.CONFLUENCE, GapKind.MISSING, ("attachment_id",), 53, True
     ),
     "confluence_get_page_restrictions": ParityEvidence(
-        Product.CONFLUENCE, GapKind.MISSING, ("page_id",), 59, False
+        Product.CONFLUENCE,
+        GapKind.MISSING,
+        ("page_id",),
+        59,
+        False,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_search_assignable_users": ParityEvidence(
         Product.JIRA,

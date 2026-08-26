@@ -279,6 +279,21 @@ def test_readme_documents_confluence_attachment_upload_inputs() -> None:
         assert value in readme
 
 
+def test_readme_documents_confluence_labels_and_restriction_reads() -> None:
+    readme = " ".join(Path("README.md").read_text(encoding="utf-8").split())
+
+    for value in (
+        "atlassian confluence page label list 1234",
+        "atlassian confluence page label add 1234 --name example-repo",
+        "atlassian confluence page restriction get 1234",
+        "reads the labels back",
+        "does not modify access",
+        "Bulk restriction setting remains excluded",
+        "Confluence 6.12.4",
+    ):
+        assert value in readme
+
+
 def test_readme_mentions_uv_tool_install_from_release_assets() -> None:
     readme = Path("README.md").read_text()
 

@@ -5,11 +5,15 @@ import typer
 from atlassian_cli.output.modes import OutputMode, is_raw_output
 from atlassian_cli.output.renderers import render_output
 from atlassian_cli.products.confluence.commands.page_attachment import app as attachment_app
+from atlassian_cli.products.confluence.commands.page_label import app as label_app
+from atlassian_cli.products.confluence.commands.page_restriction import app as restriction_app
 from atlassian_cli.products.confluence.services.page import PageService
 from atlassian_cli.products.factory import build_provider
 
 app = typer.Typer(help="Confluence page commands")
 app.add_typer(attachment_app, name="attachment")
+app.add_typer(label_app, name="label")
+app.add_typer(restriction_app, name="restriction")
 
 
 def build_page_service(context) -> PageService:

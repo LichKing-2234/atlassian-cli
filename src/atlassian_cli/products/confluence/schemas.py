@@ -103,6 +103,31 @@ class ConfluenceAttachment(ApiModel):
         return {key: value for key, value in payload.items() if value not in (None, "")}
 
 
+class ConfluenceLabel(ApiModel):
+    id: str = ""
+    name: str = ""
+    prefix: str = "global"
+    label: str = ""
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any] | None, **kwargs: Any) -> "ConfluenceLabel":
+        data = data or {}
+        return cls(
+            id=str(data.get("id", "")),
+            name=str(data.get("name", "")),
+            prefix=str(data.get("prefix", "global")),
+            label=str(data.get("label", "")),
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "prefix": self.prefix,
+            "label": self.label,
+        }
+
+
 class ConfluencePage(ApiModel, TimestampMixin):
     id: str | None = None
     title: str = ""
