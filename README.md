@@ -227,6 +227,10 @@ ssh example-user@example-host
 ## Examples
 
 - `atlassian jira issue get DEMO-1`
+- `atlassian jira issue link types --name-filter clone`
+- `atlassian jira issue link create --inward DEMO-1 --outward DEMO-1234 --type Cloners`
+- `atlassian jira issue link list DEMO-1`
+- `atlassian jira issue link delete LINK_ID --yes`
 - `atlassian jira issue attachment list DEMO-1`
 - `atlassian jira issue attachment upload DEMO-1 ./report.pdf`
 - `atlassian jira issue attachment download DEMO-1 --name report.pdf --destination ./report.pdf`
@@ -351,6 +355,22 @@ Examples:
 - `atlassian bitbucket commit build-status abc123`
 - `atlassian jira issue get DEMO-1 --output json`
 
+### Jira issue link behavior
+
+Jira Server 7.11.0 manages issue links through dedicated REST resources. The CLI keeps
+the Jira payload direction explicit: `--inward` maps to `inwardIssue`, and `--outward`
+maps to `outwardIssue`.
+
+- `atlassian jira issue link types --name-filter clone` filters available types by a case-insensitive name substring.
+- `atlassian jira issue link create --inward DEMO-1 --outward DEMO-1234 --type Cloners --comment "example comment" --comment-visibility '{"type":"role","value":"reviewer-one"}'` creates a relationship with optional Jira comment visibility and reads it back before reporting success. Visibility accepts Jira `role` or enabled `group` restrictions.
+- Repeating the same type and direction returns `status: existing` and `created: false`; it does not claim a second link was created.
+- `atlassian jira issue link list DEMO-1 --output json` includes the link ID, type descriptions, both issue keys, linked issue summary, and direction relative to `DEMO-1`.
+- `atlassian jira issue link delete LINK_ID --yes` deletes a link by ID and requires explicit confirmation.
+- `--output raw-json` and `--output raw-yaml` preserve Jira responses. Because create performs type discovery, duplicate preflight, and read-back, its raw output groups those responses in one object.
+
+This command group targets Atlassian Jira Project Management Software
+`7.11.0#711000-sha1:ff06e53` on Server/Data Center. Jira Cloud is out of scope.
+
 ### Bitbucket pull request reads and checks
 
 `pr list` is line-oriented and defaults to Bitbucket state `OPEN` with a limit of 30. `--state` accepts the native `OPEN`, `DECLINED`, `MERGED`, and `ALL` values case-insensitively and preserves native state names in output. Repositories may be supplied as `PROJECT_KEY REPO_SLUG`, with `-R PROJECT_KEY/REPO_SLUG`, through `ATLASSIAN_BITBUCKET_REPO=DEMO/example-repo`, or from local Git context. `--web` conflicts with `--json`. Base JSON field selection is available without `--jq` or `--template` in this phase.
@@ -415,7 +435,7 @@ Bitbucket pull request comments and build status behavior:
 
 The CLI now covers the `mcp-atlassian` `TOOLSETS=default` Jira and Confluence command groups for Server/Data Center:
 
-- Jira issues, fields, comments, attachments, and transitions
+- Jira issues, issue links, fields, comments, attachments, and transitions
 - Confluence pages, comments, and attachments
 
 Normalized json and yaml output now follows MCP-style resource envelopes more closely. This is a breaking change for scripts that consumed older normalized output.

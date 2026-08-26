@@ -1,5 +1,7 @@
+import pytest
 from requests import HTTPError
 
+from atlassian_cli.core.errors import AuthError, ConflictError, NotFoundError, ValidationError
 from atlassian_cli.products.jira.providers.server import JiraServerProvider
 
 
@@ -124,6 +126,68 @@ def test_upload_issue_attachment_delegates_to_client() -> None:
 
     assert result == {"id": "10001", "filename": "report.pdf", "size": 42}
     assert calls["args"] == ("DEMO-1", "/tmp/report.pdf")
+
+
+def test_issue_link_methods_delegate_to_client() -> None:
+    calls = []
+
+    class FakeClient:
+        def issue(self, issue_key: str, fields="*all", expand=None) -> dict:
+            calls.append(("issue", issue_key, fields, expand))
+            return {"fields": {"issuelinks": [{"id": "10001"}, "invalid"]}}
+
+        def create_issue_link(self, data: dict) -> None:
+            calls.append(("create", data))
+
+        def remove_issue_link(self, link_id: str) -> None:
+            calls.append(("delete", link_id))
+
+        def get_issue_link_types(self) -> list[dict]:
+            calls.append(("types",))
+            return [{"id": "10000", "name": "Cloners"}]
+
+    provider = build_provider_with_client(FakeClient())
+    payload = {
+        "type": {"name": "Cloners"},
+        "inwardIssue": {"key": "DEMO-1"},
+        "outwardIssue": {"key": "DEMO-1234"},
+    }
+
+    assert provider.list_issue_links("DEMO-1") == [{"id": "10001"}]
+    assert provider.create_issue_link(payload) is None
+    assert provider.delete_issue_link("10001") is None
+    assert provider.get_issue_link_types() == [{"id": "10000", "name": "Cloners"}]
+    assert calls == [
+        ("issue", "DEMO-1", "issuelinks", None),
+        ("create", payload),
+        ("delete", "10001"),
+        ("types",),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("status_code", "error_type"),
+    [
+        (400, ValidationError),
+        (401, AuthError),
+        (403, AuthError),
+        (404, NotFoundError),
+        (409, ConflictError),
+    ],
+)
+def test_issue_link_http_errors_are_actionable(status_code, error_type) -> None:
+    class FakeResponse:
+        def __init__(self, value: int) -> None:
+            self.status_code = value
+
+    class FakeClient:
+        def create_issue_link(self, data: dict) -> None:
+            raise HTTPError("example response", response=FakeResponse(status_code))
+
+    provider = build_provider_with_client(FakeClient())
+
+    with pytest.raises(error_type):
+        provider.create_issue_link({"type": {"name": "Cloners"}})
 
 
 def test_download_issue_attachment_streams_to_destination(tmp_path) -> None:

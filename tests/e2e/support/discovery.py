@@ -44,10 +44,48 @@ def build_jira_create_payload(
         allowed = info.get("allowedValues") or []
         if allowed:
             chosen = allowed[0]
-            payload[field_id] = {"id": chosen["id"]} if chosen.get("id") else chosen
+            value = {"id": chosen["id"]} if chosen.get("id") else chosen
+            payload[field_id] = [value] if info.get("schema", {}).get("type") == "array" else value
             continue
         raise RuntimeError(f"missing required test value for {field_id}")
     return payload
+
+
+def discover_jira_issue_type(
+    provider,
+    *,
+    project_key: str,
+    reporter_name: str | None,
+) -> str:
+    meta = provider.client.issue_createmeta(
+        project_key,
+        expand="projects.issuetypes.fields",
+    )
+    projects = meta.get("projects", []) if isinstance(meta, dict) else []
+    issue_types = projects[0].get("issuetypes", []) if projects else []
+    for issue_type in issue_types:
+        if issue_type.get("subtask") is True or not issue_type.get("name"):
+            continue
+        try:
+            build_jira_create_payload(
+                provider,
+                project_key=project_key,
+                summary="Example issue summary",
+                issue_type=issue_type["name"],
+                env_overrides={},
+                reporter_name=reporter_name,
+            )
+        except RuntimeError:
+            continue
+        return issue_type["name"]
+    raise RuntimeError("no writable Jira issue type was discoverable")
+
+
+def discover_jira_comment_visibilities(provider, project_key: str) -> list[dict[str, str]]:
+    roles = provider.client.get(f"rest/api/2/project/{project_key}/role")
+    if not isinstance(roles, dict) or not roles:
+        raise RuntimeError("Jira project has no discoverable comment visibility roles")
+    return [{"type": "role", "value": name} for name in roles]
 
 
 def resolve_confluence_write_target(live_env: LiveEnv) -> dict[str, str | None]:

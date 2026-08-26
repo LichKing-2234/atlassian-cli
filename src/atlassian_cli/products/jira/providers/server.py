@@ -1,10 +1,18 @@
 from pathlib import Path
+from typing import NoReturn
 
 from atlassian import Jira
 from requests import HTTPError
 
 from atlassian_cli.auth.models import AuthMode
 from atlassian_cli.auth.session_patch import patch_session_headers
+from atlassian_cli.core.errors import (
+    AuthError,
+    ConflictError,
+    NotFoundError,
+    TransportError,
+    ValidationError,
+)
 
 
 class JiraServerProvider:
@@ -94,6 +102,52 @@ class JiraServerProvider:
     def update_issue(self, issue_key: str, fields: dict) -> dict:
         self.client.issue_update(issue_key, fields=fields)
         return {"key": issue_key, "updated": True}
+
+    @staticmethod
+    def _raise_issue_link_http_error(exc: HTTPError) -> NoReturn:
+        response = getattr(exc, "response", None)
+        status_code = getattr(response, "status_code", None)
+        if status_code in {401, 403}:
+            raise AuthError(
+                "Jira denied the issue link operation; verify authentication and "
+                "the Link Issues permission"
+            ) from exc
+        if status_code == 404:
+            raise NotFoundError("Jira issue link resource was not found or is not visible") from exc
+        if status_code == 409:
+            raise ConflictError("Jira issue link operation conflicted with current state") from exc
+        if status_code == 400:
+            raise ValidationError(
+                "Jira rejected the issue link request; verify its type, issues, and comment"
+            ) from exc
+        raise TransportError("Jira issue link request failed") from exc
+
+    def list_issue_links(self, issue_key: str) -> list[dict]:
+        try:
+            issue = self.client.issue(issue_key, fields="issuelinks")
+        except HTTPError as exc:
+            self._raise_issue_link_http_error(exc)
+        fields = issue.get("fields") if isinstance(issue, dict) else {}
+        links = fields.get("issuelinks", []) if isinstance(fields, dict) else []
+        return [item for item in links if isinstance(item, dict)]
+
+    def create_issue_link(self, data: dict) -> dict | None:
+        try:
+            return self.client.create_issue_link(data)
+        except HTTPError as exc:
+            self._raise_issue_link_http_error(exc)
+
+    def delete_issue_link(self, link_id: str) -> dict | None:
+        try:
+            return self.client.remove_issue_link(link_id)
+        except HTTPError as exc:
+            self._raise_issue_link_http_error(exc)
+
+    def get_issue_link_types(self) -> list[dict]:
+        try:
+            return self.client.get_issue_link_types()
+        except HTTPError as exc:
+            self._raise_issue_link_http_error(exc)
 
     def list_issue_attachments(self, issue_key: str) -> list[dict]:
         issue = self.client.issue(issue_key, fields="attachment")
