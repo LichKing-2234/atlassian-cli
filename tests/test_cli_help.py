@@ -133,6 +133,25 @@ def test_jira_issue_help_lists_reparent_subtask_subcommand() -> None:
     assert "reparent-subtask" in plain_output
 
 
+def test_jira_discovery_help_lists_aligned_inputs() -> None:
+    user_help = strip_ansi(runner.invoke(app, ["jira", "user", "search", "--help"]).output)
+    field_help = strip_ansi(runner.invoke(app, ["jira", "field", "search", "--help"]).output)
+    options_help = strip_ansi(runner.invoke(app, ["jira", "field", "options", "--help"]).output)
+
+    for option in ("--query", "--project-key", "--issue-key", "--limit"):
+        assert option in user_help
+    for option in ("--keyword", "--query", "--limit"):
+        assert option in field_help
+    for option in (
+        "--project-key",
+        "--project",
+        "--issue-type",
+        "--contains",
+        "--return-limit",
+    ):
+        assert option in options_help
+
+
 def test_jira_issue_link_help_keeps_direction_explicit() -> None:
     issue_help = runner.invoke(app, ["jira", "issue", "--help"], env=ci_output_env())
     create_help = runner.invoke(

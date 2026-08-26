@@ -396,16 +396,24 @@ class JiraServerProvider:
     def get_issue_transitions(self, issue_key: str) -> list[dict]:
         return self.client.get_issue_transitions(issue_key)
 
-    def search_fields(self, query: str) -> list[dict]:
+    def search_fields(self, keyword: str, *, limit: int) -> list[dict]:
         fields = self.client.get_all_fields()
-        query_lower = query.lower()
+        keyword_lower = keyword.lower()
         return [
             field
             for field in fields
-            if not query or query_lower in str(field.get("name", "")).lower()
-        ]
+            if not keyword or keyword_lower in str(field.get("name", "")).lower()
+        ][:limit]
 
-    def get_field_options(self, field_id: str, project_key: str, issue_type: str) -> list[dict]:
+    def get_field_options(
+        self,
+        field_id: str,
+        project_key: str,
+        issue_type: str,
+        *,
+        contains: str | None = None,
+        return_limit: int = 50,
+    ) -> list[dict]:
         meta = self.client.issue_createmeta(project_key, expand="projects.issuetypes.fields")
         projects = meta.get("projects", [])
         if not projects:
@@ -425,7 +433,15 @@ class JiraServerProvider:
             return []
         fields = issue_type_meta.get("fields", {})
         field_meta = fields.get(field_id, {})
-        return field_meta.get("allowedValues", [])
+        options = field_meta.get("allowedValues", [])
+        if contains:
+            token = contains.casefold()
+            options = [
+                item
+                for item in options
+                if token in str(item.get("value") or item.get("name") or "").casefold()
+            ]
+        return options[:return_limit]
 
     def add_comment(self, issue_key: str, body: str) -> dict:
         return self.client.issue_add_comment(issue_key, body)
@@ -442,5 +458,17 @@ class JiraServerProvider:
     def get_user(self, username: str) -> dict:
         return self.client.user(username)
 
-    def search_users(self, query: str) -> list[dict]:
-        return self.client.user_find_by_user_string(query)
+    def search_users(
+        self,
+        query: str,
+        *,
+        project_key: str | None,
+        issue_key: str | None,
+        limit: int,
+    ) -> list[dict]:
+        params = {"username": query, "maxResults": limit}
+        if project_key is not None:
+            params["project"] = project_key
+        elif issue_key is not None:
+            params["issueKey"] = issue_key
+        return self.client.get(self.client.resource_url("user/assignable/search"), params=params)

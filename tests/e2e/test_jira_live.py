@@ -70,7 +70,7 @@ def _discover_jira_reparent_target(provider, *, reporter_name: str | None):
     raise RuntimeError("no writable Jira project with parent and sub-task issue types")
 
 
-def test_jira_project_and_metadata_live(live_env) -> None:
+def test_jira_project_and_metadata_live(live_env, jira_fixed_version) -> None:
     projects = run_json(live_env, "jira", "project", "list", "--output", "json")
     assert any(item["key"] == live_env.jira_project for item in projects["results"])
 
@@ -85,11 +85,34 @@ def test_jira_project_and_metadata_live(live_env) -> None:
     )
     assert project["key"] == live_env.jira_project
 
-    fields = run_json(live_env, "jira", "field", "search", "--query", "", "--output", "json")
-    assert fields["results"]
+    fields = run_json(
+        live_env,
+        "jira",
+        "field",
+        "search",
+        "--limit",
+        "2",
+        "--output",
+        "json",
+    )
+    assert 0 < len(fields["results"]) <= 2
+    keyword = fields["results"][0]["name"]
+    matching_fields = run_json(
+        live_env,
+        "jira",
+        "field",
+        "search",
+        "--keyword",
+        keyword,
+        "--limit",
+        "1",
+        "--output",
+        "json",
+    )
+    assert len(matching_fields["results"]) == 1
+    assert keyword.casefold() in matching_fields["results"][0]["name"].casefold()
 
-    provider = build_live_provider(Product.JIRA, live_env)
-    meta = provider.client.issue_createmeta(
+    meta = jira_fixed_version.client.issue_createmeta(
         live_env.jira_project,
         expand="projects.issuetypes.fields",
     )
@@ -115,26 +138,76 @@ def test_jira_project_and_metadata_live(live_env) -> None:
     if option_field_id is None or selected_issue_type is None:
         pytest.skip("no Jira field with allowedValues was discoverable for TEST Task")
 
+    allowed_values = selected_issue_type["fields"][option_field_id]["allowedValues"]
+    option_text = next(
+        str(item.get("value") or item.get("name"))
+        for item in allowed_values
+        if item.get("value") or item.get("name")
+    )
     option_result = run_json(
         live_env,
         "jira",
         "field",
         "options",
         option_field_id,
-        "--project",
+        "--project-key",
         live_env.jira_project,
         "--issue-type",
         str(selected_issue_type["name"]),
+        "--contains",
+        option_text,
+        "--return-limit",
+        "1",
         "--output",
         "json",
     )
 
-    assert option_result["results"]
+    assert len(option_result["results"]) == 1
+    returned_option = option_result["results"][0]
+    returned_text = str(returned_option.get("value") or returned_option.get("name"))
+    assert option_text.casefold() in returned_text.casefold()
 
-    users = run_json(live_env, "jira", "user", "search", "--query", "a", "--output", "raw-json")
+    jira_context = build_live_context(Product.JIRA, live_env)
+    user_query = jira_context.auth.username or "."
+    users = run_json(
+        live_env,
+        "jira",
+        "user",
+        "search",
+        "--query",
+        user_query,
+        "--project-key",
+        live_env.jira_project,
+        "--limit",
+        "5",
+        "--output",
+        "raw-json",
+    )
+    assert 0 < len(users) <= 5
     user_name = next((item.get("name") for item in users if item.get("name")), None)
     if user_name is None:
         pytest.skip("no Jira user with a name field was discoverable")
+
+    existing = jira_fixed_version.search_issues(
+        f'project = "{live_env.jira_project}"', fields="key", limit=1
+    ).get("issues", [])
+    assert existing
+    issue_scoped_users = run_json(
+        live_env,
+        "jira",
+        "user",
+        "search",
+        "--query",
+        user_query,
+        "--issue-key",
+        existing[0]["key"],
+        "--limit",
+        "1",
+        "--output",
+        "raw-json",
+    )
+    assert isinstance(issue_scoped_users, list)
+    assert len(issue_scoped_users) <= 1
 
     user = run_json(live_env, "jira", "user", "get", user_name, "--output", "json")
     assert user["name"] == user_name

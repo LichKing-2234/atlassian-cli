@@ -27,8 +27,18 @@ def get_user(
 def search_users(
     ctx: typer.Context,
     query: str = typer.Option(..., "--query"),
+    project_key: str | None = typer.Option(None, "--project-key", "--project"),
+    issue_key: str | None = typer.Option(None, "--issue-key"),
+    limit: int = typer.Option(50, "--limit", min=1),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
+    if (project_key is None) == (issue_key is None):
+        raise typer.BadParameter("pass exactly one of --project-key or --issue-key")
     service = build_user_service(ctx.obj)
-    payload = service.search_raw(query) if is_raw_output(output) else service.search(query)
+    kwargs = {"project_key": project_key, "issue_key": issue_key, "limit": limit}
+    payload = (
+        service.search_raw(query, **kwargs)
+        if is_raw_output(output)
+        else service.search(query, **kwargs)
+    )
     typer.echo(render_output(payload, output=output))

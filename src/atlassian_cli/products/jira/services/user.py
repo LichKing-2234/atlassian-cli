@@ -12,12 +12,30 @@ class UserService:
     def get_raw(self, username: str) -> dict:
         return self.provider.get_user(username)
 
-    def search(self, query: str) -> dict:
+    def search(
+        self,
+        query: str,
+        *,
+        project_key: str | None,
+        issue_key: str | None,
+        limit: int,
+    ) -> dict:
         users = [
             JiraUser.from_api_response(item).to_simplified_dict()
-            for item in self.provider.search_users(query)
+            for item in self.provider.search_users(
+                query, project_key=project_key, issue_key=issue_key, limit=limit
+            )
         ]
         return {"results": users}
 
-    def search_raw(self, query: str) -> "list[dict]":
-        return self.provider.search_users(query)
+    def search_raw(
+        self,
+        query: str,
+        *,
+        project_key: str | None,
+        issue_key: str | None,
+        limit: int,
+    ) -> "list[dict]":
+        return self.provider.search_users(
+            query, project_key=project_key, issue_key=issue_key, limit=limit
+        )
