@@ -935,3 +935,98 @@ def test_confluence_attachment_upload_inputs_live(live_env, confluence_fixed_ver
         assert response.content == content
     finally:
         registry.run()
+
+
+def test_confluence_attachment_multi_upload_delete_live(
+    live_env, confluence_fixed_version, tmp_path
+) -> None:
+    registry = CleanupRegistry()
+    page_id = None
+    try:
+        target = resolve_confluence_write_target(live_env)
+        username = getattr(confluence_fixed_version.client, "username", None)
+        if not username:
+            raise RuntimeError("Confluence live attachment writes require a configured username")
+        target["space_key"] = f"~{username}"
+        page = run_json(
+            live_env,
+            "confluence",
+            "page",
+            "create",
+            "--space-key",
+            str(target["space_key"]),
+            "--title",
+            unique_name("Example Page"),
+            "--content",
+            "example response",
+            *("--parent-id", str(target["parent_page_id"])) if target["parent_page_id"] else (),
+            "--output",
+            "json",
+        )
+        page_id = str(page["page"]["id"])
+        registry.add(
+            f"confluence page delete {page_id}",
+            lambda: _delete_page(live_env, page_id),
+        )
+
+        first = tmp_path / f"{unique_name('diagram')}.png"
+        second = tmp_path / f"{unique_name('report')}.pdf"
+        expected_content = {
+            first.name: b"example diagram\n",
+            second.name: b"example report\n",
+        }
+        first.write_bytes(expected_content[first.name])
+        second.write_bytes(expected_content[second.name])
+        uploaded = run_json(
+            live_env,
+            "confluence",
+            "attachment",
+            "upload-many",
+            page_id,
+            "--file",
+            str(first),
+            "--file",
+            str(second),
+            "--comment",
+            "example comment",
+            "--minor-edit",
+            "--output",
+            "json",
+        )
+        assert len(uploaded["attachments"]) == 2
+
+        metadata_by_title = {}
+        for item in uploaded["attachments"]:
+            metadata = confluence_fixed_version.client.get(
+                f"rest/api/content/{item['id']}", params={"expand": "version"}
+            )
+            metadata_by_title[metadata["title"]] = metadata
+            assert metadata["version"]["message"] == "example comment"
+            assert metadata["version"]["minorEdit"] is True
+            download_url = confluence_fixed_version.client.url_joiner(
+                confluence_fixed_version.client.url,
+                metadata["_links"]["download"],
+            )
+            response = confluence_fixed_version.client._session.get(download_url)
+            response.raise_for_status()
+            assert response.content == expected_content[metadata["title"]]
+        assert set(metadata_by_title) == set(expected_content)
+
+        deleted = metadata_by_title[first.name]
+        result = run_json(
+            live_env,
+            "confluence",
+            "attachment",
+            "delete",
+            str(deleted["id"]),
+            "--yes",
+            "--output",
+            "json",
+        )
+        assert result == {"attachment_id": str(deleted["id"]), "deleted": True}
+        remaining = confluence_fixed_version.list_attachments(page_id, filename=first.name).get(
+            "results", []
+        )
+        assert not any(str(item.get("id")) == str(deleted["id"]) for item in remaining)
+    finally:
+        registry.run()

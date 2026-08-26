@@ -86,6 +86,24 @@ def upload_attachment(
     typer.echo(render_output(payload, output=output))
 
 
+@app.command("upload-many")
+def upload_attachments(
+    ctx: typer.Context,
+    content_id: str,
+    file_paths: list[str] = typer.Option(..., "--file", help="File path; repeat per file."),
+    comment: str | None = typer.Option(None, "--comment"),
+    minor_edit: bool = typer.Option(False, "--minor-edit/--no-minor-edit"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    service = build_attachment_service(ctx.obj)
+    payload = (
+        service.upload_many_raw(content_id, file_paths, comment=comment, minor_edit=minor_edit)
+        if is_raw_output(output)
+        else service.upload_many(content_id, file_paths, comment=comment, minor_edit=minor_edit)
+    )
+    typer.echo(render_output(payload, output=output))
+
+
 @app.command("download")
 def download_attachment(
     ctx: typer.Context,
@@ -98,5 +116,23 @@ def download_attachment(
         service.download_raw(attachment_id, destination)
         if is_raw_output(output)
         else service.download(attachment_id, destination)
+    )
+    typer.echo(render_output(payload, output=output))
+
+
+@app.command("delete")
+def delete_attachment(
+    ctx: typer.Context,
+    attachment_id: str,
+    yes: bool = typer.Option(False, "--yes"),
+    output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
+) -> None:
+    if not yes:
+        raise typer.BadParameter("pass --yes to confirm delete")
+    service = build_attachment_service(ctx.obj)
+    payload = (
+        service.delete_raw(attachment_id)
+        if is_raw_output(output)
+        else service.delete(attachment_id)
     )
     typer.echo(render_output(payload, output=output))

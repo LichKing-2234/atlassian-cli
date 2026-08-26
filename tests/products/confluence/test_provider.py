@@ -255,6 +255,71 @@ def test_upload_attachment_posts_fixed_version_multipart_contract(tmp_path) -> N
     }
 
 
+def test_upload_attachments_posts_multiple_files_in_one_request(tmp_path) -> None:
+    calls = {}
+
+    class FakeClient:
+        @staticmethod
+        def post(path: str, *, headers: dict, files: list, data: dict) -> dict:
+            calls["request"] = {
+                "path": path,
+                "headers": headers,
+                "files": [
+                    (field, value[0], value[1].read() if hasattr(value[1], "read") else value[1])
+                    for field, value in files
+                ],
+                "data": data,
+            }
+            return {
+                "results": [
+                    {"id": "55", "title": "diagram.png"},
+                    {"id": "56", "title": "report.pdf"},
+                ]
+            }
+
+    diagram = tmp_path / "diagram.png"
+    report = tmp_path / "report.pdf"
+    diagram.write_bytes(b"example diagram")
+    report.write_bytes(b"example report")
+
+    result = build_provider_with_client(FakeClient()).upload_attachments(
+        "1234",
+        [str(diagram), str(report)],
+        comment="example comment",
+        minor_edit=True,
+    )
+
+    assert result == [
+        {"id": "55", "title": "diagram.png"},
+        {"id": "56", "title": "report.pdf"},
+    ]
+    assert calls["request"] == {
+        "path": "rest/api/content/1234/child/attachment",
+        "headers": {"X-Atlassian-Token": "no-check"},
+        "files": [
+            ("file", "diagram.png", b"example diagram"),
+            ("file", "report.pdf", b"example report"),
+            ("comment", None, "example comment"),
+            ("comment", None, "example comment"),
+        ],
+        "data": [("minorEdit", "true"), ("minorEdit", "true")],
+    }
+
+
+def test_delete_attachment_uses_official_content_endpoint() -> None:
+    calls = []
+
+    class FakeClient:
+        @staticmethod
+        def delete(path: str) -> None:
+            calls.append(path)
+
+    result = build_provider_with_client(FakeClient()).delete_attachment("att55")
+
+    assert calls == ["rest/api/content/att55"]
+    assert result == {"attachment_id": "att55", "deleted": True}
+
+
 def test_reply_to_comment_posts_comment_container_payload() -> None:
     calls = {}
 

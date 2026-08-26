@@ -110,9 +110,15 @@ PARITY_EVIDENCE = {
         ("content_id", "file_paths", "comment", "minor_edit"),
         53,
         True,
+        status=ParityStatus.VERIFIED,
     ),
     "confluence_delete_attachment": ParityEvidence(
-        Product.CONFLUENCE, GapKind.MISSING, ("attachment_id",), 53, True
+        Product.CONFLUENCE,
+        GapKind.MISSING,
+        ("attachment_id",),
+        53,
+        True,
+        status=ParityStatus.VERIFIED,
     ),
     "confluence_get_page_restrictions": ParityEvidence(
         Product.CONFLUENCE,

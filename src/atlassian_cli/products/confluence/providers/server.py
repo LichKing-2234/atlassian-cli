@@ -1,3 +1,4 @@
+from contextlib import ExitStack
 from pathlib import Path
 
 from atlassian import Confluence
@@ -340,6 +341,39 @@ class ConfluenceServerProvider:
             if isinstance(results, list) and results and isinstance(results[0], dict):
                 return results[0]
         return response
+
+    def upload_attachments(
+        self,
+        content_id: str,
+        file_paths: list[str],
+        *,
+        comment: str | None = None,
+        minor_edit: bool = False,
+    ) -> list[dict]:
+        with ExitStack() as stack:
+            files = [
+                (
+                    "file",
+                    (Path(file_path).name, stack.enter_context(Path(file_path).open("rb"))),
+                )
+                for file_path in file_paths
+            ]
+            if comment is not None:
+                files.extend(
+                    ("comment", (None, comment, "text/plain; charset=utf-8")) for _ in file_paths
+                )
+            response = self.client.post(
+                f"rest/api/content/{content_id}/child/attachment",
+                headers={"X-Atlassian-Token": "no-check"},
+                files=files,
+                data=[("minorEdit", str(minor_edit).lower()) for _ in file_paths],
+            )
+        results = response.get("results", []) if isinstance(response, dict) else []
+        return [item for item in results if isinstance(item, dict)]
+
+    def delete_attachment(self, attachment_id: str) -> dict:
+        self.client.delete(f"rest/api/content/{attachment_id}")
+        return {"attachment_id": attachment_id, "deleted": True}
 
     def download_attachment(self, attachment_id: str, destination: str) -> dict:
         from pathlib import Path

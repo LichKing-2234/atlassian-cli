@@ -92,3 +92,51 @@ def test_attachment_service_decodes_base64_upload_content() -> None:
             "minor_edit": True,
         },
     )
+
+
+def test_attachment_service_upload_many_normalizes_every_result() -> None:
+    calls = {}
+
+    class FakeProvider(FakeAttachmentProvider):
+        def upload_attachments(self, content_id, file_paths, *, comment, minor_edit):
+            calls["args"] = (content_id, file_paths, comment, minor_edit)
+            return [
+                {"id": "55", "title": "diagram.png"},
+                {"id": "56", "title": "report.pdf"},
+            ]
+
+    result = AttachmentService(provider=FakeProvider()).upload_many(
+        "1234",
+        ["diagram.png", "report.pdf"],
+        comment="example comment",
+        minor_edit=True,
+    )
+
+    assert calls["args"] == (
+        "1234",
+        ["diagram.png", "report.pdf"],
+        "example comment",
+        True,
+    )
+    assert result == {
+        "message": "Uploaded 2 attachment(s) successfully",
+        "attachments": [
+            {"id": "55", "title": "diagram.png"},
+            {"id": "56", "title": "report.pdf"},
+        ],
+    }
+
+
+def test_attachment_service_delete_returns_confirmation() -> None:
+    calls = []
+
+    class FakeProvider(FakeAttachmentProvider):
+        def delete_attachment(self, attachment_id):
+            calls.append(attachment_id)
+            return {"attachment_id": attachment_id, "deleted": True}
+
+    service = AttachmentService(provider=FakeProvider())
+
+    assert service.delete("55") == {"attachment_id": "55", "deleted": True}
+    assert service.delete_raw("56") == {"attachment_id": "56", "deleted": True}
+    assert calls == ["55", "56"]

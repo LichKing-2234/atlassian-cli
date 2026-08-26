@@ -51,6 +51,8 @@ COVERAGE_MANIFEST = {
     "confluence space get": "test_confluence_space_and_search_live",
     "confluence attachment list": "test_confluence_attachment_round_trip_live",
     "confluence attachment upload": "test_confluence_attachment_upload_inputs_live",
+    "confluence attachment upload-many": "test_confluence_attachment_multi_upload_delete_live",
+    "confluence attachment delete": "test_confluence_attachment_multi_upload_delete_live",
     "confluence attachment download": "test_confluence_attachment_round_trip_live",
     "confluence page attachment list": "test_confluence_attachment_round_trip_live",
     "confluence page attachment upload": "test_confluence_attachment_upload_inputs_live",
