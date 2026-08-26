@@ -110,3 +110,7 @@ def test_issue_49_jira_discovery_rows_are_verified() -> None:
         "jira_get_field_options",
     ):
         assert PARITY_EVIDENCE[operation].status is ParityStatus.VERIFIED
+
+
+def test_issue_48_jira_remote_link_row_is_verified() -> None:
+    assert PARITY_EVIDENCE["jira_create_remote_issue_link"].status is ParityStatus.VERIFIED

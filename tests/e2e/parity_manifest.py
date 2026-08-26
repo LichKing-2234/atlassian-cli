@@ -86,6 +86,7 @@ PARITY_EVIDENCE = {
         ("issue_key", "url", "title", "summary", "relationship", "icon_url"),
         48,
         True,
+        status=ParityStatus.VERIFIED,
     ),
     "confluence_get_labels": ParityEvidence(
         Product.CONFLUENCE, GapKind.MISSING, ("page_id",), 59, False

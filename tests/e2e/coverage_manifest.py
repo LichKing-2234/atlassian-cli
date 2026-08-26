@@ -12,6 +12,7 @@ COVERAGE_MANIFEST = {
     "jira issue link list": "test_jira_issue_link_round_trip_live",
     "jira issue link delete": "test_jira_issue_link_round_trip_live",
     "jira issue link types": "test_jira_issue_link_round_trip_live",
+    "jira issue remote-link create": "test_jira_remote_issue_link_live",
     "jira issue attachment list": "test_jira_issue_round_trip_live",
     "jira issue attachment upload": "test_jira_issue_round_trip_live",
     "jira issue attachment download": "test_jira_issue_round_trip_live",

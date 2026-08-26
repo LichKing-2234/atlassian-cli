@@ -672,6 +672,60 @@ def test_issue_link_methods_delegate_to_client() -> None:
     ]
 
 
+def test_remote_issue_link_methods_use_jira_711_rest_resources() -> None:
+    calls = []
+
+    class FakeClient:
+        def post(self, path: str, *, json: dict) -> dict:
+            calls.append(("post", path, json))
+            return {"id": 10001, "self": "DEMO"}
+
+        def get(self, path: str) -> dict:
+            calls.append(("get", path))
+            return {
+                "id": 10001,
+                "object": {
+                    "url": "https://example.com/DEMO-1",
+                    "title": "Example Page",
+                },
+            }
+
+    provider = build_provider_with_client(FakeClient())
+    payload = {
+        "object": {
+            "url": "https://example.com/DEMO-1",
+            "title": "Example Page",
+        }
+    }
+
+    created = provider.create_remote_issue_link("DEMO-1", payload)
+    read_back = provider.get_remote_issue_link("DEMO-1", "10001")
+
+    assert created == {"id": 10001, "self": "DEMO"}
+    assert read_back["object"]["title"] == "Example Page"
+    assert calls == [
+        ("post", "rest/api/2/issue/DEMO-1/remotelink", payload),
+        ("get", "rest/api/2/issue/DEMO-1/remotelink/10001"),
+    ]
+
+
+def test_remote_issue_link_validation_error_is_actionable() -> None:
+    class FakeResponse:
+        status_code = 400
+
+    class FakeClient:
+        def post(self, path: str, *, json: dict) -> dict:
+            raise HTTPError("bad request", response=FakeResponse())
+
+    provider = build_provider_with_client(FakeClient())
+
+    with pytest.raises(ValidationError, match="remote-link request"):
+        provider.create_remote_issue_link(
+            "DEMO-1",
+            {"object": {"url": "https://example.com/DEMO-1", "title": "Example Page"}},
+        )
+
+
 @pytest.mark.parametrize(
     ("status_code", "error_type"),
     [
