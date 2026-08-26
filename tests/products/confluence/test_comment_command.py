@@ -1,3 +1,4 @@
+from click import unstyle
 from typer.testing import CliRunner
 
 from atlassian_cli.cli import app
@@ -10,7 +11,7 @@ def test_confluence_comment_write_help_names_markdown_and_storage_contract() -> 
         result = runner.invoke(app, ["confluence", "comment", command, "--help"])
 
         assert result.exit_code == 0
-        compact_output = " ".join(result.output.replace("│", " ").split())
+        compact_output = " ".join(unstyle(result.output).replace("│", " ").split())
         assert "Comment body. Interpreted as Markdown by default." in compact_output
         assert "Input format: markdown (default) or storage (raw escape hatch)." in compact_output
 
