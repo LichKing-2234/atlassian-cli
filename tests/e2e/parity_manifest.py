@@ -243,5 +243,6 @@ PARITY_EVIDENCE = {
         ("content_id", "file_path", "content_base64", "filename", "comment", "minor_edit"),
         52,
         True,
+        status=ParityStatus.VERIFIED,
     ),
 }

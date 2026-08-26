@@ -83,3 +83,7 @@ def test_issue_50_confluence_write_rows_are_verified() -> None:
         "confluence_reply_to_comment",
     ):
         assert PARITY_EVIDENCE[operation].status is ParityStatus.VERIFIED
+
+
+def test_confluence_attachment_upload_has_verified_alignment_evidence() -> None:
+    assert PARITY_EVIDENCE["confluence_upload_attachment"].status is ParityStatus.VERIFIED

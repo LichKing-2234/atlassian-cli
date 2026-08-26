@@ -265,6 +265,15 @@ ssh example-user@example-host
 - `atlassian bitbucket pr build-status DEMO example-repo 42`
 - `atlassian bitbucket commit build-status abc123`
 
+### Confluence attachment upload behavior
+
+Confluence 6.12.4 attachment uploads accept exactly one source:
+
+- Keep the compatible path forms: `atlassian confluence attachment upload DEMO --file "example response"` or `atlassian confluence page attachment upload DEMO "example response"`. The path basename becomes the attachment filename.
+- Upload in-memory content with `atlassian confluence page attachment upload DEMO --content-base64 ZXhhbXBsZSByZXNwb25zZQ== --filename "example response" --comment "example comment" --minor-edit`.
+
+`--filename` is required with `--content-base64`. `--minor-edit` controls watcher notification and defaults to `false`; use it when the attachment version should be recorded as a minor edit. Invalid base64 and conflicting or missing sources fail before upload.
+
 `jira issue reparent-subtask` is limited to Jira Server 7.11.0 build 711000. It uses
 Jira's authenticated Move Sub-task workflow and verifies the new parent after the
 operation. Other Jira versions and builds fail before the workflow starts.

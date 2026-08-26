@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from atlassian import Confluence
 
 from atlassian_cli.auth.models import AuthMode
@@ -272,9 +274,45 @@ class ConfluenceServerProvider:
         )
 
     def upload_attachment(
-        self, page_id: str, file_path: str, *, comment: str | None = None
+        self,
+        page_id: str,
+        file_path: str | None,
+        *,
+        content: bytes | None = None,
+        filename: str | None = None,
+        comment: str | None = None,
+        minor_edit: bool = False,
     ) -> dict:
-        response = self.client.attach_file(file_path, page_id=page_id, comment=comment)
+        has_file_path = bool(file_path)
+        has_content = content is not None
+        if has_file_path == has_content:
+            raise ValueError("provide exactly one attachment source")
+        if has_content and not filename:
+            raise ValueError("filename is required for attachment content")
+
+        upload_name = filename if has_content else Path(str(file_path)).name
+        existing = self.client.get_attachments_from_content(page_id, filename=upload_name)
+        matches = existing.get("results", []) if isinstance(existing, dict) else []
+        path = f"rest/api/content/{page_id}/child/attachment"
+        if matches and isinstance(matches[0], dict) and matches[0].get("id"):
+            path = f"{path}/{matches[0]['id']}/data"
+
+        def send(source) -> dict:
+            files = {"file": (upload_name, source)}
+            if comment is not None:
+                files["comment"] = (None, comment, "text/plain; charset=utf-8")
+            return self.client.post(
+                path,
+                headers={"X-Atlassian-Token": "no-check"},
+                files=files,
+                data={"minorEdit": str(minor_edit).lower()},
+            )
+
+        if content is not None:
+            response = send(content)
+        else:
+            with Path(str(file_path)).open("rb") as handle:
+                response = send(handle)
         if isinstance(response, dict):
             results = response.get("results")
             if isinstance(results, list) and results and isinstance(results[0], dict):

@@ -82,7 +82,14 @@ class ConfluenceProvider(Protocol):
         media_type: str | None = None,
     ) -> dict: ...
     def upload_attachment(
-        self, page_id: str, file_path: str, *, comment: str | None = None
+        self,
+        page_id: str,
+        file_path: str | None,
+        *,
+        content: bytes | None = None,
+        filename: str | None = None,
+        comment: str | None = None,
+        minor_edit: bool = False,
     ) -> dict: ...
     def download_attachment(self, attachment_id: str, destination: str) -> dict: ...
     def download_attachment_from_content(

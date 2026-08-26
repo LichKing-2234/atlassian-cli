@@ -41,16 +41,48 @@ def list_attachments(
 def upload_attachment(
     ctx: typer.Context,
     page_id: str,
-    file_path: str = typer.Option(..., "--file"),
-    comment: str | None = typer.Option(None, "--comment"),
+    file_path: str | None = typer.Option(
+        None,
+        "--file",
+        help="Local file path. Provide this or --content-base64, not both.",
+    ),
+    content_base64: str | None = typer.Option(
+        None,
+        "--content-base64",
+        help="Base64-encoded content. Requires --filename and cannot be used with --file.",
+    ),
+    filename: str | None = typer.Option(
+        None,
+        "--filename",
+        help="Attachment filename required with --content-base64.",
+    ),
+    comment: str | None = typer.Option(
+        None,
+        "--comment",
+        help="Comment recorded in the attachment history.",
+    ),
+    minor_edit: bool = typer.Option(
+        False,
+        "--minor-edit/--no-minor-edit",
+        help="Mark the upload as a minor edit. Defaults to false.",
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_attachment_service(ctx.obj)
-    payload = (
-        service.upload_raw(page_id, file_path, comment=comment)
-        if is_raw_output(output)
-        else service.upload(page_id, file_path, comment=comment)
-    )
+    kwargs = {
+        "content_base64": content_base64,
+        "filename": filename,
+        "comment": comment,
+        "minor_edit": minor_edit,
+    }
+    try:
+        payload = (
+            service.upload_raw(page_id, file_path, **kwargs)
+            if is_raw_output(output)
+            else service.upload(page_id, file_path, **kwargs)
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
     typer.echo(render_output(payload, output=output))
 
 

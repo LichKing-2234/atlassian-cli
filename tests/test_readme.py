@@ -190,6 +190,21 @@ def test_readme_mentions_version_flag() -> None:
     assert "atlassian --version" in readme
 
 
+def test_readme_documents_confluence_attachment_upload_inputs() -> None:
+    readme = Path("README.md").read_text()
+
+    for value in (
+        "Confluence 6.12.4 attachment uploads",
+        "--content-base64",
+        "--filename",
+        '--comment "example comment"',
+        "--minor-edit",
+        "defaults to `false`",
+        "exactly one",
+    ):
+        assert value in readme
+
+
 def test_readme_mentions_uv_tool_install_from_release_assets() -> None:
     readme = Path("README.md").read_text()
 

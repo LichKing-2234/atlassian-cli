@@ -60,3 +60,35 @@ def test_attachment_service_download_by_page_and_name() -> None:
 
     assert result["attachment_id"] == "55"
     assert result["bytes_written"] == 21
+
+
+def test_attachment_service_decodes_base64_upload_content() -> None:
+    calls = {}
+
+    class FakeProvider(FakeAttachmentProvider):
+        def upload_attachment(self, page_id: str, file_path: str | None, **kwargs) -> dict:
+            calls["args"] = (page_id, file_path, kwargs)
+            return {"id": "55", "title": kwargs["filename"]}
+
+    service = AttachmentService(provider=FakeProvider())
+
+    result = service.upload(
+        "1234",
+        None,
+        content_base64="ZXhhbXBsZSByZXNwb25zZQ==",
+        filename="diagram.png",
+        comment="example comment",
+        minor_edit=True,
+    )
+
+    assert result == {"id": "55", "title": "diagram.png"}
+    assert calls["args"] == (
+        "1234",
+        None,
+        {
+            "content": b"example response",
+            "filename": "diagram.png",
+            "comment": "example comment",
+            "minor_edit": True,
+        },
+    )
