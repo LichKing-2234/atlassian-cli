@@ -1,6 +1,8 @@
 import subprocess
 import sys
 
+import pytest
+
 from atlassian_cli.config.models import Product
 from tests.e2e.support.cleanup import CleanupRegistry
 from tests.e2e.support.context import build_live_context
@@ -14,6 +16,10 @@ from tests.e2e.support.discovery import (
 from tests.e2e.support.env import LiveEnv, load_live_env
 from tests.e2e.support.names import unique_name
 from tests.e2e.support.runner import run_cli
+from tests.e2e.support.versions import (
+    assert_confluence_fixed_version,
+    assert_jira_fixed_version,
+)
 
 
 def test_load_live_env_uses_defaults(monkeypatch, tmp_path) -> None:
@@ -127,6 +133,83 @@ def test_cleanup_registry_runs_in_reverse_order() -> None:
     registry.run()
 
     assert calls == ["second", "first"]
+
+
+def test_cleanup_registry_runs_remaining_callbacks_before_reporting_failures() -> None:
+    calls: list[str] = []
+    registry = CleanupRegistry()
+
+    def fail() -> None:
+        raise RuntimeError("example response")
+
+    registry.add("first", lambda: calls.append("first"))
+    registry.add("broken", fail)
+    registry.add("last", lambda: calls.append("last"))
+
+    with pytest.raises(AssertionError, match="broken: example response"):
+        registry.run()
+
+    assert calls == ["last", "first"]
+
+
+def test_assert_jira_fixed_version_accepts_target() -> None:
+    class Provider:
+        class Client:
+            @staticmethod
+            def get_server_info() -> dict:
+                return {
+                    "version": "7.11.0",
+                    "buildNumber": 711000,
+                    "deploymentType": "Server",
+                }
+
+        client = Client()
+
+    assert_jira_fixed_version(Provider())
+
+
+def test_assert_jira_fixed_version_rejects_other_version() -> None:
+    class Provider:
+        class Client:
+            @staticmethod
+            def get_server_info() -> dict:
+                return {
+                    "version": "8.0.0",
+                    "buildNumber": 800000,
+                    "deploymentType": "Server",
+                }
+
+        client = Client()
+
+    with pytest.raises(AssertionError, match="expected Jira 7.11.0 build 711000 Server"):
+        assert_jira_fixed_version(Provider())
+
+
+def test_assert_confluence_fixed_version_accepts_target() -> None:
+    class Provider:
+        class Client:
+            @staticmethod
+            def get(path: str) -> dict:
+                assert path == "rest/applinks/1.0/manifest"
+                return {"typeId": "confluence", "version": "6.12.4", "buildNumber": 9667}
+
+        client = Client()
+
+    assert_confluence_fixed_version(Provider())
+
+
+def test_assert_confluence_fixed_version_rejects_other_version() -> None:
+    class Provider:
+        class Client:
+            @staticmethod
+            def get(path: str) -> dict:
+                assert path == "rest/applinks/1.0/manifest"
+                return {"typeId": "confluence", "version": "7.0.0", "buildNumber": 10000}
+
+        client = Client()
+
+    with pytest.raises(AssertionError, match="expected Confluence 6.12.4"):
+        assert_confluence_fixed_version(Provider())
 
 
 def test_unique_name_includes_prefix() -> None:
