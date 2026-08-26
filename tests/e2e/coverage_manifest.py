@@ -1,7 +1,7 @@
 COVERAGE_MANIFEST = {
     "jira issue get": "test_jira_issue_read_and_attachment_update_live",
     "jira issue search": "test_jira_issue_round_trip_live",
-    "jira issue create": "test_jira_issue_round_trip_live",
+    "jira issue create": "test_jira_issue_create_and_batch_contracts_live",
     "jira issue update": "test_jira_issue_read_and_attachment_update_live",
     "jira issue reparent-subtask": "test_jira_issue_reparent_subtask_live",
     "jira issue transition": "test_jira_issue_round_trip_live",
@@ -14,7 +14,7 @@ COVERAGE_MANIFEST = {
     "jira issue attachment list": "test_jira_issue_round_trip_live",
     "jira issue attachment upload": "test_jira_issue_round_trip_live",
     "jira issue attachment download": "test_jira_issue_round_trip_live",
-    "jira issue batch-create": "test_jira_issue_batch_create_live",
+    "jira issue batch-create": "test_jira_issue_create_and_batch_contracts_live",
     "jira issue changelog-batch": "test_jira_issue_changelog_batch_rejected_live",
     "jira field search": "test_jira_project_and_metadata_live",
     "jira field options": "test_jira_project_and_metadata_live",

@@ -1,5 +1,6 @@
 from atlassian_cli.core.errors import ConflictError, TransportError, ValidationError
 from atlassian_cli.output.interactive import CollectionPage
+from atlassian_cli.products.jira.markup import markdown_to_jira
 from atlassian_cli.products.jira.providers.base import JiraProvider
 from atlassian_cli.products.jira.schemas import JiraIssue, JiraSearchResult
 
@@ -97,22 +98,27 @@ class IssueService:
             projects_filter=projects_filter,
         )
 
-    def create(
+    def _prepare_create_fields(
         self,
-        fields: dict | None = None,
         *,
         project_key: str | None = None,
         summary: str | None = None,
         issue_type: str | None = None,
         assignee: str | None = None,
         description: str | None = None,
+        description_format: str = "markdown",
         components: list[str] | None = None,
         additional_fields: dict | None = None,
+        validate_metadata: bool = True,
     ) -> dict:
-        if fields is None:
-            additional_fields = additional_fields or {}
-            if project_key is None or summary is None or issue_type is None:
-                raise ValueError("project_key, summary, and issue_type are required")
+        if description_format not in {"jira", "markdown"}:
+            raise ValueError("description_format must be 'markdown' or 'jira'")
+        additional_fields = additional_fields or {}
+        if not all(
+            isinstance(value, str) and value.strip() for value in (project_key, summary, issue_type)
+        ):
+            raise ValueError("non-empty project_key, summary, and issue_type are required")
+        if validate_metadata:
             meta = self.provider.get_create_meta(project_key, issue_type)
             ignored_required = {"project", "issuetype", "summary", "description"}
             missing = [
@@ -122,18 +128,44 @@ class IssueService:
             ]
             if missing:
                 raise ValueError(f"missing required Jira fields: {', '.join(sorted(missing))}")
-            fields = {
-                "project": {"key": project_key},
-                "issuetype": {"name": issue_type},
-                "summary": summary,
-            }
-            if assignee:
-                fields["assignee"] = {"name": assignee}
-            if description:
-                fields["description"] = description
-            if components:
-                fields["components"] = [{"name": name} for name in components]
-            fields.update(additional_fields)
+        fields = {
+            "project": {"key": project_key},
+            "issuetype": {"name": issue_type},
+            "summary": summary,
+        }
+        if assignee:
+            fields["assignee"] = {"name": assignee}
+        if description:
+            fields["description"] = (
+                markdown_to_jira(description) if description_format == "markdown" else description
+            )
+        if components:
+            fields["components"] = [{"name": name} for name in components]
+        fields.update(additional_fields)
+        return fields
+
+    def create(
+        self,
+        *,
+        project_key: str,
+        summary: str,
+        issue_type: str,
+        assignee: str | None = None,
+        description: str | None = None,
+        description_format: str = "markdown",
+        components: list[str] | None = None,
+        additional_fields: dict | None = None,
+    ) -> dict:
+        fields = self._prepare_create_fields(
+            project_key=project_key,
+            summary=summary,
+            issue_type=issue_type,
+            assignee=assignee,
+            description=description,
+            description_format=description_format,
+            components=components,
+            additional_fields=additional_fields,
+        )
 
         raw = self.provider.create_issue(fields)
         if isinstance(raw, dict) and "fields" in raw and "key" in raw:
@@ -144,23 +176,118 @@ class IssueService:
             issue = raw
         return {"message": "Issue created successfully", "issue": issue}
 
-    def create_raw(self, fields: dict) -> dict:
-        return self.provider.create_issue(fields)
+    def create_raw(
+        self,
+        *,
+        project_key: str,
+        summary: str,
+        issue_type: str,
+        assignee: str | None = None,
+        description: str | None = None,
+        description_format: str = "markdown",
+        components: list[str] | None = None,
+        additional_fields: dict | None = None,
+    ) -> dict:
+        return self.provider.create_issue(
+            self._prepare_create_fields(
+                project_key=project_key,
+                summary=summary,
+                issue_type=issue_type,
+                assignee=assignee,
+                description=description,
+                description_format=description_format,
+                components=components,
+                additional_fields=additional_fields,
+            )
+        )
 
-    def batch_create(self, issues: list[dict]) -> dict:
+    def _prepare_batch_fields(self, issues: list[dict]) -> list[dict]:
+        prepared = []
+        for index, issue in enumerate(issues, start=1):
+            if not isinstance(issue, dict):
+                raise ValueError(f"issue {index} must be a JSON object")
+            semantic = dict(issue)
+            if "project_key" not in semantic and {
+                "project",
+                "issuetype",
+                "summary",
+            }.issubset(semantic):
+                project = semantic.get("project")
+                issue_type_value = semantic.get("issuetype")
+                if (
+                    not isinstance(project, dict)
+                    or not project.get("key")
+                    or not isinstance(issue_type_value, dict)
+                    or not (issue_type_value.get("name") or issue_type_value.get("id"))
+                    or not isinstance(semantic.get("summary"), str)
+                    or not semantic["summary"].strip()
+                ):
+                    raise ValueError(f"issue {index} has invalid Jira REST fields")
+                prepared.append(semantic)
+                continue
+            project_key = semantic.pop("project_key", None)
+            summary = semantic.pop("summary", None)
+            issue_type = semantic.pop("issue_type", None)
+            description = semantic.pop("description", None)
+            description_format = semantic.pop("description_format", "markdown")
+            assignee = semantic.pop("assignee", None)
+            components = semantic.pop("components", None)
+            if not all(
+                isinstance(value, str) and value.strip()
+                for value in (project_key, summary, issue_type)
+            ):
+                raise ValueError(
+                    f"issue {index} requires non-empty project_key, summary, and issue_type"
+                )
+            if description is not None and not isinstance(description, str):
+                raise ValueError(f"issue {index} description must be a string")
+            if not isinstance(description_format, str):
+                raise ValueError(f"issue {index} description_format must be markdown or jira")
+            if assignee is not None and not isinstance(assignee, str):
+                raise ValueError(f"issue {index} assignee must be a string")
+            if components is not None and (
+                not isinstance(components, list)
+                or any(not isinstance(component, str) for component in components)
+            ):
+                raise ValueError(f"issue {index} components must be an array of strings")
+            prepared.append(
+                self._prepare_create_fields(
+                    project_key=project_key,
+                    summary=summary,
+                    issue_type=issue_type,
+                    assignee=assignee,
+                    description=description,
+                    description_format=description_format,
+                    components=(
+                        [component.strip() for component in components if component.strip()]
+                        if components
+                        else None
+                    ),
+                    additional_fields=semantic,
+                    validate_metadata=False,
+                )
+            )
+        return prepared
+
+    def batch_create(self, issues: list[dict], *, validate_only: bool = False) -> dict:
+        prepared = self._prepare_batch_fields(issues)
+        if validate_only:
+            return {"message": "Issues validated successfully", "issues": []}
         return {
+            "message": "Issues created successfully",
             "issues": [
                 JiraIssue.from_api_response(item).to_simplified_dict()
                 if isinstance(item, dict) and "fields" in item and "key" in item
                 else {"key": item["key"]}
                 if isinstance(item, dict) and "key" in item
                 else item
-                for item in self.provider.create_issues(issues)
-            ]
+                for item in self.provider.create_issues(prepared)
+            ],
         }
 
-    def batch_create_raw(self, issues: list[dict]) -> list[dict]:
-        return self.provider.create_issues(issues)
+    def batch_create_raw(self, issues: list[dict], *, validate_only: bool = False) -> list[dict]:
+        prepared = self._prepare_batch_fields(issues)
+        return [] if validate_only else self.provider.create_issues(prepared)
 
     def update(
         self,

@@ -401,6 +401,53 @@ Because there is no field cache, a separate refresh input is unnecessary.
 `--issue-type`. Use `--contains` for case-insensitive value/name matching and
 `--return-limit` to cap matches; `--project` and `--limit` remain aliases.
 
+### Jira issue create and batch-create behavior
+
+Jira Server `7.11.0#711000-sha1:ff06e53` issue creation exposes the pinned
+`mcp-atlassian` semantic inputs directly. Markdown is the default for `--description`; the CLI
+converts headings, emphasis, lists, links, code, and pipe-delimited grids to Jira wiki markup before
+creating the issue. Existing Jira-markup workflows can opt out of conversion with
+`--description-format jira`.
+
+```bash
+atlassian jira issue create \
+  --project-key DEMO \
+  --issue-type Task \
+  --summary "Example issue summary" \
+  --assignee example-user-id \
+  --description $'## Example Page\n\nexample response' \
+  --components DEMO \
+  --additional-fields '{"labels":["DEMO"]}'
+
+atlassian jira issue create \
+  --project-key DEMO \
+  --issue-type Task \
+  --summary "Example issue summary" \
+  --description 'h2. Example Page' \
+  --description-format jira
+```
+
+`jira issue batch-create --issues` accepts a JSON array of semantic objects. Each object requires
+`project_key`, `summary`, and `issue_type`; `description`, `assignee`, and `components` are
+optional, while remaining keys are treated as additional Jira fields. This corresponds to the
+single-create `additional_fields` input. `--file` reads the same array from a JSON file.
+
+```bash
+atlassian jira issue batch-create \
+  --issues '[{"project_key":"DEMO","summary":"Example issue summary","issue_type":"Task","description":"## Example Page","assignee":"example-user-id","components":["DEMO"],"labels":["DEMO"]}]'
+
+atlassian jira issue batch-create \
+  --issues '[{"project_key":"DEMO","summary":"Example issue summary","issue_type":"Task"}]' \
+  --validate-only
+```
+
+`--validate-only` parses every semantic object and prepares its Jira fields without sending a Jira
+mutation. A successful validation returns an empty `issues` list. Individual batch objects may set
+`"description_format":"jira"` when their descriptions already contain Jira wiki markup.
+Previously supported Jira REST-shaped objects using `project`, `issuetype`, and `summary` remain
+accepted unchanged; their `description` is treated as Jira wiki markup. New callers should use the
+semantic object shape above.
+
 ### Confluence page write input behavior
 
 Confluence page create/update interprets semantic text as Markdown by default and converts it to

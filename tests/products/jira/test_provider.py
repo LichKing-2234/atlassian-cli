@@ -17,6 +17,26 @@ def build_provider_with_client(client) -> JiraServerProvider:
     return provider
 
 
+def test_create_issues_wraps_bulk_fields_and_extracts_created_issues() -> None:
+    calls: dict[str, object] = {}
+
+    class FakeClient:
+        def create_issues(self, issues: list[dict]) -> dict:
+            calls["issues"] = issues
+            return {"issues": [{"id": "10001", "key": "DEMO-1"}], "errors": []}
+
+    fields = {
+        "project": {"key": "DEMO"},
+        "issuetype": {"name": "Task"},
+        "summary": "Example issue summary",
+    }
+
+    result = build_provider_with_client(FakeClient()).create_issues([fields])
+
+    assert calls["issues"] == [{"fields": fields}]
+    assert result == [{"id": "10001", "key": "DEMO-1"}]
+
+
 def test_create_issues_falls_back_to_single_create_on_server_error() -> None:
     calls: dict[str, object] = {"issue_create": []}
 
@@ -43,7 +63,7 @@ def test_create_issues_falls_back_to_single_create_on_server_error() -> None:
     result = provider.create_issues(issues)
 
     assert result == [{"key": "DEMO-1"}, {"key": "DEMO-2"}]
-    assert calls["create_issues"] == issues
+    assert calls["create_issues"] == [{"fields": issue} for issue in issues]
     assert calls["issue_create"] == issues
 
 

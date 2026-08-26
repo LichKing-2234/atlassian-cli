@@ -153,6 +153,25 @@ def test_readme_mentions_semantic_alignment_and_output_breaking_change() -> None
     assert "raw-yaml" in readme
 
 
+def test_readme_documents_jira_create_and_batch_semantic_contracts() -> None:
+    readme = " ".join(Path("README.md").read_text().split())
+
+    for value in (
+        "Jira issue create and batch-create behavior",
+        "--description-format jira",
+        "project_key",
+        "issue_type",
+        "components",
+        "additional_fields",
+        "--validate-only",
+        "without sending a Jira mutation",
+        "Jira REST-shaped objects",
+        "7.11.0#711000-sha1:ff06e53",
+    ):
+        assert value in readme
+    assert "Markdown is the default" in readme
+
+
 def test_readme_mentions_init_command() -> None:
     readme = Path("README.md").read_text()
     normalized_readme = " ".join(readme.lower().split())

@@ -226,37 +226,112 @@ def test_issue_service_batch_create_normalizes_created_issues() -> None:
                 {
                     "project": {"key": "DEMO"},
                     "issuetype": {"name": "Task"},
-                    "summary": "First issue",
+                    "summary": "Example issue summary",
+                    "assignee": {"name": "example-user-id"},
+                    "description": "h2. Details\n\n* example response",
+                    "components": [{"name": "DEMO"}],
+                    "priority": {"name": "High"},
                 }
             ]
             return [{"key": "DEMO-1"}]
+
+    service = IssueService(provider=FakeBatchProvider())
+    issues = [
+        {
+            "project_key": "DEMO",
+            "issue_type": "Task",
+            "summary": "Example issue summary",
+            "assignee": "example-user-id",
+            "description": "## Details\n\n- example response",
+            "components": ["DEMO"],
+            "priority": {"name": "High"},
+        }
+    ]
+
+    result = service.batch_create(issues)
+
+    assert result == {
+        "message": "Issues created successfully",
+        "issues": [{"key": "DEMO-1"}],
+    }
+    assert issues[0]["project_key"] == "DEMO"
+
+
+def test_issue_service_batch_create_validate_only_prepares_without_mutation() -> None:
+    class NonMutatingProvider:
+        def create_issues(self, issues: list[dict]) -> list[dict]:
+            raise AssertionError(f"provider must not be called: {issues}")
+
+    issues = [
+        {
+            "project_key": "DEMO",
+            "issue_type": "Task",
+            "summary": "Example issue summary",
+            "description": "## Details",
+        }
+    ]
+
+    result = IssueService(provider=NonMutatingProvider()).batch_create(issues, validate_only=True)
+
+    assert result == {"message": "Issues validated successfully", "issues": []}
+    assert issues[0]["description"] == "## Details"
+
+
+def test_issue_service_batch_create_preserves_unexpected_payload_shapes() -> None:
+    class FakeBatchProvider:
+        def create_issues(self, issues: list[dict]) -> list[object]:
+            assert issues == [
+                {
+                    "project": {"key": "DEMO"},
+                    "issuetype": {"name": "Task"},
+                    "summary": "Example issue summary",
+                }
+            ]
+            return [{"error": "validation failed"}, "unexpected"]
 
     service = IssueService(provider=FakeBatchProvider())
 
     result = service.batch_create(
         [
             {
-                "project": {"key": "DEMO"},
-                "issuetype": {"name": "Task"},
-                "summary": "First issue",
+                "project_key": "DEMO",
+                "issue_type": "Task",
+                "summary": "Example issue summary",
             }
         ]
     )
 
-    assert result == {"issues": [{"key": "DEMO-1"}]}
+    assert result == {
+        "message": "Issues created successfully",
+        "issues": [{"error": "validation failed"}, "unexpected"],
+    }
 
 
-def test_issue_service_batch_create_preserves_unexpected_payload_shapes() -> None:
+def test_issue_service_batch_create_preserves_legacy_rest_fields() -> None:
     class FakeBatchProvider:
-        def create_issues(self, issues: list[dict]) -> list[object]:
-            assert issues == [{"summary": "First issue"}]
-            return [{"error": "validation failed"}, "unexpected"]
+        def create_issues(self, issues: list[dict]) -> list[dict]:
+            assert issues == [
+                {
+                    "project": {"key": "DEMO"},
+                    "issuetype": {"name": "Task"},
+                    "summary": "Example issue summary",
+                    "description": "h2. Example Page",
+                }
+            ]
+            return [{"key": "DEMO-1"}]
 
-    service = IssueService(provider=FakeBatchProvider())
+    result = IssueService(provider=FakeBatchProvider()).batch_create(
+        [
+            {
+                "project": {"key": "DEMO"},
+                "issuetype": {"name": "Task"},
+                "summary": "Example issue summary",
+                "description": "h2. Example Page",
+            }
+        ]
+    )
 
-    result = service.batch_create([{"summary": "First issue"}])
-
-    assert result == {"issues": [{"error": "validation failed"}, "unexpected"]}
+    assert result["issues"] == [{"key": "DEMO-1"}]
 
 
 class FakeSemanticIssueProvider:
@@ -459,6 +534,37 @@ def test_issue_service_create_returns_message_and_issue_resource() -> None:
     assert provider.create_calls[0]["customfield_10001"] == {"id": "11"}
 
 
+def test_issue_service_create_converts_markdown_description_to_jira_markup() -> None:
+    provider = FakeSemanticIssueProvider()
+
+    IssueService(provider=provider).create(
+        project_key="DEMO",
+        summary="Example issue summary",
+        issue_type="Task",
+        description=("# Example Page\n\n- **example response**\n- [Example Page](DEMO)"),
+        additional_fields={"customfield_10001": {"id": "11"}},
+    )
+
+    assert provider.create_calls[0]["description"] == (
+        "h1. Example Page\n\n* *example response*\n* [Example Page|DEMO]"
+    )
+
+
+def test_issue_service_create_preserves_explicit_jira_markup_description() -> None:
+    provider = FakeSemanticIssueProvider()
+
+    IssueService(provider=provider).create(
+        project_key="DEMO",
+        summary="Example issue summary",
+        issue_type="Task",
+        description="h2. Requirements\n\n* example response",
+        description_format="jira",
+        additional_fields={"customfield_10001": {"id": "11"}},
+    )
+
+    assert provider.create_calls[0]["description"] == ("h2. Requirements\n\n* example response")
+
+
 def test_issue_service_create_raises_for_missing_required_metadata_field() -> None:
     provider = FakeSemanticIssueProvider()
     service = IssueService(provider=provider)
@@ -477,6 +583,22 @@ def test_issue_service_create_raises_for_missing_required_metadata_field() -> No
         assert "customfield_10001" in str(exc)
     else:
         raise AssertionError("expected ValueError")
+
+
+def test_issue_service_create_rejects_empty_required_input_before_provider() -> None:
+    class NonMutatingProvider:
+        def get_create_meta(self, project_key: str, issue_type: str) -> dict:
+            raise AssertionError(f"provider must not be called: {project_key}, {issue_type}")
+
+        def create_issue(self, fields: dict) -> dict:
+            raise AssertionError(f"provider must not be called: {fields}")
+
+    with pytest.raises(ValueError, match="non-empty project_key, summary, and issue_type"):
+        IssueService(provider=NonMutatingProvider()).create(
+            project_key="DEMO",
+            summary="",
+            issue_type="Task",
+        )
 
 
 def test_issue_service_update_returns_message_issue_and_attachment_results() -> None:

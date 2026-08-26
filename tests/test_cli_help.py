@@ -152,6 +152,48 @@ def test_jira_discovery_help_lists_aligned_inputs() -> None:
         assert option in options_help
 
 
+def test_jira_issue_create_help_documents_semantic_inputs_and_markup_escape() -> None:
+    result = runner.invoke(
+        app,
+        ["jira", "issue", "create", "--help"],
+        env=ci_output_env(),
+        terminal_width=180,
+    )
+    plain_output = " ".join(strip_ansi(result.output).replace("│", " ").split())
+
+    assert result.exit_code == 0
+    for option in (
+        "--project-key",
+        "--summary",
+        "--issue-type",
+        "--assignee",
+        "--description",
+        "--components",
+        "--additional-fields",
+    ):
+        assert option in plain_output
+    assert "Markdown" in plain_output
+    assert "Jira wiki markup" in plain_output
+    assert "markdown" in plain_output
+    assert "jira" in plain_output
+
+
+def test_jira_issue_batch_create_help_documents_semantic_validation() -> None:
+    result = runner.invoke(
+        app,
+        ["jira", "issue", "batch-create", "--help"],
+        env=ci_output_env(),
+        terminal_width=180,
+    )
+    plain_output = strip_ansi(result.output)
+
+    assert result.exit_code == 0
+    for field in ("project_key", "summary", "issue_type", "description", "assignee", "components"):
+        assert field in plain_output
+    assert "--validate-only" in plain_output
+    assert "without creating" in plain_output
+
+
 def test_jira_issue_link_help_keeps_direction_explicit() -> None:
     issue_help = runner.invoke(app, ["jira", "issue", "--help"], env=ci_output_env())
     create_help = runner.invoke(

@@ -3,6 +3,7 @@ from pathlib import Path
 
 import typer
 
+from atlassian_cli.compat import StrEnum
 from atlassian_cli.output.interactive import InteractiveCollectionSource, browse_collection
 from atlassian_cli.output.markdown import (
     render_markdown,
@@ -28,6 +29,11 @@ def build_issue_service(context) -> IssueService:
 
 
 DEFAULT_ISSUE_FIELDS = "summary,status,assignee,reporter,priority"
+
+
+class JiraDescriptionFormat(StrEnum):
+    MARKDOWN = "markdown"
+    JIRA = "jira"
 
 
 def _parse_csv(value: str | None) -> list[str] | None:
@@ -221,45 +227,48 @@ def search_issues(
 @app.command("create")
 def create_issue(
     ctx: typer.Context,
-    project_key: str = typer.Option(..., "--project-key", "--project"),
-    issue_type: str = typer.Option(..., "--issue-type"),
-    summary: str = typer.Option(..., "--summary"),
-    assignee: str | None = typer.Option(None, "--assignee"),
-    description: str | None = typer.Option(None, "--description"),
-    components: str | None = typer.Option(None, "--components"),
-    additional_fields: str | None = typer.Option(None, "--additional-fields"),
+    project_key: str = typer.Option(
+        ..., "--project-key", "--project", help="Jira project key, for example DEMO."
+    ),
+    issue_type: str = typer.Option(
+        ..., "--issue-type", help="Issue type configured for the project."
+    ),
+    summary: str = typer.Option(..., "--summary", help="Issue summary/title."),
+    assignee: str | None = typer.Option(None, "--assignee", help="Optional Jira Server username."),
+    description: str | None = typer.Option(
+        None, "--description", help="Issue description; Markdown by default."
+    ),
+    description_format: JiraDescriptionFormat = typer.Option(
+        JiraDescriptionFormat.MARKDOWN,
+        "--description-format",
+        help="Description input format; use jira to preserve Jira wiki markup.",
+    ),
+    components: str | None = typer.Option(
+        None, "--components", help="Optional comma-separated component names."
+    ),
+    additional_fields: str | None = typer.Option(
+        None,
+        "--additional-fields",
+        help="Optional JSON object of deployment-specific Jira fields.",
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
     service = build_issue_service(ctx.obj)
-    payload = {
-        "project": {"key": project_key},
-        "issuetype": {"name": issue_type},
-        "summary": summary,
-    }
-    if assignee:
-        payload["assignee"] = {"name": assignee}
-    if description:
-        payload["description"] = description
     parsed_components = _parse_csv(components)
-    if parsed_components:
-        payload["components"] = [{"name": name} for name in parsed_components]
     parsed_additional_fields = _parse_json_object(
         additional_fields, option_name="--additional-fields"
     )
-    payload.update(parsed_additional_fields)
-    result = (
-        service.create_raw(payload)
-        if is_raw_output(output)
-        else service.create(
-            project_key=project_key,
-            summary=summary,
-            issue_type=issue_type,
-            assignee=assignee,
-            description=description,
-            components=parsed_components,
-            additional_fields=parsed_additional_fields,
-        )
-    )
+    kwargs = {
+        "project_key": project_key,
+        "summary": summary,
+        "issue_type": issue_type,
+        "assignee": assignee,
+        "description": description,
+        "description_format": description_format.value,
+        "components": parsed_components,
+        "additional_fields": parsed_additional_fields,
+    }
+    result = service.create_raw(**kwargs) if is_raw_output(output) else service.create(**kwargs)
     typer.echo(render_output(result, output=output))
 
 
@@ -357,21 +366,31 @@ def delete_issue(
 @app.command("batch-create")
 def batch_create_issues(
     ctx: typer.Context,
-    issues_json: str | None = typer.Option(None, "--issues"),
-    file_path: str | None = typer.Option(None, "--file"),
-    validate_only: bool = typer.Option(False, "--validate-only"),
+    issues_json: str | None = typer.Option(
+        None,
+        "--issues",
+        help=(
+            "JSON array of semantic objects requiring project_key, summary, and issue_type; "
+            "description, assignee, components, description_format, and additional Jira "
+            "fields are optional. Legacy Jira REST-shaped objects remain accepted unchanged."
+        ),
+    ),
+    file_path: str | None = typer.Option(
+        None, "--file", help="Read the same semantic issue array from a JSON file."
+    ),
+    validate_only: bool = typer.Option(
+        False,
+        "--validate-only",
+        help="Validate and prepare every issue without creating anything.",
+    ),
     output: OutputMode = typer.Option(OutputMode.MARKDOWN, "--output"),
 ) -> None:
-    if validate_only:
-        raise typer.BadParameter(
-            "validate-only is not supported on Jira Server/DC", param_hint="--validate-only"
-        )
     issues = _load_batch_issues(issues_json=issues_json, file_path=file_path)
     service = build_issue_service(ctx.obj)
     if is_raw_output(output):
-        payload = service.batch_create_raw(issues)
+        payload = service.batch_create_raw(issues, validate_only=validate_only)
     else:
-        payload = service.batch_create(issues)
+        payload = service.batch_create(issues, validate_only=validate_only)
     typer.echo(render_output(payload, output=output))
 
 

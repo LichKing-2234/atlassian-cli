@@ -122,9 +122,15 @@ PARITY_EVIDENCE = {
         ),
         57,
         True,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_batch_create_issues": ParityEvidence(
-        Product.JIRA, GapKind.DRIFTED, ("issues", "validate_only"), 57, True
+        Product.JIRA,
+        GapKind.DRIFTED,
+        ("issues", "validate_only"),
+        57,
+        True,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_update_issue": ParityEvidence(
         Product.JIRA,
