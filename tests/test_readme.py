@@ -143,10 +143,12 @@ def test_readme_mentions_full_local_e2e_suite() -> None:
     assert "real writes" in contributing.lower()
 
 
-def test_readme_mentions_semantic_alignment_and_output_breaking_change() -> None:
+def test_readme_scopes_semantic_alignment_to_included_fixed_version_capabilities() -> None:
     readme = Path("README.md").read_text()
 
-    assert "TOOLSETS=default" in readme
+    assert "included ordinary-user Jira and Confluence capabilities" in readme
+    assert "fixed Server/Data Center versions" in readme
+    assert "TOOLSETS=default" not in readme
     assert (
         "normalized json and yaml output now follows mcp-style resource envelopes" in readme.lower()
     )
