@@ -33,6 +33,210 @@ def test_jira_issue_get_outputs_json(monkeypatch) -> None:
     assert '"key": "DEMO-1"' in result.stdout
 
 
+def test_jira_issue_watcher_list_routes_issue_key(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured: dict[str, str] = {}
+
+    class FakeService:
+        def get_watchers(self, issue_key: str) -> dict:
+            captured["issue_key"] = issue_key
+            return {
+                "issue_key": issue_key,
+                "watcher_count": 1,
+                "is_watching": True,
+                "watchers": [{"name": "example-user-id"}],
+            }
+
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "watcher",
+            "list",
+            "DEMO-1",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {"issue_key": "DEMO-1"}
+    assert json.loads(result.stdout)["watchers"] == [{"name": "example-user-id"}]
+
+
+def test_jira_issue_watcher_add_routes_server_user_identifier(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured: dict[str, str] = {}
+
+    class FakeService:
+        def add_watcher(self, issue_key: str, user_identifier: str) -> dict:
+            captured.update(issue_key=issue_key, user_identifier=user_identifier)
+            return {
+                "success": True,
+                "issue_key": issue_key,
+                "user": user_identifier,
+            }
+
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "watcher",
+            "add",
+            "DEMO-1",
+            "--user-identifier",
+            "example-user-id",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {
+        "issue_key": "DEMO-1",
+        "user_identifier": "example-user-id",
+    }
+
+
+def test_jira_issue_watcher_remove_routes_server_username(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured: dict[str, str] = {}
+
+    class FakeService:
+        def remove_watcher(self, issue_key: str, username: str) -> dict:
+            captured.update(issue_key=issue_key, username=username)
+            return {"success": True, "issue_key": issue_key, "user": username}
+
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "watcher",
+            "remove",
+            "DEMO-1",
+            "--username",
+            "example-user-id",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {"issue_key": "DEMO-1", "username": "example-user-id"}
+
+
+def test_jira_issue_worklog_list_routes_issue_key(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured: dict[str, str] = {}
+
+    class FakeService:
+        def get_worklogs(self, issue_key: str) -> dict:
+            captured["issue_key"] = issue_key
+            return {"worklogs": [{"id": "10001", "time_spent_seconds": 60}]}
+
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "worklog",
+            "list",
+            "DEMO-1",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {"issue_key": "DEMO-1"}
+    assert json.loads(result.stdout)["worklogs"][0]["time_spent_seconds"] == 60
+
+
+def test_jira_issue_worklog_add_routes_all_semantic_inputs(monkeypatch) -> None:
+    from atlassian_cli.products.jira.commands import issue as issue_module
+
+    captured: dict[str, object] = {}
+
+    class FakeService:
+        def add_worklog(self, issue_key: str, time_spent: str, **kwargs) -> dict:
+            captured.update(issue_key=issue_key, time_spent=time_spent, **kwargs)
+            return {
+                "message": "Worklog added successfully",
+                "worklog": {"id": "10001", "time_spent_seconds": 60},
+            }
+
+    monkeypatch.setattr(
+        issue_module, "build_issue_service", lambda *_args, **_kwargs: FakeService()
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "--url",
+            "https://jira.example.com",
+            "jira",
+            "issue",
+            "worklog",
+            "add",
+            "DEMO-1",
+            "--time-spent",
+            "1m",
+            "--comment",
+            "**example comment**",
+            "--started",
+            "2026-08-26T10:00:00.000+0000",
+            "--original-estimate",
+            "1h",
+            "--remaining-estimate",
+            "30m",
+            "--output",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {
+        "issue_key": "DEMO-1",
+        "time_spent": "1m",
+        "comment": "**example comment**",
+        "comment_format": "markdown",
+        "started": "2026-08-26T10:00:00.000+0000",
+        "original_estimate": "1h",
+        "remaining_estimate": "30m",
+    }
+
+
 def test_jira_issue_search_uses_interactive_browser_for_markdown_tty(monkeypatch) -> None:
     from atlassian_cli.products.jira.commands import issue as issue_module
 

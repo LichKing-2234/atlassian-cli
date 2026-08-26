@@ -37,6 +37,86 @@ def test_create_issues_wraps_bulk_fields_and_extracts_created_issues() -> None:
     assert result == [{"id": "10001", "key": "DEMO-1"}]
 
 
+def test_get_issue_watchers_delegates_to_server_client() -> None:
+    class FakeClient:
+        @staticmethod
+        def issue_get_watchers(issue_key: str) -> dict:
+            assert issue_key == "DEMO-1"
+            return {"watchCount": 0, "isWatching": False, "watchers": []}
+
+    result = build_provider_with_client(FakeClient()).get_issue_watchers("DEMO-1")
+
+    assert result == {"watchCount": 0, "isWatching": False, "watchers": []}
+
+
+def test_add_watcher_delegates_server_username_to_client() -> None:
+    calls: list[tuple[str, str]] = []
+
+    class FakeClient:
+        @staticmethod
+        def issue_add_watcher(issue_key: str, username: str) -> None:
+            calls.append((issue_key, username))
+
+    result = build_provider_with_client(FakeClient()).add_watcher("DEMO-1", "example-user-id")
+
+    assert result is None
+    assert calls == [("DEMO-1", "example-user-id")]
+
+
+def test_remove_watcher_delegates_only_server_username_to_client() -> None:
+    calls: list[tuple[str, str, object]] = []
+
+    class FakeClient:
+        @staticmethod
+        def issue_delete_watcher(issue_key: str, *, user: str, account_id=None) -> None:
+            calls.append((issue_key, user, account_id))
+
+    result = build_provider_with_client(FakeClient()).remove_watcher("DEMO-1", "example-user-id")
+
+    assert result is None
+    assert calls == [("DEMO-1", "example-user-id", None)]
+
+
+def test_get_worklogs_reads_every_jira_page() -> None:
+    calls: list[tuple[str, dict]] = []
+
+    class FakeClient:
+        @staticmethod
+        def resource_url(resource: str) -> str:
+            assert resource == "issue"
+            return "https://jira.example.com/rest/api/2/issue"
+
+        @staticmethod
+        def get(url: str, *, params: dict) -> dict:
+            calls.append((url, params))
+            start_at = params["startAt"]
+            return {
+                "startAt": start_at,
+                "maxResults": 100,
+                "total": 2,
+                "worklogs": [{"id": str(10001 + start_at)}],
+            }
+
+    result = build_provider_with_client(FakeClient()).get_worklogs("DEMO-1")
+
+    assert calls == [
+        (
+            "https://jira.example.com/rest/api/2/issue/DEMO-1/worklog",
+            {"startAt": 0, "maxResults": 100},
+        ),
+        (
+            "https://jira.example.com/rest/api/2/issue/DEMO-1/worklog",
+            {"startAt": 1, "maxResults": 100},
+        ),
+    ]
+    assert result == {
+        "startAt": 0,
+        "maxResults": 2,
+        "total": 2,
+        "worklogs": [{"id": "10001"}, {"id": "10002"}],
+    }
+
+
 def test_create_issues_falls_back_to_single_create_on_server_error() -> None:
     calls: dict[str, object] = {"issue_create": []}
 
@@ -466,6 +546,58 @@ def test_add_worklog_posts_time_and_started_to_official_endpoint() -> None:
         "https://jira.example.com/rest/api/2/issue/DEMO-1/worklog",
         {"timeSpent": "1m", "started": "2026-08-26T10:00:00.000+0000"},
     )
+    assert result["id"] == "10003"
+
+
+def test_add_worklog_maps_comment_and_estimate_inputs_to_jira_7_11() -> None:
+    calls: list[tuple] = []
+
+    class FakeClient:
+        @staticmethod
+        def resource_url(resource: str) -> str:
+            assert resource == "issue"
+            return "https://jira.example.com/rest/api/2/issue"
+
+        @staticmethod
+        def issue_update(issue_key: str, *, fields: dict) -> None:
+            calls.append(("update", issue_key, fields))
+
+        @staticmethod
+        def post(url: str, *, data: dict, params: dict | None = None) -> dict:
+            calls.append(("post", url, data, params))
+            return {
+                "id": "10003",
+                "timeSpent": "1m",
+                "timeSpentSeconds": 60,
+                "comment": data["comment"],
+            }
+
+    result = build_provider_with_client(FakeClient()).add_worklog(
+        "DEMO-1",
+        "1m",
+        comment="*example comment*",
+        started="2026-08-26T10:00:00.000+0000",
+        original_estimate="1h",
+        remaining_estimate="30m",
+    )
+
+    assert calls == [
+        (
+            "update",
+            "DEMO-1",
+            {"timetracking": {"originalEstimate": "1h"}},
+        ),
+        (
+            "post",
+            "https://jira.example.com/rest/api/2/issue/DEMO-1/worklog",
+            {
+                "timeSpent": "1m",
+                "comment": "*example comment*",
+                "started": "2026-08-26T10:00:00.000+0000",
+            },
+            {"adjustEstimate": "new", "newEstimate": "30m"},
+        ),
+    ]
     assert result["id"] == "10003"
 
 

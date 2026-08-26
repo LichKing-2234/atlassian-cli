@@ -34,15 +34,37 @@ class ParityEvidence:
 
 PARITY_EVIDENCE = {
     "jira_get_issue_watchers": ParityEvidence(
-        Product.JIRA, GapKind.MISSING, ("issue_key",), 55, False
+        Product.JIRA,
+        GapKind.MISSING,
+        ("issue_key",),
+        55,
+        False,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_add_watcher": ParityEvidence(
-        Product.JIRA, GapKind.MISSING, ("issue_key", "user_identifier"), 55, True
+        Product.JIRA,
+        GapKind.MISSING,
+        ("issue_key", "user_identifier"),
+        55,
+        True,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_remove_watcher": ParityEvidence(
-        Product.JIRA, GapKind.MISSING, ("issue_key", "username"), 55, True
+        Product.JIRA,
+        GapKind.MISSING,
+        ("issue_key", "username"),
+        55,
+        True,
+        status=ParityStatus.VERIFIED,
     ),
-    "jira_get_worklog": ParityEvidence(Product.JIRA, GapKind.MISSING, ("issue_key",), 55, False),
+    "jira_get_worklog": ParityEvidence(
+        Product.JIRA,
+        GapKind.MISSING,
+        ("issue_key",),
+        55,
+        False,
+        status=ParityStatus.VERIFIED,
+    ),
     "jira_add_worklog": ParityEvidence(
         Product.JIRA,
         GapKind.MISSING,
@@ -56,6 +78,7 @@ PARITY_EVIDENCE = {
         ),
         55,
         True,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_create_remote_issue_link": ParityEvidence(
         Product.JIRA,

@@ -133,6 +133,34 @@ def test_jira_issue_help_lists_reparent_subtask_subcommand() -> None:
     assert "reparent-subtask" in plain_output
 
 
+def test_jira_watcher_and_worklog_help_lists_server_inputs() -> None:
+    issue_help = strip_ansi(runner.invoke(app, ["jira", "issue", "--help"]).output)
+    watcher_add = strip_ansi(
+        runner.invoke(app, ["jira", "issue", "watcher", "add", "--help"]).output
+    )
+    watcher_remove = strip_ansi(
+        runner.invoke(app, ["jira", "issue", "watcher", "remove", "--help"]).output
+    )
+    worklog_add = strip_ansi(
+        runner.invoke(app, ["jira", "issue", "worklog", "add", "--help"]).output
+    )
+
+    assert "watcher" in issue_help
+    assert "worklog" in issue_help
+    assert "--user-identifier" in watcher_add
+    assert "--username" in watcher_remove
+    assert "--account-id" not in watcher_add + watcher_remove
+    for option in (
+        "--time-spent",
+        "--comment",
+        "--started",
+        "--original-estimate",
+        "--remaining-estimate",
+        "--comment-format",
+    ):
+        assert option in worklog_add
+
+
 def test_jira_update_assignment_and_transition_help_lists_aligned_inputs() -> None:
     issue_help = strip_ansi(runner.invoke(app, ["jira", "issue", "--help"]).output)
     update_help = strip_ansi(runner.invoke(app, ["jira", "issue", "update", "--help"]).output)

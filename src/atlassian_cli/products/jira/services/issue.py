@@ -4,7 +4,7 @@ from atlassian_cli.core.errors import ConflictError, TransportError, ValidationE
 from atlassian_cli.output.interactive import CollectionPage
 from atlassian_cli.products.jira.markup import markdown_to_jira
 from atlassian_cli.products.jira.providers.base import JiraProvider
-from atlassian_cli.products.jira.schemas import JiraIssue, JiraSearchResult
+from atlassian_cli.products.jira.schemas import JiraIssue, JiraSearchResult, JiraUser, JiraWorklog
 
 
 class IssueService:
@@ -48,6 +48,132 @@ class IssueService:
             comment_limit=comment_limit,
             properties=properties,
             update_history=update_history,
+        )
+
+    def get_watchers(self, issue_key: str) -> dict:
+        raw = self.provider.get_issue_watchers(issue_key)
+        if not isinstance(raw, dict) or not isinstance(raw.get("watchers", []), list):
+            raise TransportError("Jira watcher list response must be a JSON object")
+        watcher_items = raw.get("watchers", [])
+        watchers = [
+            JiraUser.from_api_response(item).to_simplified_dict()
+            for item in watcher_items
+            if isinstance(item, dict)
+        ]
+        return {
+            "issue_key": issue_key,
+            "watcher_count": raw.get("watchCount", len(watchers)),
+            "is_watching": raw.get("isWatching", False),
+            "watchers": watchers,
+        }
+
+    def get_watchers_raw(self, issue_key: str) -> dict:
+        return self.provider.get_issue_watchers(issue_key)
+
+    @staticmethod
+    def _server_username(value: str, parameter: str) -> str:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{parameter} must be a non-empty Jira Server username")
+        return value.strip()
+
+    def add_watcher(self, issue_key: str, user_identifier: str) -> dict:
+        username = self._server_username(user_identifier, "user_identifier")
+        self.provider.add_watcher(issue_key, username)
+        return {
+            "success": True,
+            "message": f"User '{username}' added as watcher to {issue_key}",
+            "issue_key": issue_key,
+            "user": username,
+        }
+
+    def add_watcher_raw(self, issue_key: str, user_identifier: str) -> dict | None:
+        username = self._server_username(user_identifier, "user_identifier")
+        return self.provider.add_watcher(issue_key, username)
+
+    def remove_watcher(self, issue_key: str, username: str) -> dict:
+        resolved_username = self._server_username(username, "username")
+        self.provider.remove_watcher(issue_key, resolved_username)
+        return {
+            "success": True,
+            "message": f"User '{resolved_username}' removed from watching {issue_key}",
+            "issue_key": issue_key,
+            "user": resolved_username,
+        }
+
+    def remove_watcher_raw(self, issue_key: str, username: str) -> dict | None:
+        resolved_username = self._server_username(username, "username")
+        return self.provider.remove_watcher(issue_key, resolved_username)
+
+    def get_worklogs(self, issue_key: str) -> dict:
+        raw = self.provider.get_worklogs(issue_key)
+        if not isinstance(raw, dict) or not isinstance(raw.get("worklogs"), list):
+            raise TransportError("Jira worklog list response must be a JSON object")
+        worklogs = raw["worklogs"]
+        return {
+            "worklogs": [
+                JiraWorklog.from_api_response(item).to_simplified_dict()
+                for item in worklogs
+                if isinstance(item, dict)
+            ]
+        }
+
+    def get_worklogs_raw(self, issue_key: str) -> dict:
+        return self.provider.get_worklogs(issue_key)
+
+    @staticmethod
+    def _prepare_worklog_comment(comment: str | None, comment_format: str) -> str | None:
+        if comment_format not in {"markdown", "jira"}:
+            raise ValueError("comment_format must be 'markdown' or 'jira'")
+        if not comment:
+            return None
+        return markdown_to_jira(comment) if comment_format == "markdown" else comment
+
+    def add_worklog(
+        self,
+        issue_key: str,
+        time_spent: str,
+        *,
+        comment: str | None = None,
+        comment_format: str = "markdown",
+        started: str | None = None,
+        original_estimate: str | None = None,
+        remaining_estimate: str | None = None,
+    ) -> dict:
+        if not isinstance(time_spent, str) or not time_spent.strip():
+            raise ValueError("time_spent must be a non-empty Jira duration")
+        raw = self.provider.add_worklog(
+            issue_key,
+            time_spent.strip(),
+            comment=self._prepare_worklog_comment(comment, comment_format),
+            started=started,
+            original_estimate=original_estimate,
+            remaining_estimate=remaining_estimate,
+        )
+        return {
+            "message": "Worklog added successfully",
+            "worklog": JiraWorklog.from_api_response(raw).to_simplified_dict(),
+        }
+
+    def add_worklog_raw(
+        self,
+        issue_key: str,
+        time_spent: str,
+        *,
+        comment: str | None = None,
+        comment_format: str = "markdown",
+        started: str | None = None,
+        original_estimate: str | None = None,
+        remaining_estimate: str | None = None,
+    ) -> dict:
+        if not isinstance(time_spent, str) or not time_spent.strip():
+            raise ValueError("time_spent must be a non-empty Jira duration")
+        return self.provider.add_worklog(
+            issue_key,
+            time_spent.strip(),
+            comment=self._prepare_worklog_comment(comment, comment_format),
+            started=started,
+            original_estimate=original_estimate,
+            remaining_estimate=remaining_estimate,
         )
 
     def search(

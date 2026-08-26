@@ -135,6 +135,211 @@ def test_issue_service_delete_returns_success_payload() -> None:
     assert service.delete("DEMO-1") == {"key": "DEMO-1", "deleted": True}
 
 
+def test_issue_service_get_watchers_normalizes_server_users() -> None:
+    class FakeWatcherProvider:
+        def get_issue_watchers(self, issue_key: str) -> dict:
+            assert issue_key == "DEMO-1"
+            return {
+                "watchCount": 1,
+                "isWatching": False,
+                "watchers": [
+                    {
+                        "name": "example-user-id",
+                        "displayName": "Example Author",
+                    }
+                ],
+            }
+
+    result = IssueService(provider=FakeWatcherProvider()).get_watchers("DEMO-1")
+
+    assert result == {
+        "issue_key": "DEMO-1",
+        "watcher_count": 1,
+        "is_watching": False,
+        "watchers": [
+            {
+                "display_name": "Example Author",
+                "name": "example-user-id",
+            }
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    ("method_name", "provider_method", "message"),
+    [
+        ("get_watchers", "get_issue_watchers", "watcher list response"),
+        ("get_worklogs", "get_worklogs", "worklog list response"),
+    ],
+)
+def test_issue_service_rejects_non_object_watcher_or_worklog_response(
+    method_name: str, provider_method: str, message: str
+) -> None:
+    provider = type(
+        "InvalidProvider",
+        (),
+        {provider_method: lambda self, issue_key: "<html>example response</html>"},
+    )()
+
+    with pytest.raises(TransportError, match=message):
+        getattr(IssueService(provider=provider), method_name)("DEMO-1")
+
+
+def test_issue_service_add_watcher_returns_server_confirmation() -> None:
+    calls: list[tuple[str, str]] = []
+
+    class FakeWatcherProvider:
+        def add_watcher(self, issue_key: str, user_identifier: str) -> None:
+            calls.append((issue_key, user_identifier))
+
+    result = IssueService(provider=FakeWatcherProvider()).add_watcher("DEMO-1", "example-user-id")
+
+    assert calls == [("DEMO-1", "example-user-id")]
+    assert result == {
+        "success": True,
+        "message": "User 'example-user-id' added as watcher to DEMO-1",
+        "issue_key": "DEMO-1",
+        "user": "example-user-id",
+    }
+
+
+def test_issue_service_remove_watcher_returns_server_confirmation() -> None:
+    calls: list[tuple[str, str]] = []
+
+    class FakeWatcherProvider:
+        def remove_watcher(self, issue_key: str, username: str) -> None:
+            calls.append((issue_key, username))
+
+    result = IssueService(provider=FakeWatcherProvider()).remove_watcher(
+        "DEMO-1", "example-user-id"
+    )
+
+    assert calls == [("DEMO-1", "example-user-id")]
+    assert result == {
+        "success": True,
+        "message": "User 'example-user-id' removed from watching DEMO-1",
+        "issue_key": "DEMO-1",
+        "user": "example-user-id",
+    }
+
+
+def test_issue_service_get_worklogs_normalizes_entries() -> None:
+    class FakeWorklogProvider:
+        def get_worklogs(self, issue_key: str) -> dict:
+            assert issue_key == "DEMO-1"
+            return {
+                "startAt": 0,
+                "maxResults": 20,
+                "total": 1,
+                "worklogs": [
+                    {
+                        "id": "10001",
+                        "comment": "*example comment*",
+                        "created": "2026-08-26T10:00:00.000+0000",
+                        "updated": "2026-08-26T10:01:00.000+0000",
+                        "started": "2026-08-26T09:00:00.000+0000",
+                        "timeSpent": "1m",
+                        "timeSpentSeconds": 60,
+                        "author": {
+                            "name": "example-user-id",
+                            "displayName": "Example Author",
+                        },
+                    }
+                ],
+            }
+
+    result = IssueService(provider=FakeWorklogProvider()).get_worklogs("DEMO-1")
+
+    assert result == {
+        "worklogs": [
+            {
+                "id": "10001",
+                "comment": "*example comment*",
+                "created": "2026-08-26T10:00:00.000+0000",
+                "updated": "2026-08-26T10:01:00.000+0000",
+                "started": "2026-08-26T09:00:00.000+0000",
+                "time_spent": "1m",
+                "time_spent_seconds": 60,
+                "author": {
+                    "display_name": "Example Author",
+                    "name": "example-user-id",
+                },
+            }
+        ]
+    }
+
+
+def test_issue_service_add_worklog_converts_comment_and_normalizes_result() -> None:
+    calls: list[dict] = []
+
+    class FakeWorklogProvider:
+        def add_worklog(self, issue_key: str, time_spent: str, **kwargs) -> dict:
+            calls.append({"issue_key": issue_key, "time_spent": time_spent, **kwargs})
+            return {
+                "id": "10001",
+                "comment": kwargs["comment"],
+                "started": kwargs["started"],
+                "timeSpent": time_spent,
+                "timeSpentSeconds": 60,
+                "author": {
+                    "name": "example-user-id",
+                    "displayName": "Example Author",
+                },
+            }
+
+    result = IssueService(provider=FakeWorklogProvider()).add_worklog(
+        "DEMO-1",
+        "1m",
+        comment="**example comment**",
+        started="2026-08-26T10:00:00.000+0000",
+        original_estimate="1h",
+        remaining_estimate="30m",
+    )
+
+    assert calls == [
+        {
+            "issue_key": "DEMO-1",
+            "time_spent": "1m",
+            "comment": "*example comment*",
+            "started": "2026-08-26T10:00:00.000+0000",
+            "original_estimate": "1h",
+            "remaining_estimate": "30m",
+        }
+    ]
+    assert result == {
+        "message": "Worklog added successfully",
+        "worklog": {
+            "id": "10001",
+            "comment": "*example comment*",
+            "started": "2026-08-26T10:00:00.000+0000",
+            "time_spent": "1m",
+            "time_spent_seconds": 60,
+            "author": {
+                "display_name": "Example Author",
+                "name": "example-user-id",
+            },
+        },
+    }
+
+
+def test_issue_service_add_worklog_preserves_explicit_jira_comment() -> None:
+    captured: dict[str, object] = {}
+
+    class FakeWorklogProvider:
+        def add_worklog(self, issue_key: str, time_spent: str, **kwargs) -> dict:
+            captured.update(issue_key=issue_key, time_spent=time_spent, **kwargs)
+            return {"id": "10001", "comment": kwargs["comment"]}
+
+    IssueService(provider=FakeWorklogProvider()).add_worklog(
+        "DEMO-1",
+        "1m",
+        comment="*example comment*",
+        comment_format="jira",
+    )
+
+    assert captured["comment"] == "*example comment*"
+
+
 class FakeReparentProvider:
     def __init__(
         self,
