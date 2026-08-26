@@ -246,6 +246,26 @@ def test_jira_issue_link_help_keeps_direction_explicit() -> None:
     assert "--name-filter" in strip_ansi(types_help.output)
 
 
+def test_jira_comment_help_documents_core_visibility_and_body_formats() -> None:
+    for command in ("add", "edit"):
+        result = runner.invoke(
+            app,
+            ["jira", "comment", command, "--help"],
+            env=ci_output_env(),
+            terminal_width=160,
+        )
+        plain_output = strip_ansi(result.output)
+
+        assert result.exit_code == 0
+        for option in ("--body", "--visibility", "--body-format"):
+            assert option in plain_output
+        assert "markdown" in plain_output
+        assert "jira" in plain_output
+        assert "role|group" in plain_output
+        assert "--public" not in plain_output
+        assert "--private" not in plain_output
+
+
 def test_confluence_page_help_lists_attachment_subcommand() -> None:
     result = runner.invoke(app, ["confluence", "page", "--help"], env=ci_output_env())
     plain_output = strip_ansi(result.output)

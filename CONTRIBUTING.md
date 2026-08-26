@@ -38,6 +38,7 @@ The repository includes a local-only live e2e suite that covers every CLI subcom
 Live test modules:
 
 - `tests/e2e/test_jira_live.py`
+- `tests/e2e/test_jira_comments_live.py`
 - `tests/e2e/test_confluence_live.py`
 - `tests/e2e/test_bitbucket_live.py`
 - `tests/e2e/test_coverage_manifest.py`
@@ -68,6 +69,7 @@ $EDITOR .env
 PYTHONPATH=src .venv/bin/python -m pytest \
   tests/e2e/test_coverage_manifest.py \
   tests/e2e/test_jira_live.py \
+  tests/e2e/test_jira_comments_live.py \
   tests/e2e/test_confluence_live.py \
   tests/e2e/test_bitbucket_live.py \
   -m e2e -v

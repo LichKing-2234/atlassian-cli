@@ -137,6 +137,69 @@ def test_get_field_options_filters_values_before_applying_return_limit() -> None
     assert result == [{"id": "1", "name": "Highest"}]
 
 
+@pytest.mark.parametrize("visibility_type", ["role", "group"])
+def test_add_comment_forwards_jira_core_visibility(visibility_type: str) -> None:
+    calls = {}
+
+    class FakeClient:
+        @staticmethod
+        def issue_add_comment(issue_key: str, body: str, visibility: dict | None) -> dict:
+            calls.update(issue_key=issue_key, body=body, visibility=visibility)
+            return {"id": "10001", "body": body, "visibility": visibility}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.add_comment(
+        "DEMO-1",
+        "h2. Example response",
+        visibility={"type": visibility_type, "value": "reviewer-one"},
+    )
+
+    assert calls == {
+        "issue_key": "DEMO-1",
+        "body": "h2. Example response",
+        "visibility": {"type": visibility_type, "value": "reviewer-one"},
+    }
+    assert result["id"] == "10001"
+
+
+def test_edit_comment_forwards_jira_core_visibility() -> None:
+    calls = {}
+
+    class FakeClient:
+        @staticmethod
+        def issue_edit_comment(
+            issue_key: str,
+            comment_id: str,
+            body: str,
+            visibility: dict | None,
+        ) -> dict:
+            calls.update(
+                issue_key=issue_key,
+                comment_id=comment_id,
+                body=body,
+                visibility=visibility,
+            )
+            return {"id": comment_id, "body": body, "visibility": visibility}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.edit_comment(
+        "DEMO-1",
+        "10001",
+        "{code}example response{code}",
+        visibility={"type": "group", "value": "reviewer-one"},
+    )
+
+    assert calls == {
+        "issue_key": "DEMO-1",
+        "comment_id": "10001",
+        "body": "{code}example response{code}",
+        "visibility": {"type": "group", "value": "reviewer-one"},
+    }
+    assert result["id"] == "10001"
+
+
 def test_get_issue_forwards_server_options_and_limits_newest_comments() -> None:
     calls = {}
 
