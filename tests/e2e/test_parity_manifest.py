@@ -101,3 +101,12 @@ def test_issue_61_confluence_read_rows_are_verified() -> None:
         "confluence_get_space_page_tree",
     ):
         assert PARITY_EVIDENCE[operation].status is ParityStatus.VERIFIED
+
+
+def test_issue_49_jira_discovery_rows_are_verified() -> None:
+    for operation in (
+        "jira_search_assignable_users",
+        "jira_search_fields",
+        "jira_get_field_options",
+    ):
+        assert PARITY_EVIDENCE[operation].status is ParityStatus.VERIFIED
