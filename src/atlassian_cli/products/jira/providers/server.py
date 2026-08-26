@@ -137,12 +137,19 @@ class JiraServerProvider:
 
     def create_issues(self, issues: list[dict]) -> list[dict]:
         try:
-            return self.client.create_issues(issues)
+            response = self.client.create_issues([{"fields": issue} for issue in issues])
         except HTTPError as exc:
             response = getattr(exc, "response", None)
             if response is None or response.status_code < 500:
                 raise
             return [self.client.issue_create(fields=issue) for issue in issues]
+        if isinstance(response, list):
+            return response
+        if not isinstance(response, dict) or not isinstance(response.get("issues"), list):
+            raise TransportError("Jira batch create returned an invalid response")
+        if response.get("errors"):
+            raise ValidationError(f"Jira batch create failed: {response['errors']}")
+        return response["issues"]
 
     def update_issue(
         self, issue_key: str, fields: dict, *, attachments: list[str] | None = None

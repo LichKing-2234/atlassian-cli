@@ -601,58 +601,199 @@ def test_jira_issue_reparent_subtask_live(live_env, jira_fixed_version) -> None:
         registry.run()
 
 
-def test_jira_issue_batch_create_live(live_env, tmp_path) -> None:
-    registry = CleanupRegistry()
+def test_jira_issue_create_and_batch_contracts_live(
+    live_env, jira_fixed_version, cleanup_registry
+) -> None:
     jira_context = build_live_context(Product.JIRA, live_env)
-    provider = build_live_provider(Product.JIRA, live_env)
-    issue_type = live_env.jira_issue_type or "Task"
-    payload = [
-        build_jira_create_payload(
-            provider,
+    assert jira_context.auth.username is not None
+    issue_type = live_env.jira_issue_type or discover_jira_issue_type(
+        jira_fixed_version,
+        project_key=live_env.jira_project,
+        reporter_name=jira_context.auth.username,
+    )
+    components = jira_fixed_version.client.get(
+        f"rest/api/2/project/{live_env.jira_project}/components"
+    )
+    component_name = next(
+        (item.get("name") for item in components if isinstance(item, dict) and item.get("name")),
+        None,
+    )
+    assert component_name is not None
+
+    def required_fields(summary: str) -> dict:
+        payload = build_jira_create_payload(
+            jira_fixed_version,
             project_key=live_env.jira_project,
-            summary=unique_name("jira-batch-one"),
+            summary=summary,
             issue_type=issue_type,
             env_overrides={},
             reporter_name=jira_context.auth.username,
-        ),
-        build_jira_create_payload(
-            provider,
-            project_key=live_env.jira_project,
-            summary=unique_name("jira-batch-two"),
-            issue_type=issue_type,
-            env_overrides={},
-            reporter_name=jira_context.auth.username,
-        ),
-    ]
-    try:
-        result = run_json(
+        )
+        additional = _jira_additional_fields(payload)
+        additional.pop("assignee", None)
+        additional.pop("components", None)
+        return additional
+
+    def register_cleanup(issue_key: str) -> None:
+        cleanup_registry.add(
+            f"jira issue delete {issue_key}",
+            lambda key=issue_key: run_json(
+                live_env,
+                "jira",
+                "issue",
+                "delete",
+                key,
+                "--yes",
+                "--output",
+                "json",
+            ),
+        )
+
+    def read_fields(issue_key: str) -> dict:
+        return run_json(
             live_env,
             "jira",
             "issue",
-            "batch-create",
-            "--issues",
-            json.dumps(payload),
+            "get",
+            issue_key,
+            "--fields",
+            "summary,description,assignee,components",
+            "--comment-limit",
+            "0",
             "--output",
-            "json",
-        )
-        keys = [item["key"] for item in result["issues"] if item.get("key")]
-        assert len(keys) == 2
-        for key in keys:
-            registry.add(
-                f"jira issue delete {key}",
-                lambda key=key: run_json(
-                    live_env,
-                    "jira",
-                    "issue",
-                    "delete",
-                    key,
-                    "--yes",
-                    "--output",
-                    "json",
-                ),
-            )
-    finally:
-        registry.run()
+            "raw-json",
+        )["fields"]
+
+    markdown_summary = unique_name("jira-create-markdown")
+    markdown_description = "## Example Page\n\n- example response"
+    created = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "create",
+        "--project-key",
+        live_env.jira_project,
+        "--issue-type",
+        issue_type,
+        "--summary",
+        markdown_summary,
+        "--assignee",
+        jira_context.auth.username,
+        "--description",
+        markdown_description,
+        "--components",
+        component_name,
+        "--additional-fields",
+        json.dumps(required_fields(markdown_summary)),
+        "--output",
+        "json",
+    )
+    markdown_key = created["issue"]["key"]
+    register_cleanup(markdown_key)
+    markdown_fields = read_fields(markdown_key)
+    assert markdown_fields["summary"] == markdown_summary
+    assert markdown_fields["description"] == "h2. Example Page\n\n* example response"
+    assert markdown_fields["assignee"]["name"] == jira_context.auth.username
+    assert component_name in [item["name"] for item in markdown_fields["components"]]
+
+    jira_summary = unique_name("jira-create-markup")
+    jira_description = "h2. Example Page\n\n* example response"
+    created = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "create",
+        "--project-key",
+        live_env.jira_project,
+        "--issue-type",
+        issue_type,
+        "--summary",
+        jira_summary,
+        "--description",
+        jira_description,
+        "--description-format",
+        "jira",
+        "--additional-fields",
+        json.dumps(required_fields(jira_summary)),
+        "--output",
+        "json",
+    )
+    jira_key = created["issue"]["key"]
+    register_cleanup(jira_key)
+    assert read_fields(jira_key)["description"] == jira_description
+
+    batch_summaries = [unique_name("jira-batch-one"), unique_name("jira-batch-two")]
+    batch_issues = [
+        {
+            **required_fields(batch_summaries[0]),
+            "project_key": live_env.jira_project,
+            "summary": batch_summaries[0],
+            "issue_type": issue_type,
+            "description": markdown_description,
+            "assignee": jira_context.auth.username,
+            "components": [component_name],
+        },
+        {
+            **required_fields(batch_summaries[1]),
+            "project_key": live_env.jira_project,
+            "summary": batch_summaries[1],
+            "issue_type": issue_type,
+            "description": jira_description,
+            "description_format": "jira",
+        },
+    ]
+    result = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "batch-create",
+        "--issues",
+        json.dumps(batch_issues),
+        "--output",
+        "json",
+    )
+    batch_keys = [item["key"] for item in result["issues"]]
+    assert len(batch_keys) == 2
+    for issue_key in batch_keys:
+        register_cleanup(issue_key)
+    first_fields = read_fields(batch_keys[0])
+    second_fields = read_fields(batch_keys[1])
+    assert first_fields["summary"] == batch_summaries[0]
+    assert first_fields["description"] == "h2. Example Page\n\n* example response"
+    assert first_fields["assignee"]["name"] == jira_context.auth.username
+    assert component_name in [item["name"] for item in first_fields["components"]]
+    assert second_fields["summary"] == batch_summaries[1]
+    assert second_fields["description"] == jira_description
+
+    validation_summary = unique_name("jira-batch-validate")
+    validated = run_json(
+        live_env,
+        "jira",
+        "issue",
+        "batch-create",
+        "--issues",
+        json.dumps(
+            [
+                {
+                    **required_fields(validation_summary),
+                    "project_key": live_env.jira_project,
+                    "summary": validation_summary,
+                    "issue_type": issue_type,
+                    "description": markdown_description,
+                }
+            ]
+        ),
+        "--validate-only",
+        "--output",
+        "json",
+    )
+    assert validated == {"message": "Issues validated successfully", "issues": []}
+    search = jira_fixed_version.search_issues(
+        f'project = {live_env.jira_project} AND summary ~ "{validation_summary}"',
+        start=0,
+        limit=10,
+    )
+    assert search["issues"] == []
 
 
 def test_jira_issue_link_round_trip_live(live_env, jira_fixed_version) -> None:
