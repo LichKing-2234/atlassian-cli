@@ -85,21 +85,76 @@ def test_get_field_options_filters_issue_type_by_name() -> None:
     assert calls["args"] == ("TEST", "projects.issuetypes.fields")
 
 
-def test_get_issue_rejects_unsupported_server_options() -> None:
+def test_get_issue_forwards_server_options_and_limits_newest_comments() -> None:
+    calls = {}
+
     class FakeClient:
-        def issue(self, issue_key: str, fields="*all", expand=None) -> dict:
-            raise AssertionError(
-                "should not call client.issue when unsupported options are requested"
-            )
+        def get_issue(self, issue_key, *, fields, properties, update_history, expand):
+            calls["get_issue"] = {
+                "issue_key": issue_key,
+                "fields": fields,
+                "properties": properties,
+                "update_history": update_history,
+                "expand": expand,
+            }
+            return {"key": issue_key, "fields": {"comment": {"comments": []}}}
+
+        def issue_get_comments(self, issue_key: str) -> dict:
+            calls["comments"] = issue_key
+            return {
+                "comments": [
+                    {"id": "1", "body": "first"},
+                    {"id": "2", "body": "second"},
+                    {"id": "3", "body": "third"},
+                ]
+            }
 
     provider = build_provider_with_client(FakeClient())
 
-    try:
-        provider.get_issue("DEMO-1", comment_limit=5)
-    except NotImplementedError as exc:
-        assert "comment_limit" in str(exc)
-    else:
-        raise AssertionError("expected NotImplementedError")
+    result = provider.get_issue(
+        "DEMO-1",
+        fields=["summary"],
+        expand="renderedFields",
+        comment_limit=2,
+        properties=["triage", "ops"],
+        update_history=False,
+    )
+
+    assert calls == {
+        "get_issue": {
+            "issue_key": "DEMO-1",
+            "fields": ["summary", "comment"],
+            "properties": "triage,ops",
+            "update_history": False,
+            "expand": "renderedFields",
+        },
+        "comments": "DEMO-1",
+    }
+    assert result["fields"]["comment"]["comments"] == [
+        {"id": "2", "body": "second"},
+        {"id": "3", "body": "third"},
+    ]
+
+
+def test_get_issue_keeps_issue_read_when_comment_fetch_fails() -> None:
+    class FakeClient:
+        @staticmethod
+        def get_issue(issue_key, *, fields, properties, update_history, expand):
+            del properties, update_history, expand
+            assert issue_key == "DEMO-1"
+            assert fields == ["summary", "comment"]
+            return {"key": issue_key, "fields": {"comment": {"comments": []}}}
+
+        @staticmethod
+        def issue_get_comments(issue_key: str) -> dict:
+            raise HTTPError(f"comments unavailable for {issue_key}")
+
+    result = build_provider_with_client(FakeClient()).get_issue(
+        "DEMO-1", fields=["summary"], comment_limit=2
+    )
+
+    assert result["key"] == "DEMO-1"
+    assert result["fields"]["comment"]["comments"] == []
 
 
 def test_list_issue_attachments_fetches_attachment_field_only() -> None:
@@ -132,6 +187,36 @@ def test_upload_issue_attachment_delegates_to_client() -> None:
 
     assert result == {"id": "10001", "filename": "report.pdf", "size": 42}
     assert calls["args"] == ("DEMO-1", "/tmp/report.pdf")
+
+
+def test_update_issue_uploads_attachments_separately_from_fields() -> None:
+    calls = []
+
+    class FakeClient:
+        def issue_update(self, issue_key: str, *, fields: dict) -> None:
+            calls.append(("update", issue_key, fields))
+
+        def add_attachment(self, issue_key: str, filename: str) -> dict:
+            calls.append(("attach", issue_key, filename))
+            return {"id": "10001", "filename": "report.pdf", "size": 42}
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.update_issue(
+        "DEMO-1",
+        {"summary": "Updated summary"},
+        attachments=["/tmp/report.pdf"],
+    )
+
+    assert calls == [
+        ("update", "DEMO-1", {"summary": "Updated summary"}),
+        ("attach", "DEMO-1", "/tmp/report.pdf"),
+    ]
+    assert result == {
+        "key": "DEMO-1",
+        "updated": True,
+        "attachment_results": [{"id": "10001", "filename": "report.pdf", "size": 42}],
+    }
 
 
 def test_issue_link_methods_delegate_to_client() -> None:

@@ -360,6 +360,18 @@ Examples:
 - `atlassian bitbucket commit build-status abc123`
 - `atlassian jira issue get DEMO-1 --output json`
 
+### Jira issue read and update behavior
+
+Jira Server 7.11 issue reads support the deployment-relevant `mcp-atlassian` controls:
+
+- `--comment-limit 0..100` includes the newest requested comments; `0` omits comments.
+- `--properties triage,ops` requests those issue properties.
+- `--update-history false` reads the issue without updating the caller's view history.
+
+`jira issue update --attachments '["./report.pdf"]'` updates ordinary fields first and then
+uploads each file through Jira's attachment endpoint. Attachment paths are never inserted into
+the issue fields payload. The dedicated `jira issue attachment upload` command remains available.
+
 ### Jira issue link behavior
 
 Jira Server 7.11.0 manages issue links through dedicated REST resources. The CLI keeps

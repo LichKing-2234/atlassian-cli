@@ -13,7 +13,7 @@ behavior runs; it is never treated as a skip.
 
 `parity_manifest.py` is the maintained ledger for the accepted ordinary-user boundary. Each row
 records the upstream operation, fixed-version semantic inputs, gap kind, mutation status, owning
-implementation issue, and evidence status.
+implementation issue or issues, and evidence status.
 
 Use these evidence states precisely:
 

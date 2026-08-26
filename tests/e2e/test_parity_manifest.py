@@ -55,8 +55,14 @@ def test_parity_manifest_has_explicit_inputs_and_issue_owner() -> None:
     for row in PARITY_EVIDENCE.values():
         assert row.semantic_inputs
         assert len(row.semantic_inputs) == len(set(row.semantic_inputs))
-        assert row.implementation_issue > 0
+        assert all(issue > 0 for issue in row.implementation_issues)
         assert isinstance(row.status, ParityStatus)
+
+
+def test_parity_manifest_tracks_operation_families_split_across_issues() -> None:
+    assert PARITY_EVIDENCE["jira_update_issue"].implementation_issues == (58, 56)
+    assert PARITY_EVIDENCE["confluence_create_page"].implementation_issues == (50, 51)
+    assert PARITY_EVIDENCE["confluence_update_page"].implementation_issues == (50, 51)
 
 
 def test_parity_statuses_keep_evidence_states_distinct() -> None:

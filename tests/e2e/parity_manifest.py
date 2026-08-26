@@ -25,6 +25,11 @@ class ParityEvidence:
     implementation_issue: int
     mutation: bool
     status: ParityStatus = ParityStatus.UNIMPLEMENTED
+    additional_implementation_issues: tuple[int, ...] = ()
+
+    @property
+    def implementation_issues(self) -> tuple[int, ...]:
+        return (self.implementation_issue, *self.additional_implementation_issues)
 
 
 PARITY_EVIDENCE = {
@@ -91,6 +96,7 @@ PARITY_EVIDENCE = {
         ("issue_key", "fields", "expand", "comment_limit", "properties", "update_history"),
         56,
         False,
+        status=ParityStatus.VERIFIED,
     ),
     "jira_search_fields": ParityEvidence(
         Product.JIRA, GapKind.DRIFTED, ("keyword", "limit"), 49, False
@@ -137,6 +143,7 @@ PARITY_EVIDENCE = {
         ),
         58,
         True,
+        additional_implementation_issues=(56,),
     ),
     "jira_assign_issue": ParityEvidence(
         Product.JIRA, GapKind.DRIFTED, ("issue_key", "assignee"), 58, True
@@ -189,6 +196,7 @@ PARITY_EVIDENCE = {
         ),
         50,
         True,
+        additional_implementation_issues=(51,),
     ),
     "confluence_update_page": ParityEvidence(
         Product.CONFLUENCE,
@@ -206,6 +214,7 @@ PARITY_EVIDENCE = {
         ),
         50,
         True,
+        additional_implementation_issues=(51,),
     ),
     "confluence_add_comment": ParityEvidence(
         Product.CONFLUENCE, GapKind.DRIFTED, ("page_id", "body"), 50, True

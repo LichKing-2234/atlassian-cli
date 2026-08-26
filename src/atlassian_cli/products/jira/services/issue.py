@@ -174,9 +174,7 @@ class IssueService:
         payload = {**fields, **(additional_fields or {})}
         if components:
             payload["components"] = [{"name": name} for name in components]
-        if attachments:
-            payload["attachments"] = attachments
-        raw = self.provider.update_issue(issue_key, payload)
+        raw = self.provider.update_issue(issue_key, payload, attachments=attachments)
         if isinstance(raw, dict) and "fields" in raw and "key" in raw:
             issue = JiraIssue.from_api_response(raw).to_simplified_dict()
         else:
@@ -185,8 +183,10 @@ class IssueService:
             issue["attachment_results"] = raw["attachment_results"]
         return {"message": "Issue updated successfully", "issue": issue}
 
-    def update_raw(self, issue_key: str, fields: dict) -> dict:
-        return self.provider.update_issue(issue_key, fields)
+    def update_raw(
+        self, issue_key: str, fields: dict, *, attachments: list[str] | None = None
+    ) -> dict:
+        return self.provider.update_issue(issue_key, fields, attachments=attachments)
 
     def reparent_subtask(self, issue_key: str, parent_key: str) -> dict:
         source = self.provider.get_issue(issue_key, fields="id,key,parent,issuetype,project")
