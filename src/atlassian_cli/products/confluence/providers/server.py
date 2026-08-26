@@ -26,6 +26,15 @@ class ConfluenceServerProvider:
         if session is not None:
             patch_session_headers(session, headers or {})
 
+    @staticmethod
+    def _reject_unsupported_page_write_inputs(
+        *, enable_heading_anchors: bool, emoji: str | None
+    ) -> None:
+        if enable_heading_anchors:
+            raise NotImplementedError("Confluence Server/DC heading anchors require Markdown")
+        if emoji is not None:
+            raise NotImplementedError("Confluence 6.12.4 emoji is not supported")
+
     def get_page(
         self,
         page_id: str,
@@ -125,11 +134,14 @@ class ConfluenceServerProvider:
         enable_heading_anchors: bool = False,
         emoji: str | None = None,
     ) -> dict:
-        del enable_heading_anchors, emoji
         if content_format == "markdown":
             raise NotImplementedError(
                 "Confluence Server/DC provider does not support content_format=markdown"
             )
+        self._reject_unsupported_page_write_inputs(
+            enable_heading_anchors=enable_heading_anchors,
+            emoji=emoji,
+        )
         representation = content_format
         return self.client.create_page(
             space=space_key,
@@ -152,11 +164,14 @@ class ConfluenceServerProvider:
         enable_heading_anchors: bool = False,
         emoji: str | None = None,
     ) -> dict:
-        del enable_heading_anchors, emoji
         if content_format == "markdown":
             raise NotImplementedError(
                 "Confluence Server/DC provider does not support content_format=markdown"
             )
+        self._reject_unsupported_page_write_inputs(
+            enable_heading_anchors=enable_heading_anchors,
+            emoji=emoji,
+        )
         representation = content_format
         return self.client.update_page(
             page_id=page_id,
