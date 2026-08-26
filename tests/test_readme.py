@@ -248,6 +248,22 @@ def test_readme_mentions_version_flag() -> None:
     assert "atlassian --version" in readme
 
 
+def test_readme_documents_jira_remote_issue_link_inputs() -> None:
+    readme = Path("README.md").read_text()
+
+    for value in (
+        "atlassian jira issue remote-link create DEMO-1",
+        "--url https://example.com/DEMO-1",
+        '--title "Example Page"',
+        '--summary "example response"',
+        '--relationship "example comment"',
+        "--icon-url https://example.com/DEMO-1234",
+        "distinct from native Jira issue links",
+        "7.11.0#711000-sha1:ff06e53",
+    ):
+        assert value in readme
+
+
 def test_readme_documents_confluence_attachment_upload_inputs() -> None:
     readme = Path("README.md").read_text()
 

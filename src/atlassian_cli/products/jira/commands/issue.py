@@ -16,6 +16,7 @@ from atlassian_cli.output.tty import should_use_interactive_output
 from atlassian_cli.products.factory import build_provider
 from atlassian_cli.products.jira.commands.attachment import app as attachment_app
 from atlassian_cli.products.jira.commands.link import app as link_app
+from atlassian_cli.products.jira.commands.remote_link import app as remote_link_app
 from atlassian_cli.products.jira.services.issue import IssueService
 from atlassian_cli.products.jira.visibility import parse_visibility
 
@@ -26,6 +27,7 @@ app.add_typer(attachment_app, name="attachment")
 app.add_typer(link_app, name="link")
 app.add_typer(watcher_app, name="watcher")
 app.add_typer(worklog_app, name="worklog")
+app.add_typer(remote_link_app, name="remote-link")
 
 
 def build_issue_service(context) -> IssueService:

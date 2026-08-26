@@ -298,6 +298,25 @@ class JiraServerProvider:
             ) from exc
         raise TransportError("Jira issue link request failed") from exc
 
+    @staticmethod
+    def _raise_remote_issue_link_http_error(exc: HTTPError) -> NoReturn:
+        response = getattr(exc, "response", None)
+        status_code = getattr(response, "status_code", None)
+        if status_code in {401, 403}:
+            raise AuthError(
+                "Jira denied the remote-link operation; verify authentication and "
+                "the Link Issues permission"
+            ) from exc
+        if status_code == 404:
+            raise NotFoundError("Jira issue or remote-link resource was not found") from exc
+        if status_code == 409:
+            raise ConflictError("Jira remote-link operation conflicted with current state") from exc
+        if status_code == 400:
+            raise ValidationError(
+                "Jira rejected the remote-link request; verify its URL, title, and metadata"
+            ) from exc
+        raise TransportError("Jira remote-link request failed") from exc
+
     def list_issue_links(self, issue_key: str) -> list[dict]:
         try:
             issue = self.client.issue(issue_key, fields="issuelinks")
@@ -324,6 +343,18 @@ class JiraServerProvider:
             return self.client.get_issue_link_types()
         except HTTPError as exc:
             self._raise_issue_link_http_error(exc)
+
+    def create_remote_issue_link(self, issue_key: str, data: dict) -> dict:
+        try:
+            return self.client.post(f"rest/api/2/issue/{issue_key}/remotelink", json=data)
+        except HTTPError as exc:
+            self._raise_remote_issue_link_http_error(exc)
+
+    def get_remote_issue_link(self, issue_key: str, link_id: str) -> dict:
+        try:
+            return self.client.get(f"rest/api/2/issue/{issue_key}/remotelink/{link_id}")
+        except HTTPError as exc:
+            self._raise_remote_issue_link_http_error(exc)
 
     def list_issue_attachments(self, issue_key: str) -> list[dict]:
         issue = self.client.issue(issue_key, fields="attachment")

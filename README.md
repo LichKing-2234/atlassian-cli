@@ -232,6 +232,7 @@ ssh example-user@example-host
 - `atlassian jira issue link create --inward DEMO-1 --outward DEMO-1234 --type Cloners`
 - `atlassian jira issue link list DEMO-1`
 - `atlassian jira issue link delete LINK_ID --yes`
+- `atlassian jira issue remote-link create DEMO-1 --url https://example.com/DEMO-1 --title "Example Page"`
 - `atlassian jira issue attachment list DEMO-1`
 - `atlassian jira issue attachment upload DEMO-1 ./report.pdf`
 - `atlassian jira issue attachment download DEMO-1 --name report.pdf --destination ./report.pdf`
@@ -573,6 +574,22 @@ maps to `outwardIssue`.
 - `atlassian jira issue link list DEMO-1 --output json` includes the link ID, type descriptions, both issue keys, linked issue summary, and direction relative to `DEMO-1`.
 - `atlassian jira issue link delete LINK_ID --yes` deletes a link by ID and requires explicit confirmation.
 - `--output raw-json` and `--output raw-yaml` preserve Jira responses. Because create performs type discovery, duplicate preflight, and read-back, its raw output groups those responses in one object.
+
+Remote issue links are distinct from native Jira issue links and point an issue to an
+external web resource. Create one with every deployment-relevant input:
+
+```console
+atlassian jira issue remote-link create DEMO-1 \
+  --url https://example.com/DEMO-1 \
+  --title "Example Page" \
+  --summary "example response" \
+  --relationship "example comment" \
+  --icon-url https://example.com/DEMO-1234
+```
+
+The command creates the remote link through Jira's dedicated REST resource and reads
+it back by returned ID before reporting success. It does not create a native
+issue-to-issue relationship.
 
 This command group targets Atlassian Jira Project Management Software
 `7.11.0#711000-sha1:ff06e53` on Server/Data Center. Jira Cloud is out of scope.

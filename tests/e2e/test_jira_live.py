@@ -1351,6 +1351,95 @@ def test_jira_issue_link_round_trip_live(live_env, jira_fixed_version) -> None:
         registry.run()
 
 
+def test_jira_remote_issue_link_live(live_env, jira_fixed_version) -> None:
+    registry = CleanupRegistry()
+    jira_context = build_live_context(Product.JIRA, live_env)
+    issue_type = live_env.jira_issue_type or discover_jira_issue_type(
+        jira_fixed_version,
+        project_key=live_env.jira_project,
+        reporter_name=jira_context.auth.username,
+    )
+    payload = build_jira_create_payload(
+        jira_fixed_version,
+        project_key=live_env.jira_project,
+        summary=unique_name("Example issue summary"),
+        issue_type=issue_type,
+        env_overrides={},
+        reporter_name=jira_context.auth.username,
+    )
+    issue_key = None
+    remote_link_id = None
+
+    try:
+        created_issue = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "create",
+            "--project-key",
+            live_env.jira_project,
+            "--issue-type",
+            issue_type,
+            "--summary",
+            payload["summary"],
+            "--additional-fields",
+            json.dumps(_jira_additional_fields(payload)),
+            "--output",
+            "json",
+        )
+        issue_key = created_issue["issue"]["key"]
+        registry.add(
+            "jira issue delete",
+            lambda: jira_fixed_version.delete_issue(issue_key),
+        )
+
+        created_link = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "remote-link",
+            "create",
+            issue_key,
+            "--url",
+            "https://example.com/DEMO-1",
+            "--title",
+            "Example Page",
+            "--summary",
+            "example response",
+            "--relationship",
+            "example comment",
+            "--icon-url",
+            "https://example.com/DEMO-1234",
+            "--output",
+            "json",
+        )
+        remote_link_id = created_link["id"]
+
+        def cleanup_remote_link() -> None:
+            jira_fixed_version.client.delete(
+                f"rest/api/2/issue/{issue_key}/remotelink/{remote_link_id}"
+            )
+            remaining = jira_fixed_version.client.get(f"rest/api/2/issue/{issue_key}/remotelink")
+            assert all(str(item.get("id")) != remote_link_id for item in remaining)
+
+        registry.add("jira remote issue link delete", cleanup_remote_link)
+
+        issue_readback = jira_fixed_version.client.issue(issue_key, fields="summary")
+        assert issue_readback["key"] == issue_key
+        remote_links = jira_fixed_version.client.get(f"rest/api/2/issue/{issue_key}/remotelink")
+        remote_link = next(item for item in remote_links if str(item.get("id")) == remote_link_id)
+        assert remote_link["object"]["url"] == "https://example.com/DEMO-1"
+        assert remote_link["object"]["title"] == "Example Page"
+        assert remote_link["object"]["summary"] == "example response"
+        assert remote_link["relationship"] == "example comment"
+        assert remote_link["object"]["icon"] == {
+            "url16x16": "https://example.com/DEMO-1234",
+            "title": "Example Page",
+        }
+    finally:
+        registry.run()
+
+
 def test_jira_issue_changelog_batch_rejected_live(live_env) -> None:
     output = run_failure(
         live_env,
