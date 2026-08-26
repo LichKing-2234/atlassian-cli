@@ -28,6 +28,48 @@ def _jira_additional_fields(payload: dict) -> dict:
     }
 
 
+def _discover_jira_reparent_target(provider, *, reporter_name: str | None):
+    issue_types = provider.client.get("rest/api/2/issuetype")
+    subtask_ids = {str(item.get("id")) for item in issue_types if item.get("subtask") is True}
+    for project in provider.list_projects():
+        project_key = project.get("key")
+        if not project_key:
+            continue
+        try:
+            meta = provider.client.issue_createmeta(
+                project_key, expand="projects.issuetypes.fields"
+            )
+        except Exception:
+            continue
+        projects = meta.get("projects", []) if isinstance(meta, dict) else []
+        available = projects[0].get("issuetypes", []) if projects else []
+        parents = [item for item in available if str(item.get("id")) not in subtask_ids]
+        subtasks = [item for item in available if str(item.get("id")) in subtask_ids]
+        for parent_type in parents:
+            for subtask_type in subtasks:
+                try:
+                    build_jira_create_payload(
+                        provider,
+                        project_key=project_key,
+                        summary="Example issue summary",
+                        issue_type=parent_type["name"],
+                        env_overrides={},
+                        reporter_name=reporter_name,
+                    )
+                    build_jira_create_payload(
+                        provider,
+                        project_key=project_key,
+                        summary="Example issue summary",
+                        issue_type=subtask_type["name"],
+                        env_overrides={"parent": json.dumps({"key": "DEMO-1"})},
+                        reporter_name=reporter_name,
+                    )
+                except RuntimeError:
+                    continue
+                return project_key, parent_type["name"], subtask_type["name"]
+    raise RuntimeError("no writable Jira project with parent and sub-task issue types")
+
+
 def test_jira_project_and_metadata_live(live_env) -> None:
     projects = run_json(live_env, "jira", "project", "list", "--output", "json")
     assert any(item["key"] == live_env.jira_project for item in projects["results"])
@@ -280,6 +322,83 @@ def test_jira_issue_round_trip_live(live_env, tmp_path) -> None:
             "json",
         )
         assert Path(downloaded["path"]).read_text() == "example report\n"
+    finally:
+        registry.run()
+
+
+def test_jira_issue_reparent_subtask_live(live_env) -> None:
+    registry = CleanupRegistry()
+    jira_context = build_live_context(Product.JIRA, live_env)
+    provider = build_live_provider(Product.JIRA, live_env)
+    server_info = provider.client.get_server_info()
+    assert str(server_info.get("version")) == "7.11.0"
+    assert str(server_info.get("buildNumber")) == "711000"
+    project_key, parent_type, subtask_type = _discover_jira_reparent_target(
+        provider, reporter_name=jira_context.auth.username
+    )
+    marker = unique_name("jira-reparent-e2e")
+    try:
+        parent_keys = []
+        for index in (1, 2):
+            payload = build_jira_create_payload(
+                provider,
+                project_key=project_key,
+                summary=f"{marker}-parent-{index}",
+                issue_type=parent_type,
+                env_overrides={},
+                reporter_name=jira_context.auth.username,
+            )
+            parent_key = provider.create_issue(payload)["key"]
+            parent_keys.append(parent_key)
+            registry.add(
+                f"jira issue delete {parent_key}",
+                lambda key=parent_key: provider.delete_issue(key),
+            )
+
+        child_payload = build_jira_create_payload(
+            provider,
+            project_key=project_key,
+            summary=f"{marker}-child",
+            issue_type=subtask_type,
+            env_overrides={"parent": json.dumps({"key": parent_keys[0]})},
+            reporter_name=jira_context.auth.username,
+        )
+        child_key = provider.create_issue(child_payload)["key"]
+        registry.add(
+            f"jira issue delete {child_key}",
+            lambda: provider.delete_issue(child_key),
+        )
+
+        moved = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "reparent-subtask",
+            child_key,
+            "--parent",
+            parent_keys[1],
+            "--output",
+            "json",
+        )
+        assert moved == {
+            "issue_key": child_key,
+            "previous_parent": parent_keys[0],
+            "new_parent": parent_keys[1],
+        }
+
+        moved_back = run_json(
+            live_env,
+            "jira",
+            "issue",
+            "reparent-subtask",
+            child_key,
+            "--parent",
+            parent_keys[0],
+            "--output",
+            "raw-json",
+        )
+        assert moved_back["previous_parent"] == parent_keys[1]
+        assert moved_back["new_parent"] == parent_keys[0]
     finally:
         registry.run()
 

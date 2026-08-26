@@ -227,6 +227,7 @@ ssh example-user@example-host
 ## Examples
 
 - `atlassian jira issue get DEMO-1`
+- `atlassian jira issue reparent-subtask DEMO-1234 --parent DEMO-1`
 - `atlassian jira issue link types --name-filter clone`
 - `atlassian jira issue link create --inward DEMO-1 --outward DEMO-1234 --type Cloners`
 - `atlassian jira issue link list DEMO-1`
@@ -260,6 +261,10 @@ ssh example-user@example-host
 - `atlassian bitbucket pr unapprove DEMO example-repo 42`
 - `atlassian bitbucket pr build-status DEMO example-repo 42`
 - `atlassian bitbucket commit build-status abc123`
+
+`jira issue reparent-subtask` is limited to Jira Server 7.11.0 build 711000. It uses
+Jira's authenticated Move Sub-task workflow and verifies the new parent after the
+operation. Other Jira versions and builds fail before the workflow starts.
 
 ### Bitbucket API
 

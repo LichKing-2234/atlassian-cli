@@ -1,7 +1,13 @@
 import pytest
 from requests import HTTPError
 
-from atlassian_cli.core.errors import AuthError, ConflictError, NotFoundError, ValidationError
+from atlassian_cli.core.errors import (
+    AuthError,
+    ConflictError,
+    NotFoundError,
+    UnsupportedError,
+    ValidationError,
+)
 from atlassian_cli.products.jira.providers.server import JiraServerProvider
 
 
@@ -232,3 +238,134 @@ def test_download_issue_attachment_streams_to_destination(tmp_path) -> None:
         "bytes_written": 15,
     }
     assert calls == [("attachment://DEMO-1/report.pdf", True)]
+
+
+def test_reparent_subtask_submits_jira_711_move_workflow() -> None:
+    calls = []
+
+    class FakeResponse:
+        def __init__(self, *, url: str, text: str) -> None:
+            self.url = url
+            self.text = text
+
+        def raise_for_status(self) -> None:
+            return None
+
+    first = FakeResponse(
+        url="https://jira.example.com/secure/MoveSubTaskChooseOperation!default.jspa?id=10003",
+        text="""
+        <form method="post" action="MoveSubTaskChooseOperation.jspa?atl_token=example&amp;id=10003">
+          <input name="operation" value="move.subtask.parent.operation.name">
+          <input name="atl_token" value="example response">
+        </form>
+        """,
+    )
+    second = FakeResponse(
+        url="https://jira.example.com/secure/MoveSubTaskParent!default.jspa?id=10003",
+        text="""
+        <form method="post" action="MoveSubTaskParent.jspa?atl_token=example&amp;id=10003">
+          <input name="parentIssue">
+          <input name="id" value="10003">
+          <input name="atl_token" value="example response">
+        </form>
+        """,
+    )
+    final = FakeResponse(url="https://jira.example.com/browse/DEMO-1234", text="")
+
+    class FakeSession:
+        def get(self, url: str, *, params: dict):
+            calls.append(("get", url, params))
+            return first
+
+        def post(self, url: str, *, data: dict):
+            calls.append(("post", url, data))
+            return second if len(calls) == 2 else final
+
+    class FakeClient:
+        url = "https://jira.example.com"
+        _session = FakeSession()
+
+        def get_server_info(self) -> dict:
+            return {"version": "7.11.0", "buildNumber": "711000"}
+
+    provider = build_provider_with_client(FakeClient())
+
+    provider.reparent_subtask("10003", "DEMO-1")
+
+    assert calls[0] == (
+        "get",
+        "https://jira.example.com/secure/MoveSubTaskChooseOperation!default.jspa",
+        {"id": "10003"},
+    )
+    assert calls[1][2] == {
+        "operation": "move.subtask.parent.operation.name",
+        "atl_token": "example response",
+    }
+    assert calls[2][2] == {
+        "parentIssue": "DEMO-1",
+        "id": "10003",
+        "atl_token": "example response",
+    }
+    assert all("/subtask/move" not in call[1] for call in calls)
+
+
+def test_reparent_subtask_rejects_unrecognized_jira_build_before_workflow() -> None:
+    class FakeSession:
+        def get(self, *args, **kwargs):
+            raise AssertionError("unsupported builds must not start the workflow")
+
+    class FakeClient:
+        url = "https://jira.example.com"
+        _session = FakeSession()
+
+        def get_server_info(self) -> dict:
+            return {"version": "7.11.1", "buildNumber": "711001"}
+
+    provider = build_provider_with_client(FakeClient())
+
+    with pytest.raises(UnsupportedError, match="only Jira Server 7.11.0 build 711000"):
+        provider.reparent_subtask("10003", "DEMO-1")
+
+
+def test_reparent_subtask_rejects_cross_origin_form_action() -> None:
+    class FakeResponse:
+        url = "https://jira.example.com/secure/MoveSubTaskChooseOperation!default.jspa"
+        text = """
+        <form method="post" action="https://other.example.com/MoveSubTaskChooseOperation.jspa">
+          <input name="operation" value="move.subtask.parent.operation.name">
+          <input name="atl_token" value="example response">
+        </form>
+        """
+
+    with pytest.raises(UnsupportedError, match="not same-origin"):
+        JiraServerProvider._reparent_form(
+            FakeResponse(),
+            field="operation",
+            action_name="MoveSubTaskChooseOperation.jspa",
+        )
+
+
+def test_reparent_subtask_reports_permission_failure() -> None:
+    class ForbiddenResponse:
+        status_code = 403
+        url = "https://jira.example.com/secure/MoveSubTaskChooseOperation!default.jspa"
+        text = ""
+
+        def raise_for_status(self) -> None:
+            raise HTTPError("forbidden", response=self)
+
+    class FakeSession:
+        def get(self, url: str, *, params: dict):
+            return ForbiddenResponse()
+
+    class FakeClient:
+        url = "https://jira.example.com"
+        _session = FakeSession()
+
+        def get_server_info(self) -> dict:
+            return {"version": "7.11.0", "buildNumber": "711000"}
+
+    provider = build_provider_with_client(FakeClient())
+
+    with pytest.raises(AuthError, match="Move Issues permission"):
+        provider.reparent_subtask("10003", "DEMO-1")
