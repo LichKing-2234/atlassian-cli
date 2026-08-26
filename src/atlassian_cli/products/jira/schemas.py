@@ -135,6 +135,95 @@ class JiraAttachment(ApiModel):
         return {key: value for key, value in payload.items() if value not in (None, "", {}, [])}
 
 
+class JiraIssueLinkType(ApiModel):
+    id: str = ""
+    name: str = ""
+    inward: str = ""
+    outward: str = ""
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any] | None, **kwargs: Any) -> "JiraIssueLinkType":
+        data = data or {}
+        return cls(
+            id=str(data.get("id", "")),
+            name=str(data.get("name", "")),
+            inward=str(data.get("inward", "")),
+            outward=str(data.get("outward", "")),
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "inward": self.inward,
+            "outward": self.outward,
+        }
+
+
+class JiraIssueLink(ApiModel):
+    id: str = ""
+    type: JiraIssueLinkType = Field(default_factory=JiraIssueLinkType)
+    inward_issue: str = ""
+    outward_issue: str = ""
+    direction: str = ""
+    relationship: str = ""
+    linked_issue: dict[str, str] = Field(default_factory=dict)
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any] | None, **kwargs: Any) -> "JiraIssueLink":
+        data = data or {}
+        requested_issue = str(kwargs.get("requested_issue", ""))
+        link_type = JiraIssueLinkType.from_api_response(
+            data.get("type") if isinstance(data.get("type"), dict) else None
+        )
+        outward = data.get("outwardIssue")
+        inward = data.get("inwardIssue")
+        if isinstance(outward, dict):
+            linked_issue = outward
+            direction = "outward"
+            relationship = link_type.outward
+            inward_issue = requested_issue
+            outward_issue = str(outward.get("key", ""))
+        elif isinstance(inward, dict):
+            linked_issue = inward
+            direction = "inward"
+            relationship = link_type.inward
+            inward_issue = str(inward.get("key", ""))
+            outward_issue = requested_issue
+        else:
+            linked_issue = {}
+            direction = ""
+            relationship = ""
+            inward_issue = ""
+            outward_issue = ""
+        fields = linked_issue.get("fields") if isinstance(linked_issue.get("fields"), dict) else {}
+        return cls(
+            id=str(data.get("id", "")),
+            type=link_type,
+            inward_issue=inward_issue,
+            outward_issue=outward_issue,
+            direction=direction,
+            relationship=relationship,
+            linked_issue={
+                "key": str(linked_issue.get("key", "")),
+                "summary": str(fields.get("summary", "")),
+            },
+        )
+
+    def to_simplified_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "type": self.type.name,
+            "inward": self.type.inward,
+            "outward": self.type.outward,
+            "inward_issue": self.inward_issue,
+            "outward_issue": self.outward_issue,
+            "direction": self.direction,
+            "relationship": self.relationship,
+            "linked_issue": self.linked_issue,
+        }
+
+
 class JiraProject(ApiModel):
     id: str | None = None
     key: str = ""

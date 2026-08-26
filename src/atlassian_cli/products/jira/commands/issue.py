@@ -14,10 +14,12 @@ from atlassian_cli.output.renderers import render_output
 from atlassian_cli.output.tty import should_use_interactive_output
 from atlassian_cli.products.factory import build_provider
 from atlassian_cli.products.jira.commands.attachment import app as attachment_app
+from atlassian_cli.products.jira.commands.link import app as link_app
 from atlassian_cli.products.jira.services.issue import IssueService
 
 app = typer.Typer(help="Jira issue commands")
 app.add_typer(attachment_app, name="attachment")
+app.add_typer(link_app, name="link")
 
 
 def build_issue_service(context) -> IssueService:

@@ -6,6 +6,8 @@ from tests.e2e.support.cleanup import CleanupRegistry
 from tests.e2e.support.context import build_live_context
 from tests.e2e.support.discovery import (
     build_jira_create_payload,
+    discover_jira_comment_visibilities,
+    discover_jira_issue_type,
     resolve_bitbucket_repo_target,
     resolve_confluence_write_target,
 )
@@ -56,7 +58,7 @@ def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
                 "ATLASSIAN_E2E_BITBUCKET_PROJECT=DEMO",
                 "ATLASSIAN_E2E_BITBUCKET_CREATE_PROJECT=DEMO",
                 "ATLASSIAN_E2E_BITBUCKET_REPO=example-repo",
-                "ATLASSIAN_E2E_JIRA_ISSUE_TYPE=Internal Task",
+                "ATLASSIAN_E2E_JIRA_ISSUE_TYPE=Task",
                 "ATLASSIAN_E2E_CONFLUENCE_PARENT_PAGE=123456",
                 "ATLASSIAN_E2E_BITBUCKET_EXISTING_REPO=example-repo",
                 f"ATLASSIAN_E2E_BITBUCKET_REVIEWER_CONFIG={reviewer_config}",
@@ -84,7 +86,7 @@ def test_load_live_env_reads_repo_dotenv(monkeypatch, tmp_path) -> None:
         bitbucket_project="DEMO",
         bitbucket_create_project="DEMO",
         bitbucket_repo="example-repo",
-        jira_issue_type="Internal Task",
+        jira_issue_type="Task",
         confluence_parent_page="123456",
         bitbucket_existing_repo="example-repo",
         bitbucket_reviewer_config=reviewer_config,
@@ -314,6 +316,13 @@ class FakeJiraProvider:
                                         "required": True,
                                         "allowedValues": [{"id": "11", "value": "Linux"}],
                                     },
+                                    "customfield_10002": {
+                                        "required": True,
+                                        "schema": {"type": "array"},
+                                        "allowedValues": [
+                                            {"id": "12", "value": "example response"}
+                                        ],
+                                    },
                                     "reporter": {"required": True},
                                 },
                             }
@@ -338,6 +347,7 @@ def test_build_jira_create_payload_uses_allowed_value_defaults() -> None:
 
     assert payload["project"]["key"] == "DEMO"
     assert payload["customfield_10001"] == {"id": "11"}
+    assert payload["customfield_10002"] == [{"id": "12"}]
     assert payload["reporter"] == {"name": "example-user"}
 
 
@@ -356,6 +366,31 @@ def test_build_jira_create_payload_raises_clear_error_for_unknown_issue_type() -
         assert "ATLASSIAN_E2E_JIRA_ISSUE_TYPE" in str(exc)
     else:
         raise AssertionError("expected RuntimeError")
+
+
+def test_discover_jira_issue_type_selects_writable_non_subtask() -> None:
+    assert (
+        discover_jira_issue_type(
+            FakeJiraProvider(),
+            project_key="DEMO",
+            reporter_name="example-user",
+        )
+        == "Task"
+    )
+
+
+def test_discover_jira_comment_visibilities_returns_project_roles() -> None:
+    class FakeProvider:
+        class Client:
+            def get(self, path: str) -> dict:
+                assert path == "rest/api/2/project/DEMO/role"
+                return {"reviewer-one": "https://jira.example.com/rest/api/2/project/DEMO/role/1"}
+
+        client = Client()
+
+    assert discover_jira_comment_visibilities(FakeProvider(), "DEMO") == [
+        {"type": "role", "value": "reviewer-one"}
+    ]
 
 
 def test_resolve_confluence_write_target_prefers_explicit_parent(tmp_path) -> None:

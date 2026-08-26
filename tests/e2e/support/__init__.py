@@ -2,6 +2,8 @@ from tests.e2e.support.cleanup import CleanupRegistry
 from tests.e2e.support.context import build_live_context, build_live_provider
 from tests.e2e.support.discovery import (
     build_jira_create_payload,
+    discover_jira_comment_visibilities,
+    discover_jira_issue_type,
     resolve_bitbucket_repo_target,
     resolve_confluence_write_target,
 )
@@ -17,6 +19,8 @@ __all__ = [
     "build_jira_create_payload",
     "build_live_context",
     "build_live_provider",
+    "discover_jira_comment_visibilities",
+    "discover_jira_issue_type",
     "load_live_env",
     "resolve_bitbucket_repo_target",
     "resolve_confluence_write_target",
