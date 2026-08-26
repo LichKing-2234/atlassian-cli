@@ -311,6 +311,88 @@ def test_list_comments_returns_results_items() -> None:
     assert result == [{"id": "c1", "body": {"storage": {"value": "example approval"}}}]
 
 
+def test_get_page_labels_uses_official_content_label_api() -> None:
+    class FakeClient:
+        def get_page_labels(self, page_id: str):
+            assert page_id == "1234"
+            return {
+                "results": [
+                    {
+                        "id": "55",
+                        "name": "example-repo",
+                        "prefix": "global",
+                        "label": "example-repo",
+                    }
+                ]
+            }
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.get_page_labels("1234")
+
+    assert result["results"][0]["name"] == "example-repo"
+
+
+def test_add_page_label_reads_back_updated_labels() -> None:
+    calls = []
+
+    class FakeClient:
+        def set_page_label(self, page_id: str, label: str):
+            calls.append(("add", page_id, label))
+            return {"name": label}
+
+        def get_page_labels(self, page_id: str):
+            calls.append(("read", page_id))
+            return {
+                "results": [
+                    {
+                        "id": "55",
+                        "name": "example-repo",
+                        "prefix": "global",
+                        "label": "example-repo",
+                    }
+                ]
+            }
+
+    provider = build_provider_with_client(FakeClient())
+
+    result = provider.add_page_label("1234", "example-repo")
+
+    assert result["results"][0]["name"] == "example-repo"
+    assert calls == [
+        ("add", "1234", "example-repo"),
+        ("read", "1234"),
+    ]
+
+
+def test_get_page_restrictions_uses_official_by_operation_api() -> None:
+    expected = {
+        "read": {
+            "operation": "read",
+            "restrictions": {
+                "user": {"results": [{"username": "~example-user"}]},
+                "group": {"results": [{"name": "reviewer-one"}]},
+            },
+        },
+        "update": {
+            "operation": "update",
+            "restrictions": {
+                "user": {"results": [{"username": "~example-user"}]},
+                "group": {"results": [{"name": "reviewer-two"}]},
+            },
+        },
+    }
+
+    class FakeClient:
+        def get_all_restrictions_for_content(self, content_id: str):
+            assert content_id == "1234"
+            return expected
+
+    provider = build_provider_with_client(FakeClient())
+
+    assert provider.get_page_restrictions("1234") == expected
+
+
 def test_add_comment_converts_markdown_to_storage() -> None:
     calls = {}
 

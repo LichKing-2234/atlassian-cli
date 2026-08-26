@@ -114,3 +114,12 @@ def test_issue_49_jira_discovery_rows_are_verified() -> None:
 
 def test_issue_48_jira_remote_link_row_is_verified() -> None:
     assert PARITY_EVIDENCE["jira_create_remote_issue_link"].status is ParityStatus.VERIFIED
+
+
+def test_issue_59_confluence_label_and_restriction_rows_are_verified() -> None:
+    for operation in (
+        "confluence_get_labels",
+        "confluence_add_label",
+        "confluence_get_page_restrictions",
+    ):
+        assert PARITY_EVIDENCE[operation].status is ParityStatus.VERIFIED

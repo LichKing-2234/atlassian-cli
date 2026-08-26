@@ -523,6 +523,21 @@ atlassian confluence comment add 1234 --body "**example comment**"
 atlassian confluence comment reply 5678 --body "<p>example response</p>" --content-format storage
 ```
 
+### Confluence labels and restriction reads
+
+Confluence 6.12.4 page labels and view/edit restriction reads are available directly:
+
+```console
+atlassian confluence page label list 1234
+atlassian confluence page label add 1234 --name example-repo
+atlassian confluence page restriction get 1234
+```
+
+Label add reads the labels back before reporting the updated collection. Restriction get returns
+the `read` (view) and `update` (edit) users and groups and does not modify access. Bulk restriction
+setting remains excluded because Confluence 6.12.4 does not document the upstream bulk mutation
+endpoint.
+
 ### Jira watcher and worklog behavior
 
 Jira `7.11.0#711000-sha1:ff06e53` exposes issue watchers and worklogs through official issue

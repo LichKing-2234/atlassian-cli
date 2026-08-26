@@ -223,6 +223,16 @@ class ConfluenceServerProvider:
     def get_space(self, space_key: str) -> dict:
         return self.client.get_space(space_key)
 
+    def get_page_labels(self, page_id: str) -> dict:
+        return self.client.get_page_labels(page_id)
+
+    def add_page_label(self, page_id: str, name: str) -> dict:
+        self.client.set_page_label(page_id, name)
+        return self.get_page_labels(page_id)
+
+    def get_page_restrictions(self, page_id: str) -> dict:
+        return self.client.get_all_restrictions_for_content(page_id)
+
     def list_comments(self, page_id: str) -> list[dict]:
         response = self.client.get_page_comments(page_id)
         if isinstance(response, dict):

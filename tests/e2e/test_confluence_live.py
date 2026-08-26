@@ -1,4 +1,6 @@
 import base64
+import hashlib
+import json
 import time
 from pathlib import Path
 from urllib.parse import urljoin
@@ -353,6 +355,115 @@ def test_confluence_page_read_navigation_contracts_live(
         "json",
     )
     assert len(tree["results"]) == 2
+
+
+def test_confluence_label_and_restriction_contracts_live(
+    live_env, confluence_fixed_version, cleanup_registry
+) -> None:
+    target = resolve_confluence_write_target(live_env)
+    if str(target["space_key"]).startswith("~"):
+        context = build_live_context(Product.CONFLUENCE, live_env)
+        assert context.auth.username is not None
+        target["space_key"] = f"~{context.auth.username}"
+
+    parent_id = target["parent_page_id"]
+    if parent_id is None:
+        homepage = confluence_fixed_version.get_space_homepage(str(target["space_key"]))
+        parent_id = str(homepage["id"])
+    created = run_json(
+        live_env,
+        "confluence",
+        "page",
+        "create",
+        "--space-key",
+        str(target["space_key"]),
+        "--title",
+        unique_name("confluence-label-restriction"),
+        "--content",
+        "# Example Page",
+        "--parent-id",
+        str(parent_id),
+        "--output",
+        "json",
+    )
+    page_id = str(created["page"]["id"])
+    cleanup_registry.add(
+        f"confluence page delete {page_id}",
+        lambda: _delete_page(live_env, page_id),
+    )
+
+    label_name = "example-repo"
+    label_present = {"value": False}
+
+    def remove_label() -> None:
+        if label_present["value"]:
+            confluence_fixed_version.client.remove_page_label(page_id, label_name)
+
+    cleanup_registry.add(
+        f"confluence page label remove {page_id}",
+        remove_label,
+    )
+
+    listed = run_json(
+        live_env,
+        "confluence",
+        "page",
+        "label",
+        "list",
+        page_id,
+        "--output",
+        "json",
+    )
+    assert not any(item.get("name") == label_name for item in listed["results"])
+
+    added = run_json(
+        live_env,
+        "confluence",
+        "page",
+        "label",
+        "add",
+        page_id,
+        "--name",
+        label_name,
+        "--output",
+        "json",
+    )
+    label_present["value"] = True
+    assert any(item.get("name") == label_name for item in added["results"])
+
+    labels_read_back = confluence_fixed_version.client.get_page_labels(page_id)
+    assert any(item.get("name") == label_name for item in labels_read_back.get("results", []))
+
+    restrictions_before = confluence_fixed_version.client.get_all_restrictions_for_content(page_id)
+    before_digest = hashlib.sha256(
+        json.dumps(restrictions_before, sort_keys=True).encode()
+    ).hexdigest()
+    restrictions = run_json(
+        live_env,
+        "confluence",
+        "page",
+        "restriction",
+        "get",
+        page_id,
+        "--output",
+        "json",
+    )
+    assert set(restrictions) == {"read", "update"}
+    for operation in ("read", "update"):
+        assert set(restrictions[operation]) == {"users", "groups"}
+
+    restrictions_after = confluence_fixed_version.client.get_all_restrictions_for_content(page_id)
+    after_digest = hashlib.sha256(
+        json.dumps(restrictions_after, sort_keys=True).encode()
+    ).hexdigest()
+    assert after_digest == before_digest
+
+    confluence_fixed_version.client.remove_page_label(page_id, label_name)
+    label_present["value"] = False
+    labels_after_cleanup = confluence_fixed_version.client.get_page_labels(page_id)
+    assert not any(
+        item.get("name") == label_name for item in labels_after_cleanup.get("results", [])
+    )
 
 
 def test_confluence_page_write_rejections_do_not_mutate_live(
